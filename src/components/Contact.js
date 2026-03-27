@@ -1,4 +1,4 @@
-export default function Contact() {
+export default function Contact(){
   return (
     <div style={{
       padding: "60px 20px",
@@ -7,8 +7,8 @@ export default function Contact() {
       textAlign: "center"
     }}>
       <h2>Contact Us</h2>
-      <p>📍 Bhilai 3, India</p>
-      <p>📞 +91 9876543210</p>
+      <p>📍State Electricity Board Colony, Bhilai, Chhattisgarh 490021, India</p>
+      <p>📞 +91 9752440622</p>
       <p>🕒 10 AM - 6 PM</p>
     </div>
   );

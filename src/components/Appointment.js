@@ -16,7 +16,7 @@ const handleSubmit = async (e) => {
   e.preventDefault();
 
   try {
-    const res = await fetch("http://localhost:5000/appointment", {
+    const res = await fetch("https://clinic-backend-mxto.onrender.com", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"

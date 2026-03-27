@@ -4,6 +4,9 @@ import About from "../components/About";
 import Treatments from "../components/Treatments";
 import Appointment from "../components/Appointment";
 import Contact from "../components/Contact";
+import Testmonials from "../components/Testmonials";
+import Remedies from "../components/Remedies";
+import Store from "../components/Store";
 
 export default function Home() {
   return (
@@ -12,6 +15,9 @@ export default function Home() {
       <About />
       <Treatments />
       <Appointment />
+      <Remedies />
+      <Store />
+      <Testmonials /> 
       <Contact />
     </>
   );
