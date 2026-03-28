@@ -70,6 +70,7 @@ const styles = {
     gap: "20px",
     maxWidth: "1000px",
     margin: "auto",
+    zIndex: 1,
   },
 
   card: {

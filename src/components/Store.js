@@ -1,25 +1,109 @@
-import React from "react";
+import React, { useState } from "react";
 
 export default function Store() {
+  const [activeTab, setActiveTab] = useState("All");
+
   const products = [
-    { name: "Arnica Drops", price: "₹120" },
-    { name: "Skin Care Kit", price: "₹250" },
-    { name: "Digestive Tonic", price: "₹180" },
+    {
+      name: "Bryonia Alba",
+      desc: "Cough suppressant",
+      price: "₹120",
+      category: "Cough",
+      img: "https://images.unsplash.com/photo-1563213126-a4273aed2016",
+    },
+    {
+      name: "Arnica",
+      desc: "Pain relief and anti-inflammatory",
+      price: "₹120",
+      category: "Cold",
+      img: "https://images.unsplash.com/photo-1587854692152-cbe660dbde88",
+    },
+    {
+      name: "Belladonna",
+      desc: "Fever and inflammation treatment",
+      price: "₹120",
+      category: "Cold",
+      img: "https://images.unsplash.com/photo-1603398938378-e54eab446dde",
+    },
+    {
+      name: "Digestal",
+      desc: "Improves digestion",
+      price: "₹120",
+      category: "Digestion",
+      img: "https://images.unsplash.com/photo-1580281657527-47c1c74d9c4d",
+    },
+    {
+      name: "Immunodrop",
+      desc: "Boost immunity",
+      price: "₹120",
+      category: "Cough",
+      img: "https://images.unsplash.com/photo-1576089172869-4f5f6f315620",
+    },
+    {
+      name: "Rhus Tox",
+      desc: "Joint pain relief",
+      price: "₹120",
+      category: "Cold",
+      img: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b",
+    },
   ];
+
+  const filteredProducts =
+    activeTab === "All"
+      ? products
+      : products.filter((item) => item.category === activeTab);
 
   return (
     <div style={styles.section}>
-      <h2 style={styles.heading}>Our Medical Store</h2>
+      <h2 style={styles.heading}>Syrups & Drops</h2>
 
+      {/* TABS */}
+      <div style={styles.tabs}>
+        {["Cough", "Cold", "Digestion", "All"].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              ...styles.tab,
+              background: activeTab === tab ? "#166534" : "white",
+              color: activeTab === tab ? "white" : "#166534",
+            }}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {/* PRODUCTS */}
       <div style={styles.container}>
-        {products.map((item, index) => (
-          <div key={index} style={styles.card}>
-            <div style={styles.image}></div>
+        {filteredProducts.map((item, index) => (
+          <div
+            key={index}
+            style={styles.card}
+            data-aos="zoom-in"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.05)";
+              e.currentTarget.style.boxShadow =
+                "0 15px 30px rgba(0,0,0,0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <img src={item.img} alt={item.name} style={styles.image} />
 
             <h3>{item.name}</h3>
-            <p>{item.price}</p>
+            <p>{item.desc}</p>
+            <p style={styles.price}>{item.price}</p>
 
-            <button style={styles.btn}>Order Now</button>
+            <a
+              href="https://wa.me/919752440622"
+              target="_blank"
+              rel="noreferrer"
+            >
+              <button style={styles.btn}>Order Now</button>
+            </a>
           </div>
         ))}
       </div>
@@ -36,37 +120,62 @@ const styles = {
 
   heading: {
     fontSize: "32px",
-    marginBottom: "40px",
-    color: "#151615",
+    marginBottom: "30px",
+    color: "#166534",
+  },
+
+  tabs: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "10px",
+    marginBottom: "30px",
+    flexWrap: "wrap",
+  },
+
+  tab: {
+    padding: "10px 20px",
+    borderRadius: "20px",
+    border: "1px solid #166534",
+    cursor: "pointer",
+    fontWeight: "500",
   },
 
   container: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "20px",
-    maxWidth: "1000px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: "25px",
+    maxWidth: "1100px",
     margin: "auto",
   },
 
   card: {
-    background: "white",
     padding: "20px",
     borderRadius: "16px",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.08)",
+    background: "white",
+    textAlign: "center",
+    transition: "0.3s",
+    cursor: "pointer",
   },
 
   image: {
-    height: "120px",
-    background: "#e6f4ea",
-    borderRadius: "10px",
+    width: "100%",
+    height: "150px",
+    objectFit: "cover",
+    borderRadius: "12px",
     marginBottom: "10px",
+  },
+
+  price: {
+    fontWeight: "600",
+    color: "#166534",
+    marginTop: "5px",
   },
 
   btn: {
     marginTop: "10px",
     padding: "10px",
     width: "100%",
-    borderRadius: "8px",
+    borderRadius: "10px",
     border: "none",
     background: "#166534",
     color: "white",

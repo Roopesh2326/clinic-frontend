@@ -4,15 +4,18 @@ export default function Remedies() {
   const items = [
     {
       name: "Arnica",
-      desc: "Pain relief and healing support",
+      desc: "Pain relief and anti-inflammatory",
+      icon: "💊"
     },
     {
-      name: "Belladonna",
-      desc: "Fever and inflammation treatment",
+      name: "Chamomilla",
+      desc: "Calming and digestive support",
+      icon: "🌿"
     },
     {
-      name: "Nux Vomica",
-      desc: "Digestive and stress relief",
+      name: "Ignatia",
+      desc: "Emotional and stress relief",
+      icon: "🍃"
     },
   ];
 
@@ -22,9 +25,23 @@ export default function Remedies() {
 
       <div style={styles.container}>
         {items.map((item, index) => (
-          <div key={index} style={styles.card}>
-            <div style={styles.circle}></div>
-            <h3>{item.name}</h3>
+          <div
+            key={index}
+            style={styles.card}
+            data-aos="fade-up"
+
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "scale(1.05)";
+              e.currentTarget.style.boxShadow =
+                "0 15px 30px rgba(0,0,0,0.1)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "scale(1)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+          >
+            <div style={styles.iconContainer}>{item.icon}</div>
+            <h3 style={styles.name}>{item.name}</h3>
             <p style={styles.desc}>{item.desc}</p>
           </div>
         ))}
@@ -41,36 +58,44 @@ const styles = {
   },
 
   heading: {
-    fontSize: "32px",
-    marginBottom: "40px",
+    fontSize: "36px",
+    fontWeight: "700",
+    marginBottom: "50px",
     color: "#166534",
   },
 
   container: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-    gap: "20px",
-    maxWidth: "1000px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+    gap: "30px",
+    maxWidth: "1100px",
     margin: "auto",
   },
 
   card: {
     background: "#e6f4ea",
-    padding: "30px",
-    borderRadius: "16px",
+    padding: "40px 30px",
+    borderRadius: "12px",
+    textAlign: "center",
+    transition: "0.3s",
+    cursor: "pointer", // 🔥 added
   },
 
-  circle: {
-    width: "50px",
-    height: "50px",
-    background: "#166534",
-    borderRadius: "50%",
-    margin: "auto",
+  iconContainer: {
+    fontSize: "48px",
+    marginBottom: "20px",
+  },
+
+  name: {
+    fontSize: "20px",
+    fontWeight: "600",
+    color: "#166534",
     marginBottom: "10px",
   },
 
   desc: {
     fontSize: "14px",
-    color: "#444",
+    color: "#555",
+    lineHeight: "1.6",
   },
 };
