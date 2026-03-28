@@ -11,6 +11,9 @@ import Home from "./pages/Home";
 import Admin from "./pages/Admin";
 import Navbar from "./components/Navbar";
 import Chatbot from "./components/Chatbot";
+import Signup from "./pages/Signup";
+import Login from "./pages/Login";
+
 
 function App() {
   useEffect(() => {
@@ -25,6 +28,8 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/signup" element={<Signup />} />
+        <Route path="/login" element={<Login />} />
       </Routes>
     </Router>
   );
