@@ -12,25 +12,38 @@ export default function Appointment() {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
+  const handleSubmit = async (e) => {
+    e.preventDefault();
 
-  try {
-    const res = await fetch("https://clinic-backend-mxto.onrender.com", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(form)
-    });
+    try {
+      const res = await fetch(
+        "https://clinic-backend-mxto.onrender.com/appointments",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(form)
+        }
+      );
 
-    const data = await res.json();
-    alert(data.message);
-  } catch (error) {
-    console.log(error);
-    alert("Error submitting form");
-  }
-};
+      const data = await res.json();
+      alert(data.message||"Appointment booked successfully!");
+
+      //  RESET FORM
+      setForm({
+        name: "",
+        age: "",
+        problem: "",
+        contact: ""
+      });
+
+    } catch (error) {
+      console.log(error);
+      alert("Error submitting form");
+    }
+  };
+
   return (
     <div style={{ padding: "60px 20px", background: "#f8fafc" }}>
       <h2 style={{ textAlign: "center", marginBottom: "30px" }}>
@@ -51,6 +64,7 @@ const handleSubmit = async (e) => {
           type="text"
           name="name"
           placeholder="Your Name"
+          value={form.name}
           onChange={handleChange}
           required
           style={inputStyle}
@@ -60,6 +74,7 @@ const handleSubmit = async (e) => {
           type="number"
           name="age"
           placeholder="Age"
+          value={form.age}
           onChange={handleChange}
           required
           style={inputStyle}
@@ -68,6 +83,7 @@ const handleSubmit = async (e) => {
         <textarea
           name="problem"
           placeholder="Describe your problem"
+          value={form.problem}
           onChange={handleChange}
           required
           style={{ ...inputStyle, gridColumn: "span 2" }}
@@ -77,6 +93,7 @@ const handleSubmit = async (e) => {
           type="text"
           name="contact"
           placeholder="Contact Number"
+          value={form.contact}
           onChange={handleChange}
           required
           style={inputStyle}
@@ -86,7 +103,7 @@ const handleSubmit = async (e) => {
           style={{
             gridColumn: "span 2",
             padding: "12px",
-            background: "#0f172a",
+            background: "#166534",
             color: "white",
             border: "none",
             borderRadius: "6px",
@@ -101,7 +118,6 @@ const handleSubmit = async (e) => {
   );
 }
 
-// 🔥 Input styling
 const inputStyle = {
   padding: "10px",
   borderRadius: "5px",

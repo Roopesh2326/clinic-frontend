@@ -1,56 +1,77 @@
 import React, { useState } from "react";
 
 export default function Chatbot() {
-  const [open, setOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { text: "Hello! Ask me anything about clinic 😊", user: true },
+    { text: "Hello! How can I help you?", sender: "bot" }
   ]);
   const [input, setInput] = useState("");
 
-  const getReply = (msg) => {
-    msg = msg.toLowerCase();
+  const options = [
+    "Clinic Timing",
+    "Consultation Fees",
+    "Available Treatments",
+    "Contact Doctor"
+  ];
 
-    if (msg.includes("timing"))
-      return "Clinic is open from 10 AM to 6 PM";
+  //  BOT LOGIC
+  const getBotReply = (text) => {
+    text = text.toLowerCase();
 
-    if (msg.includes("fee"))
-      return "Consultation fee is ₹200";
+    if (text.includes("time") || text.includes("timing")) return "Clinic is open from 10 AM to 8 PM.";
+    if (text.includes("fee") || text.includes("fees")) return "Consultation fee is ₹200.";
+    if (text.includes("treatment"))
+      return "We treat skin, digestion, stress and more.";
+    if (text.includes("contact") || text.includes("call"))
+      return "Contact on WhatsApp: 9752440622";
 
-    if (msg.includes("treatment"))
-      return "We treat migraine, skin issues, digestion and more.";
-
-    if (msg.includes("appointment"))
-      return "You can book appointment from website or WhatsApp.";
-
-    return "Sorry, please contact on WhatsApp for more info.";
+    return "Sorry, I didn't understand. Please choose an option.";
   };
 
-  const sendMessage = () => {
-    if (!input) return;
+  //  OPTION CLICK
+  const handleOptionClick = (option) => {
+    const reply = getBotReply(option);
 
-    const userMsg = { text: input, user: true };
-    const botMsg = { text: getReply(input), user: false };
+    setMessages([
+      ...messages,
+      { text: option, sender: "user" },
+      { text: reply, sender: "bot" }
+    ]);
+  };
 
-    setMessages([...messages, userMsg, botMsg]);
+  //  SEND MESSAGE
+  const handleSend = () => {
+    if (!input.trim()) return;
+
+    const reply = getBotReply(input);
+
+    setMessages([
+      ...messages,
+      { text: input, sender: "user" },
+      { text: reply, sender: "bot" }
+    ]);
+
     setInput("");
   };
 
   return (
-    <div>
-      {/* Button */}
-      <div style={styles.button} onClick={() => setOpen(!open)}>
+    <>
+      {/* ICON */}
+      <div style={styles.icon} onClick={() => setIsOpen(!isOpen)}>
         💬
       </div>
 
-      {open && (
+      {/* CHATBOX */}
+      {isOpen && (
         <div style={styles.chatbox}>
+          <h4>Chat with us</h4>
+
           <div style={styles.messages}>
             {messages.map((msg, i) => (
               <p
                 key={i}
                 style={{
-                  textAlign: msg.user ? "right" : "left",
-                  margin: "5px 0",
+                  textAlign: msg.sender === "user" ? "right" : "left"
                 }}
               >
                 {msg.text}
@@ -58,65 +79,110 @@ export default function Chatbot() {
             ))}
           </div>
 
-          <input
-            style={styles.input}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Type message..."
-          />
+          {/* OPTIONS */}
+          <div style={styles.options}>
+            {options.map((opt, i) => (
+              <button
+                key={i}
+                onClick={() => handleOptionClick(opt)}
+                style={styles.optionBtn}
+              >
+                {opt}
+              </button>
+            ))}
+          </div>
 
-          <button style={styles.sendBtn} onClick={sendMessage}>
-            Send
-          </button>
+          {/* 🔥 INPUT BOX */}
+          <div style={styles.inputBox}>
+            <input
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Type your question..."
+              style={styles.input}
+            />
+
+            <button onClick={handleSend} style={styles.sendBtn}>
+              Send
+            </button>
+          </div>
         </div>
       )}
-    </div>
+    </>
   );
 }
 
 const styles = {
-  button: {
+  icon: {
     position: "fixed",
     bottom: "20px",
     right: "20px",
+    width: "60px",
+    height: "60px",
     background: "#166534",
     color: "white",
-    padding: "15px",
     borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "24px",
     cursor: "pointer",
-    zIndex: 9999,
+    zIndex: 9999
   },
 
   chatbox: {
     position: "fixed",
-    bottom: "80px",
+    bottom: "90px",
     right: "20px",
-    width: "260px",
+    width: "300px",
     background: "white",
-    padding: "10px",
     borderRadius: "10px",
-    boxShadow: "0 10px 25px rgba(0,0,0,0.2)",
+    padding: "10px",
+    boxShadow: "0 5px 20px rgba(0,0,0,0.2)",
+    zIndex: 9999
   },
 
   messages: {
-    maxHeight: "150px",
+    height: "150px",
     overflowY: "auto",
     fontSize: "14px",
+    marginBottom: "10px"
+  },
+
+  options: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "5px",
+    marginBottom: "10px"
+  },
+
+  optionBtn: {
+    padding: "6px",
+    borderRadius: "6px",
+    border: "none",
+    background: "#166534",
+    color: "white",
+    cursor: "pointer",
+    fontSize: "12px"
+  },
+
+  inputBox: {
+    display: "flex",
+    gap: "5px"
   },
 
   input: {
-    width: "100%",
-    padding: "8px",
-    marginTop: "5px",
+    flex: 1,
+    padding: "6px",
+    borderRadius: "6px",
+    border: "1px solid #ccc"
   },
 
   sendBtn: {
-    marginTop: "5px",
-    width: "100%",
-    padding: "8px",
+    padding: "6px 10px",
+    border: "none",
     background: "#166534",
     color: "white",
-    border: "none",
-    cursor: "pointer",
-  },
+    borderRadius: "6px",
+    cursor: "pointer"
+  }
 };

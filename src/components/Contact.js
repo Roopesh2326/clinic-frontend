@@ -7,8 +7,8 @@ export default function Contact(){
       textAlign: "center"
     }}>
       <h2>Contact Us</h2>
-      <p>📍State Electricity Board Colony, Bhilai, Chhattisgarh 490021, India</p>
-      <p>📞 +91 9752440622</p>
+      <p>📍Delhi, India</p>
+      <p>📞 +91 975244444</p>
       <p>🕒 10 AM - 6 PM</p>
     </div>
   );

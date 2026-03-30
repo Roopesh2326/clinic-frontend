@@ -2,24 +2,64 @@ import { useEffect, useState } from "react";
 
 export default function Admin() {
   const [data, setData] = useState([]);
+  const [notice, setNotice] = useState("");
 
-  //  PROTECT ADMIN PAGE
+  // 🔐 PROTECT ADMIN PAGE
   useEffect(() => {
     if (!localStorage.getItem("isLoggedIn")) {
       window.location.href = "/login";
     }
   }, []);
 
-  //  FETCH DATA
+  // 📢 UPDATE NOTICE
+  const updateNotice = async () => {
+    try {
+      await fetch("https://clinic-backend-mxto.onrender.com/notice", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ message: notice }),
+      });
+
+      alert("Notice updated successfully");
+      setNotice(""); // clear input
+    } catch (error) {
+      alert("Error updating notice");
+    }
+  };
+
+  // 📥 FETCH APPOINTMENTS
   useEffect(() => {
-    fetch("http://localhost:5000/appointments")
+    fetch("https://clinic-backend-mxto.onrender.com/appointments")
       .then((res) => res.json())
-      .then((data) => setData(data));
+      .then((data) => setData(data))
+      .catch(() => console.log("Error fetching appointments"));
   }, []);
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.heading}>Appointments</h2>
+      
+      {/* 🔥 NOTICE SECTION */}
+      <h2 style={styles.heading}>Admin Panel</h2>
+
+      <div style={styles.noticeBox}>
+        <h3>Update Notice</h3>
+
+        <input
+          placeholder="Enter notice (e.g. Clinic closed today)"
+          value={notice}
+          onChange={(e) => setNotice(e.target.value)}
+          style={styles.input}
+        />
+
+        <button style={styles.btn} onClick={updateNotice}>
+          Update Notice
+        </button>
+      </div>
+
+      {/* 📋 APPOINTMENTS */}
+      <h3 style={{ marginTop: "30px" }}>Appointments</h3>
 
       {data.length === 0 ? (
         <p>No appointments yet</p>
@@ -45,6 +85,30 @@ const styles = {
   heading: {
     marginBottom: "20px",
     color: "#166534",
+  },
+
+  noticeBox: {
+    background: "#f0fdf4",
+    padding: "20px",
+    borderRadius: "10px",
+    marginBottom: "20px",
+  },
+
+  input: {
+    padding: "10px",
+    width: "300px",
+    marginRight: "10px",
+    borderRadius: "5px",
+    border: "1px solid #ccc",
+  },
+
+  btn: {
+    padding: "10px 20px",
+    background: "#166534",
+    color: "white",
+    border: "none",
+    borderRadius: "5px",
+    cursor: "pointer",
   },
 
   card: {

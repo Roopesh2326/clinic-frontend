@@ -7,10 +7,10 @@ export default function About() {
 
         {/* LEFT CONTENT */}
         <div style={styles.textBox}>
-          <h2 style={styles.title}>About Dr. Loknath Clinic</h2>
+          <h2 style={styles.title}>About Dr. Somnath Clinic</h2>
 
           <p style={styles.description}>
-            Dr. Loknath is an experienced homeopathy doctor dedicated to providing
+            Dr. Somnath is an experienced homeopathy doctor dedicated to providing
             safe and effective treatments for chronic diseases. With years of
             expertise, the clinic focuses on personalized care and natural healing.
           </p>

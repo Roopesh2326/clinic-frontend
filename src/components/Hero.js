@@ -1,7 +1,10 @@
 import React from "react";
 import heroImg from "../assets/hero.jpeg";
+import { useNavigate } from "react-router-dom";
 
 export default function Hero() {
+  
+
   return (
     <div style={styles.hero}>
       {/* LEFT SIDE */}
@@ -15,10 +18,18 @@ export default function Hero() {
         </p>
 
         <div style={styles.buttonContainer}>
-          <button style={styles.primaryBtn}>Book Consultation</button>
-
+          <button 
+          style={styles.primaryBtn}
+          onClick={() => {
+            document
+            .getElementById("appointment")
+            ?.scrollIntoView({ behavior: "smooth" });
+          }}>
+            Book Consultation
+          </button>
+    
           <a
-            href="https://wa.me/919752440622"
+            href="https://wa.me/91975244444"
             target="_blank"
             rel="noreferrer"
           >
