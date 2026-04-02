@@ -61,8 +61,8 @@ export default function PaymentGateway({ total, onSuccess }) {
     
     // Optionally open UPI app after success callback
     setTimeout(() => {
-      const upiUrl = `upi://pay?pa=${upiId}&pn=DrLoknathClinic&am=${total}&tn=MedicineOrder&tr=${Date.now()}`;
-      // Uncomment below to open UPI app
+      // const upiUrl = `upi://pay?pa=${upiId}&pn=DrLoknathClinic&am=${total}&tn=MedicineOrder&tr=${Date.now()}`;
+      // For production, uncomment to open the UPI app
       // window.location.href = upiUrl;
     }, 500);
   };

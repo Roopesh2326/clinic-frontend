@@ -4,8 +4,8 @@ import { Container, Grid, Card, CardContent, Typography, Button, Box, Chip, Tabl
 
 export default function UserDashboard() {
   const [user, setUser] = useState(null);
-  const [cart, setCart] = useState(JSON.parse(localStorage.getItem("cart")) || []);
-  const [orders, setOrders] = useState(JSON.parse(localStorage.getItem("orders")) || []);
+  const [cart] = useState(JSON.parse(localStorage.getItem("cart")) || []);
+  const [orders] = useState(JSON.parse(localStorage.getItem("orders")) || []);
 
   useEffect(() => {
     if (!localStorage.getItem("isLoggedIn") || localStorage.getItem("role") !== "user") {
