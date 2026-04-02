@@ -7,10 +7,13 @@ export default function NoticeBar() {
         fetch("https://clinic-backend-mxto.onrender.com/notice")
             .then((res) => res.json())
             .then((data) => {
-                if (data) setNotice(data.message);
+                console.log("Notice data:", data);
+                if (data && data.message) {
+                    setNotice(data.message);
+                }
             })
-            .catch(() => console.log("Error fetching notice"));
-    }), [];
+            .catch((error) => console.log("Error fetching notice:", error));
+    }, []);
 
     if (!notice) return null;
 
@@ -25,8 +28,13 @@ const styles = {
     bar: {
         background: "#166534",
         color: "white",
-        padding: "10px",
+        padding: "12px 10px",
         textAlign: "center",
-        fontsize: "14px",
+        fontSize: "14px",
+        fontWeight: "600",
+        position: "sticky",
+        top: 0,
+        zIndex: 1000,
+        boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
     },
 };

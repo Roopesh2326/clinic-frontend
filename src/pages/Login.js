@@ -12,9 +12,14 @@ export default function Login() {
 
       //  SAVE LOGIN STATE
       localStorage.setItem("isLoggedIn", true);
+      localStorage.setItem("role", user.role);
 
-      // REDIRECT TO HOME
-      window.location.href = "/";
+      // REDIRECT BASED ON ROLE
+      if (user.role === "admin") {
+        window.location.href = "/admin";
+      } else {
+        window.location.href = "/store";
+      }
     } else {
       alert("Invalid credentials");
     }
@@ -55,7 +60,12 @@ export default function Login() {
 
 const styles = {
   container: {
-    padding: "100px 20px",
+    maxWidth: "400px",
+    margin: "50px auto",
+    padding: "30px",
+    background: "white",
+    borderRadius: "10px",
+    boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
     textAlign: "center",
   },
 
@@ -67,19 +77,22 @@ const styles = {
   input: {
     display: "block",
     margin: "10px auto",
-    padding: "10px",
-    width: "250px",
-    borderRadius: "8px",
+    padding: "12px",
+    width: "100%",
+    borderRadius: "5px",
     border: "1px solid #ccc",
+    fontSize: "16px",
   },
 
   btn: {
     marginTop: "10px",
-    padding: "10px 20px",
+    padding: "12px",
+    width: "100%",
     background: "#166534",
     color: "white",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "5px",
     cursor: "pointer",
+    fontSize: "16px",
   },
 };

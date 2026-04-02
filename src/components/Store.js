@@ -2,60 +2,29 @@ import React, { useState } from "react";
 
 export default function Store() {
   const [activeTab, setActiveTab] = useState("All");
+  const [cart, setCart] = useState(JSON.parse(localStorage.getItem("cart")) || []);
+  const [message, setMessage] = useState("");
+  const [medicines, setMedicines] = useState(JSON.parse(localStorage.getItem("medicines")) || []);
 
-  const products = [
-    {
-      name: "Bryonia Alba",
-      desc: "Cough suppressant",
-      price: "₹120",
-      category: "Cough",
-      img: "https://images.unsplash.com/photo-1563213126-a4273aed2016",
-    },
-    {
-      name: "Arnica",
-      desc: "Pain relief and anti-inflammatory",
-      price: "₹120",
-      category: "Cold",
-      img: "https://images.unsplash.com/photo-1587854692152-cbe660dbde88",
-    },
-    {
-      name: "Belladonna",
-      desc: "Fever and inflammation treatment",
-      price: "₹120",
-      category: "Cold",
-      img: "https://images.unsplash.com/photo-1603398938378-e54eab446dde",
-    },
-    {
-      name: "Digestal",
-      desc: "Improves digestion",
-      price: "₹120",
-      category: "Digestion",
-      img: "https://images.unsplash.com/photo-1580281657527-47c1c74d9c4d",
-    },
-    {
-      name: "Immunodrop",
-      desc: "Boost immunity",
-      price: "₹120",
-      category: "Cough",
-      img: "https://images.unsplash.com/photo-1576089172869-4f5f6f315620",
-    },
-    {
-      name: "Rhus Tox",
-      desc: "Joint pain relief",
-      price: "₹120",
-      category: "Cold",
-      img: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b",
-    },
-  ];
+  const addToCart = (product) => {
+    const newCart = [...cart, product];
+    setCart(newCart);
+    localStorage.setItem("cart", JSON.stringify(newCart));
+    window.dispatchEvent(new Event("cartUpdate"));
+    setMessage(`${product.name} added to cart!`);
+    setTimeout(() => setMessage(""), 2000);
+  };
 
   const filteredProducts =
     activeTab === "All"
-      ? products
-      : products.filter((item) => item.category === activeTab);
+      ? medicines
+      : medicines.filter((item) => item.category === activeTab);
 
   return (
-    <div style={styles.section}>
+    <div id="store" style={styles.section}>
       <h2 style={styles.heading}>Syrups & Drops</h2>
+
+      {message && <div style={styles.message}>{message}</div>}
 
       {/* TABS */}
       <div style={styles.tabs}>
@@ -76,36 +45,49 @@ export default function Store() {
 
       {/* PRODUCTS */}
       <div style={styles.container}>
-        {filteredProducts.map((item, index) => (
-          <div
-            key={index}
-            style={styles.card}
-            data-aos="zoom-in"
-            onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "scale(1.05)";
-              e.currentTarget.style.boxShadow =
-                "0 15px 30px rgba(0,0,0,0.1)";
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "scale(1)";
-              e.currentTarget.style.boxShadow = "none";
-            }}
-          >
-            <img src={item.img} alt={item.name} style={styles.image} />
-
-            <h3>{item.name}</h3>
-            <p>{item.desc}</p>
-            <p style={styles.price}>{item.price}</p>
-
-            <a
-              href="https://wa.me/919752440622"
-              target="_blank"
-              rel="noreferrer"
+        {filteredProducts.length === 0 ? (
+          <p style={{ gridColumn: "1/-1", textAlign: "center", padding: "20px" }}>No medicines in this category</p>
+        ) : (
+          filteredProducts.map((item, index) => (
+            <div
+              key={index}
+              style={styles.card}
+              data-aos="zoom-in"
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = "scale(1.05) rotateY(5deg)";
+                e.currentTarget.style.boxShadow =
+                  "0 15px 30px rgba(0,0,0,0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "scale(1) rotateY(0deg)";
+                e.currentTarget.style.boxShadow = "none";
+              }}
             >
-              <button style={styles.btn}>Order Now</button>
-            </a>
-          </div>
-        ))}
+              <img src={item.img} alt={item.name} style={styles.image} />
+
+              <h3>{item.name}</h3>
+              <p>{item.desc}</p>
+              <p style={styles.price}>{item.price}</p>
+
+              <div style={styles.buttonContainer}>
+                <button
+                  style={styles.addToCartBtn}
+                  onClick={() => addToCart(item)}
+                >
+                  Add to Cart
+                </button>
+
+                <a
+                  href="https://wa.me/919752440622"
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <button style={styles.btn}>Order Now</button>
+                </a>
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   );
@@ -122,6 +104,16 @@ const styles = {
     fontSize: "32px",
     marginBottom: "30px",
     color: "#166534",
+  },
+
+  message: {
+    background: "#d4edda",
+    color: "#155724",
+    padding: "10px",
+    borderRadius: "5px",
+    marginBottom: "20px",
+    textAlign: "center",
+    fontWeight: "500",
   },
 
   tabs: {
@@ -155,6 +147,7 @@ const styles = {
     textAlign: "center",
     transition: "0.3s",
     cursor: "pointer",
+    transformStyle: "preserve-3d",
   },
 
   image: {
@@ -179,6 +172,22 @@ const styles = {
     border: "none",
     background: "#166534",
     color: "white",
+    cursor: "pointer",
+  },
+
+  buttonContainer: {
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px",
+  },
+
+  addToCartBtn: {
+    flex: 1,
+    padding: "10px",
+    borderRadius: "10px",
+    border: "1px solid #166534",
+    background: "white",
+    color: "#166534",
     cursor: "pointer",
   },
 };

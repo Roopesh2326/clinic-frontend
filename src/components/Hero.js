@@ -59,9 +59,16 @@ const styles = {
     justifyContent: "space-between",
     padding: "60px 40px",
     background: "linear-gradient(135deg, #f0fdf4 0%, #dbeafe 100%)",
+    backgroundImage: `url(${heroImg}), linear-gradient(135deg, #f0fdf4 0%, #dbeafe 100%)`,
+    backgroundSize: "300px auto, cover",
+    backgroundPosition: "right bottom, center",
+    backgroundRepeat: "no-repeat, no-repeat",
+    backgroundAttachment: "scroll, scroll",
     minHeight: "500px",
     flexWrap: "wrap",
     gap: "40px",
+    position: "relative",
+    overflow: "hidden",
   },
 
   left: {
