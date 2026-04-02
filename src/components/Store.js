@@ -4,7 +4,7 @@ export default function Store() {
   const [activeTab, setActiveTab] = useState("All");
   const [cart, setCart] = useState(JSON.parse(localStorage.getItem("cart")) || []);
   const [message, setMessage] = useState("");
-  const [medicines, setMedicines] = useState(JSON.parse(localStorage.getItem("medicines")) || []);
+  const [medicines] = useState(JSON.parse(localStorage.getItem("medicines")) || []);
 
   const addToCart = (product) => {
     const newCart = [...cart, product];
