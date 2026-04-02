@@ -37,7 +37,7 @@ const styles = {
   heroContainer: {
     position: "relative",
     width: "100%",
-    minHeight: "640px",
+    minHeight: "75vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-start",
@@ -89,7 +89,7 @@ const styles = {
     flexWrap: "wrap",
   },
   primaryBtn: {
-    border: "2px solid #7af3b4",
+    border: "2px solid #089211",
     background: "#3fc085",
     color: "#fff",
     fontSize: "16px",
