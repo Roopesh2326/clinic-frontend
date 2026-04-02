@@ -66,13 +66,12 @@ export default function Chatbot() {
         <div style={styles.chatbox}>
           <h4>Chat with us</h4>
 
+          <style>{`@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-7px); } }`}</style>
           <div style={styles.messages}>
             {messages.map((msg, i) => (
               <p
                 key={i}
-                style={{
-                  textAlign: msg.sender === "user" ? "right" : "left"
-                }}
+                style={msg.sender === "user" ? styles.userMsg : styles.botMsg}
               >
                 {msg.text}
               </p>
@@ -118,7 +117,7 @@ const styles = {
     right: "20px",
     width: "60px",
     height: "60px",
-    background: "#166534",
+    background: "linear-gradient(145deg, #1d7a3f, #24b04c)",
     color: "white",
     borderRadius: "50%",
     display: "flex",
@@ -126,18 +125,22 @@ const styles = {
     justifyContent: "center",
     fontSize: "24px",
     cursor: "pointer",
-    zIndex: 9999
+    zIndex: 9999,
+    boxShadow: "0 10px 25px rgba(22, 101, 52, 0.45)",
+    animation: "float 3s ease-in-out infinite"
   },
 
   chatbox: {
     position: "fixed",
     bottom: "90px",
     right: "20px",
-    width: "300px",
-    background: "white",
-    borderRadius: "10px",
-    padding: "10px",
-    boxShadow: "0 5px 20px rgba(0,0,0,0.2)",
+    width: "320px",
+    background: "rgba(255,255,255,0.22)",
+    border: "1px solid rgba(255,255,255,0.35)",
+    borderRadius: "16px",
+    padding: "12px",
+    boxShadow: "0 8px 30px rgba(22, 101, 52, 0.25)",
+    backdropFilter: "blur(12px)",
     zIndex: 9999
   },
 
@@ -184,5 +187,29 @@ const styles = {
     color: "white",
     borderRadius: "6px",
     cursor: "pointer"
+  },
+
+  botMsg: {
+    background: "rgba(22, 101, 52, 0.08)",
+    border: "1px solid rgba(22, 101, 52, 0.15)",
+    borderRadius: "8px",
+    padding: "6px 8px",
+    margin: "3px 0",
+    display: "inline-block",
+    maxWidth: "85%",
+    textAlign: "left",
+    color: "#0f3d28"
+  },
+
+  userMsg: {
+    background: "rgba(0, 128, 0, 0.08)",
+    border: "1px solid rgba(0, 128, 0, 0.15)",
+    borderRadius: "8px",
+    padding: "6px 8px",
+    margin: "3px 0",
+    display: "inline-block",
+    maxWidth: "85%",
+    textAlign: "right",
+    color: "#064320"
   }
 };

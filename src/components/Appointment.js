@@ -29,10 +29,22 @@ export default function Appointment() {
         }
       );
 
-      const data = await res.json();
-      alert(data.message||"Appointment booked successfully!");
+      let data;
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
+      }
 
-      //  RESET FORM
+      if (!res.ok) {
+        const errorMessage = data?.message || data?.error || "Server error: could not book appointment";
+        alert(errorMessage);
+        return;
+      }
+
+      alert(data.message || "Appointment booked successfully!");
+
+      // RESET FORM
       setForm({
         name: "",
         age: "",

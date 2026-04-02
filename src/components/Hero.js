@@ -1,141 +1,113 @@
 import React from "react";
-import heroImg from "../assets/hero.jpeg";
-import { useNavigate } from "react-router-dom";
+import heroBg from "../assets/hero.jpeg";
 
 export default function Hero() {
-  
-
   return (
-    <div style={styles.hero}>
-      {/* LEFT SIDE */}
-      <div style={styles.left}>
-        <h1 style={styles.title}>
-          Natural Healing <br /> with Homeopathy
-        </h1>
-
-        <p style={styles.subtitle}>
-          Holistic and natural remedies for your well-being.
-        </p>
-
-        <div style={styles.buttonContainer}>
-          <button 
-          style={styles.primaryBtn}
-          onClick={() => {
-            document
-            .getElementById("appointment")
-            ?.scrollIntoView({ behavior: "smooth" });
-          }}>
-            Book Consultation
-          </button>
-    
-          <a
-            href="https://wa.me/91975244444"
-            target="_blank"
-            rel="noreferrer"
-          >
-            <button style={styles.whatsappBtn}>
-              Chat on WhatsApp
-            </button>
+    <section className="hero-container" style={styles.heroContainer}>
+      <div style={styles.heroOverlay} />
+      <div className="hero-left-content" style={styles.leftContent}>
+        <p style={styles.highlight}>100% Homeopathic Care</p>
+        <h1 className="hero-title" style={styles.title}>Evolving Wellness.<br/>Consistent Healing.</h1>
+        <p className="hero-subtitle" style={styles.subtitle}>Stay current on the forces shaping natural health with personalised homeopathy insights.</p>
+        <div style={styles.buttonRow}>
+          <button style={styles.primaryBtn} onClick={() => document.getElementById("appointment")?.scrollIntoView({ behavior: "smooth" })}>Book Consultation</button>
+          <a href="https://wa.me/91975244444" target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>
+            <button style={styles.secondaryBtn}>Chat on WhatsApp</button>
           </a>
         </div>
       </div>
-
-      {/* RIGHT SIDE */}
-      <div style={styles.right}>
-        <img
-          src={heroImg} 
-          alt="homeopathy bottles"
-          style={styles.image}
-        />
-      </div>
-    </div>
+      <style>{`
+        @media (max-width: 960px) {
+          .hero-container { height: 520px; padding: 0 34px; }
+          .hero-left-content { width: 100%; max-width: 100%; padding: 30px; }
+          .hero-title { font-size: 42px !important; }
+          .hero-subtitle { font-size: 17px !important; }
+        }
+        @media (max-width: 600px) {
+          .hero-container { height: 460px; padding: 0 18px; }
+          .hero-left-content { padding: 22px; border-radius: 16px; }
+          .hero-title { font-size: 30px !important; }
+          .hero-subtitle { font-size: 15px !important; }
+        }
+      `}</style>    </section>
   );
 }
 
 const styles = {
-  hero: {
+  heroContainer: {
+    position: "relative",
+    width: "100%",
+    minHeight: "640px",
     display: "flex",
     alignItems: "center",
-    justifyContent: "space-between",
-    padding: "60px 40px",
-    background: "linear-gradient(135deg, #f0fdf4 0%, #dbeafe 100%)",
-    backgroundImage: `url(${heroImg}), linear-gradient(135deg, #f0fdf4 0%, #dbeafe 100%)`,
-    backgroundSize: "300px auto, cover",
-    backgroundPosition: "right bottom, center",
-    backgroundRepeat: "no-repeat, no-repeat",
-    backgroundAttachment: "scroll, scroll",
-    minHeight: "500px",
-    flexWrap: "wrap",
-    gap: "40px",
-    position: "relative",
+    justifyContent: "flex-start",
+    padding: "0 60px",
+    color: "#fff",
+    background: `url('${heroBg}') no-repeat center/cover`,
+    backgroundAttachment: "fixed",
     overflow: "hidden",
   },
-
-  left: {
-    flex: "1",
-    minWidth: "300px",
-    maxWidth: "500px",
+  heroOverlay: {
+    position: "absolute",
+    inset: 0,
+    background: "linear-gradient(120deg, rgba(4, 27, 22, 0.65), rgba(4, 40, 43, 0.62))",
+    zIndex: 1,
   },
-
+  leftContent: {
+    position: "relative",
+    zIndex: 2,
+    maxWidth: "640px",
+    backgroundColor: "rgba(6, 41, 39, 0.6)",
+    border: "1px solid rgba(76, 230, 155, 0.3)",
+    borderRadius: "22px",
+    padding: "36px 42px",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.35)",
+  },
+  highlight: {
+    margin: 0,
+    marginBottom: "14px",
+    color: "#8cf3bf",
+    fontWeight: 700,
+  },
   title: {
-    fontSize: "48px",
-    fontWeight: "700",
-    color: "#166534",
-    marginBottom: "20px",
-    lineHeight: "1.3",
+    margin: 0,
+    fontSize: "58px",
+    lineHeight: "1.08",
+    fontWeight: 900,
+    textShadow: "0 10px 24px rgba(0,0,0,0.35)",
   },
-
   subtitle: {
-    fontSize: "16px",
-    color: "#555",
+    marginTop: "18px",
     marginBottom: "30px",
-    lineHeight: "1.6",
+    fontSize: "20px",
+    color: "#d8f9e3",
+    lineHeight: 1.6,
   },
-
-  buttonContainer: {
+  buttonRow: {
     display: "flex",
-    gap: "15px",
+    gap: "12px",
     flexWrap: "wrap",
   },
-
   primaryBtn: {
-    padding: "14px 35px",
+    border: "2px solid #7af3b4",
+    background: "#3fc085",
+    color: "#fff",
     fontSize: "16px",
-    borderRadius: "25px",
-    border: "none",
-    background: "#166534",
-    color: "white",
+    fontWeight: 700,
+    padding: "12px 26px",
+    borderRadius: "999px",
     cursor: "pointer",
-    fontWeight: "600",
-    boxShadow: "0 5px 15px rgba(0, 0, 0, 0.3)",
-    transition: "transform 0.2s",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
   },
-
-  whatsappBtn: {
-    padding: "14px 35px",
+  secondaryBtn: {
+    border: "2px solid #48c37b",
+    background: "#2f9a6b",
+    color: "#fff",
     fontSize: "16px",
-    borderRadius: "25px",
-    border: "none",
-    background: "#25D366",
-    color: "white",
+    fontWeight: 700,
+    padding: "12px 26px",
+    borderRadius: "999px",
     cursor: "pointer",
-    fontWeight: "600",
-    boxShadow: "0 5px 15px rgba(0, 0, 0, 0.3)",
-    transition: "transform 0.2s",
-  },
-
-  right: {
-    flex: "1",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    minWidth: "300px",
-  },
-
-  image: {
-    width: "100%",
-    maxWidth: "400px",
-    height: "auto",
-    objectFit: "contain",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
   },
 };

@@ -6,7 +6,7 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [newMedicine, setNewMedicine] = useState({ name: "", desc: "", price: "", img: "" });
+  const [newMedicine, setNewMedicine] = useState({ name: "", desc: "", price: "", category: "", img: "" });
   const [imgPreview, setImgPreview] = useState("");
 
   // 🔐 PROTECT ADMIN PAGE
@@ -68,15 +68,15 @@ export default function Admin() {
   }, []);
 
   const addMedicine = () => {
-    if (!newMedicine.name || !newMedicine.desc || !newMedicine.price || !newMedicine.img) {
-      alert("Please fill all medicine details and upload an image");
+    if (!newMedicine.name || !newMedicine.desc || !newMedicine.price || !newMedicine.category || !newMedicine.img) {
+      alert("Please fill all medicine details, select category, and upload an image");
       return;
     }
 
     const updated = [...medicines, { ...newMedicine }];
     setMedicines(updated);
     localStorage.setItem("medicines", JSON.stringify(updated));
-    setNewMedicine({ name: "", desc: "", price: "", img: "" });
+    setNewMedicine({ name: "", desc: "", price: "", category: "", img: "" });
     setImgPreview("");
     alert("Medicine added successfully");
   };
@@ -230,6 +230,13 @@ export default function Admin() {
         />
 
         <input
+          placeholder="Category"
+          value={newMedicine.category}
+          onChange={(e) => setNewMedicine({ ...newMedicine, category: e.target.value })}
+          style={styles.input}
+        />
+
+        <input
           type="file"
           accept="image/*"
           onChange={handleImageSelect}
@@ -251,6 +258,7 @@ export default function Admin() {
               {medicine.img && <img src={medicine.img} alt={medicine.name} style={styles.medicineImg} />}
               <p><b>{medicine.name}</b></p>
               <p>{medicine.desc}</p>
+              <p><strong>Category:</strong> {medicine.category || "N/A"}</p>
               <p>₹{medicine.price}</p>
             </div>
           ))}

@@ -1,9 +1,5 @@
 import React from "react";
 import { Box, Container, Grid, Typography, Link } from "@mui/material";
-import FacebookIcon from "@mui/icons-material/Facebook";
-import TwitterIcon from "@mui/icons-material/Twitter";
-import LinkedInIcon from "@mui/icons-material/LinkedIn";
-import InstagramIcon from "@mui/icons-material/Instagram";
 
 export default function Footer() {
   return (
@@ -23,7 +19,7 @@ export default function Footer() {
             </Typography>
           </Grid>
 
-          {/* CONTACT US */}
+          {/* CONTACT + QUICK SECTION */}
           <Grid item xs={12} sm={6}>
             <Typography variant="h6" style={styles.sectionTitle}>
               📞 Contact Us
@@ -40,11 +36,18 @@ export default function Footer() {
             <Typography variant="body2" style={styles.text}>
               🕐 10 AM - 6 PM, Mon-Sat
             </Typography>
-            <Box style={styles.socialIcons}>
-              <a href="#" style={styles.icon}><FacebookIcon style={styles.iconColor} /></a>
-              <a href="#" style={styles.icon}><TwitterIcon style={styles.iconColor} /></a>
-              <a href="#" style={styles.icon}><LinkedInIcon style={styles.iconColor} /></a>
-              <a href="#" style={styles.icon}><InstagramIcon style={styles.iconColor} /></a>
+          </Grid>
+
+          <Grid item xs={12} sm={6}>
+            <Box style={styles.quickLinksWrapperStandalone}>
+              <Typography variant="h6" style={styles.quickLinksTitle}>Quick Links</Typography>
+              <ul style={styles.quickLinksBulletList}>
+                <li><Link href="/store" style={styles.quickLink}>Store</Link></li>
+                <li><Link href="/remedies" style={styles.quickLink}>Remedies</Link></li>
+                <li><Link href="/treatments" style={styles.quickLink}>Treatments</Link></li>
+                <li><Link href="/appointment" style={styles.quickLink}>Book Appointment</Link></li>
+                <li><Link href="/health-tips" style={styles.quickLink}>Health Tips</Link></li>
+              </ul>
             </Box>
           </Grid>
         </Grid>
@@ -101,6 +104,66 @@ const styles = {
   iconColor: {
     color: "#4ade80",
     fontSize: "24px",
+  },
+  contactQuickWrapper: {
+    display: "flex",
+    gap: "26px",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
+  },
+  contactQuickColumn: {
+    flex: "1 1 260px",
+  },
+  quickLinksWrapper: {
+    flex: "1 1 240px",
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: "12px",
+    padding: "14px",
+    border: "1px solid rgba(255,255,255,0.17)",
+  },
+  quickLinksTitle: {
+    fontSize: "16px",
+    color: "#4ade80",
+    marginBottom: "10px",
+    fontWeight: 700,
+  },
+  quickLinksRow: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+  },
+  quickLinksWrapperStandalone: {
+    background: "rgba(255,255,255,0.06)",
+    borderRadius: "12px",
+    padding: "18px",
+    border: "1px solid rgba(255,255,255,0.17)",
+  },
+  quickLinksRowWrap: {
+    display: "flex",
+    gap: "10px",
+    flexWrap: "wrap",
+    justifyContent: "flex-start",
+  },
+  quickLink: {
+    color: "#e2e8f0",
+    background: "rgba(77, 220, 135, 0.16)",
+    border: "1px solid rgba(77, 220, 135, 0.3)",
+    borderRadius: "8px",
+    padding: "8px 14px",
+    fontWeight: 600,
+    textDecoration: "none",
+    transition: "all 0.2s ease",
+    display: "inline-block",
+  },
+  quickLinksBulletList: {
+    listStyleType: "disc",
+    margin: "8px 0 0 20px",
+    padding: 0,
+    color: "#e2e8f0",
+    lineHeight: 1.8,
+  },
+  quickLinkHover: {
+    background: "rgba(77, 220, 135, 0.32)",
   },
   bottom: {
     textAlign: "center",

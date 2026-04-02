@@ -13,12 +13,12 @@ export default function Home() {
     <>
       <NoticeBar />
       <Hero />
-      <Remedies />
+      <div id="remedies"><Remedies /></div>
+      <div id="treatments"><Treatments /></div>
       <Testmonials />
       <HealthTips />
-      <About />
-      <Treatments />
-      <Appointment />
+      <div id="about"><About /></div>
+      <div id="appointment"><Appointment /></div>
     </>
   );
 }
