@@ -1,27 +1,31 @@
 import React, { useState } from "react";
+import axios from "axios";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleLogin = () => {
-    const user = JSON.parse(localStorage.getItem("user"));
+  const handleLogin = async () => {
+    try {
+      const response = await axios.post("https://clinic-backend-mxto.onrender.com/login", {
+        email,
+        password
+      }, { withCredentials: true });
 
-    if (user && user.email === email && user.password === password) {
-      alert("Login successful!");
+      alert(response.data.message);
 
-      //  SAVE LOGIN STATE
+      // SAVE LOGIN STATE
       localStorage.setItem("isLoggedIn", true);
-      localStorage.setItem("role", user.role);
+      localStorage.setItem("role", response.data.role);
 
       // REDIRECT BASED ON ROLE
-      if (user.role === "admin") {
+      if (response.data.role === "admin") {
         window.location.href = "/admin";
       } else {
         window.location.href = "/store";
       }
-    } else {
-      alert("Invalid credentials");
+    } catch (error) {
+      alert(error.response?.data?.message || "Login failed");
     }
   };
 

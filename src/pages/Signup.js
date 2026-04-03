@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import axios from "axios";
 
 export default function Signup() {
   const [name, setName] = useState("");
@@ -6,32 +7,24 @@ export default function Signup() {
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!name || !email || !password || !phone) {
       alert("Please fill all fields");
       return;
     }
 
     const role = email === "admin@clinic.com" ? "admin" : "user";
-    const user = { name, email, password, phone, role };
 
-    // Save single active user and user store
-    localStorage.setItem("user", JSON.stringify(user));
+    try {
+      const response = await axios.post("https://clinic-backend-mxto.onrender.com/register", {
+        name, email, password, phone, role
+      });
 
-    const users = JSON.parse(localStorage.getItem("users")) || [];
-    const existing = users.find((u) => u.email === email);
-
-    if (existing) {
-      alert("User already exists. Please login.");
+      alert(response.data.message);
       window.location.href = "/login";
-      return;
+    } catch (error) {
+      alert(error.response?.data?.message || "Signup failed");
     }
-
-    users.push(user);
-    localStorage.setItem("users", JSON.stringify(users));
-
-    alert("Signup successful!");
-    window.location.href = "/login";
   };
 
   return (
