@@ -11,7 +11,7 @@ export default function UserDashboard() {
   const [orders] = useState(JSON.parse(localStorage.getItem("orders")) || []);
 
   useEffect(() => {
-    if (!localStorage.getItem("isLoggedIn") || localStorage.getItem("role") !== "user") {
+    if (localStorage.getItem("isLoggedIn") !== "true" || localStorage.getItem("role") !== "user") {
       window.location.href = "/login";
     }
   }, []);
