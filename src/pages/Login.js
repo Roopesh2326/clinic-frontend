@@ -1,32 +1,36 @@
 import React, { useState } from "react";
+import axios from "axios";
 
 export default function Login() {
-  const [email, setEmail] = useState("");   // ✅ FIX
-  const [password, setPassword] = useState(""); // ✅ FIX
+  const [email, setEmail] = useState("");   // ✅ defined here
+  const [password, setPassword] = useState(""); // ✅ defined here
 
-  const handleLogin = () => {
-    let users = JSON.parse(localStorage.getItem("users")) || [];
+  const handleLogin = async () => {
+    try {
+      const res = await axios.post(
+        "https://clinic-backend-mxto.onrender.com/login",
+        { email, password }, // ✅ now accessible
+        { withCredentials: true }
+      );
 
-    const user = users.find(
-      (u) => u.email === email && u.password === password
-    );
+      alert(res.data.message);
 
-    if (!user) {
-      alert("Invalid credentials");
-      return;
-    }
+      localStorage.setItem("isLoggedIn", true);
+      localStorage.setItem("role", res.data.role);
 
-    localStorage.setItem("isLoggedIn", true);
-    localStorage.setItem("role", user.role);
-    
-    localStorage.setItem("user", JSON.stringify({
-      email,
-      role: Response.data.role
-    }))
-    if (user.role === "admin") {
-      window.location.href = "/admin";
-    } else {
-      window.location.href = "/store";
+      localStorage.setItem("user", JSON.stringify({
+        email,
+        role: res.data.role
+      }));
+
+      if (res.data.role === "admin") {
+        window.location.href = "/admin";
+      } else {
+        window.location.href = "/dashboard";
+      }
+
+    } catch (err) {
+      alert(err.response?.data?.message || "Login failed");
     }
   };
 
@@ -37,13 +41,15 @@ export default function Login() {
       <input
         type="email"
         placeholder="Email"
-        onChange={(e) => setEmail(e.target.value)} // ✅ FIX
+        value={email} // ✅ important
+        onChange={(e) => setEmail(e.target.value)}
       /><br /><br />
 
       <input
         type="password"
         placeholder="Password"
-        onChange={(e) => setPassword(e.target.value)} // ✅ FIX
+        value={password} // ✅ important
+        onChange={(e) => setPassword(e.target.value)}
       /><br /><br />
 
       <button onClick={handleLogin}>Login</button>

@@ -3,26 +3,18 @@ import { Link } from "react-router-dom";
 import { Container, Grid, Card, CardContent, Typography, Button, Box, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Avatar } from "@mui/material";
 
 export default function UserDashboard() {
-  const [user, setUser] = useState(null);
+  const [user, SetUser] = useState({
+    name: "User",
+    email: localStorage.getItem("email") || "user@gmail.com", 
+    phone: "N/A",})
   const [cart] = useState(JSON.parse(localStorage.getItem("cart")) || []);
   const [orders] = useState(JSON.parse(localStorage.getItem("orders")) || []);
 
   useEffect(() => {
     if (!localStorage.getItem("isLoggedIn") || localStorage.getItem("role") !== "user") {
       window.location.href = "/login";
-    } else {
-      const userData = JSON.parse(localStorage.getItem("user"));
-      setUser(userData);
     }
   }, []);
-
-  if (!user) {
-    return (
-    <Container style={{ padding: "40px 20px", textAlign: "center" }}>
-      <Typography>No user data found, Please login again</Typography>
-    </Container>
-  );
-  }
   const getTotalSpent = () => {
     return orders.reduce((total, order) => total + order.total, 0);
   };
