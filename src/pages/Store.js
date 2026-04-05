@@ -7,78 +7,73 @@ export default function StorePage() {
   const [message, setMessage] = useState("");
   const [medicines, setMedicines] = useState([]);
 
-  // Load medicines from admin (if any added) or use defaults
+  // ✅ LOAD MEDICINES FROM ADMIN (REAL TIME)
   useEffect(() => {
-    const adminMedicines = JSON.parse(localStorage.getItem("medicines")) || [];
-    if (adminMedicines.length > 0) {
+    const loadMedicines = () => {
+      const adminMedicines = JSON.parse(localStorage.getItem("medicines")) || [];
       setMedicines(adminMedicines);
-    } else {
-      // Default medicines if none added by admin yet
-      setMedicines([
-        {
-          name: "Bryonia Alba",
-          desc: "Cough suppressant",
-          price: "₹120",
-          category: "Cough",
-          img: "https://images.unsplash.com/photo-1563213126-a4273aed2016",
-        },
-        {
-          name: "Arnica",
-          desc: "Pain relief and anti-inflammatory",
-          price: "₹120",
-          category: "Cold",
-          img: "https://images.unsplash.com/photo-1587854692152-cbe660dbde88",
-        },
-        {
-          name: "Belladonna",
-          desc: "Fever and inflammation treatment",
-          price: "₹120",
-          category: "Cold",
-          img: "https://images.unsplash.com/photo-1603398938378-e54eab446dde",
-        },
-        {
-          name: "Digestal",
-          desc: "Improves digestion",
-          price: "₹120",
-          category: "Digestion",
-          img: "https://images.unsplash.com/photo-1580281657527-47c1c74d9c4d",
-        },
-        {
-          name: "Immunodrop",
-          desc: "Boost immunity",
-          price: "₹120",
-          category: "Cough",
-          img: "https://images.unsplash.com/photo-1576089172869-4f5f6f315620",
-        },
-        {
-          name: "Rhus Tox",
-          desc: "Joint pain relief",
-          price: "₹120",
-          category: "Cold",
-          img: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b",
-        },
-      ]);
-    }
+    };
+
+    loadMedicines();
+
+    // 🔥 Auto update when admin changes
+    window.addEventListener("storage", loadMedicines);
+
+    return () => window.removeEventListener("storage", loadMedicines);
   }, []);
 
+  // ✅ ADD TO CART
   const addToCart = (product) => {
     const newCart = [...cart, product];
     setCart(newCart);
     localStorage.setItem("cart", JSON.stringify(newCart));
+
     window.dispatchEvent(new Event("cartUpdate"));
-    setMessage(`${product.name} added to cart!`);
+
+    setMessage(`${product.name} added to cart`);
     setTimeout(() => setMessage(""), 2000);
   };
 
+  // ✅ DYNAMIC CATEGORIES
   const getCategories = () => {
     const cats = [...new Set(medicines.map((m) => m.category))];
-    return cats.length > 0 ? cats : ["Cough", "Cold", "Digestion"];
+    return ["All", ...cats];
   };
 
+  // ✅ FILTER
   const filteredProducts =
     activeTab === "All"
       ? medicines
       : medicines.filter((item) => item.category === activeTab);
+
+  // ✅ PLACE ORDER
+const placeOrder = () => {
+  if (cart.length === 0) {
+    alert("Cart is empty");
+    return;
+  }
+
+  const totalAmount = cart.reduce((sum, item) => {
+    return sum + Number(item.price);
+  }, 0);
+
+  const existingOrders = JSON.parse(localStorage.getItem("orders")) || [];
+
+  const newOrder = {
+    id: Date.now(), // ✅ IMPORTANT
+    items: cart,
+    total: totalAmount,
+    status: "Completed", // ✅ SHOW SUCCESS
+    paymentMethod: "cash", // ✅ FIX DASHBOARD
+    date: new Date().toLocaleString(),
+  };
+
+  const updatedOrders = [...existingOrders, newOrder];
+
+  localStorage.setItem("orders", JSON.stringify(updatedOrders));
+
+  alert("Order placed successfully!");
+};
 
   return (
     <Container maxWidth="lg" style={styles.wrapper}>
@@ -87,7 +82,7 @@ export default function StorePage() {
 
         {message && <div style={styles.message}>{message}</div>}
 
-        {/* TABS */}
+        {/* 🔥 TABS */}
         <div style={styles.tabs}>
           {getCategories().map((tab) => (
             <button
@@ -102,50 +97,27 @@ export default function StorePage() {
               {tab}
             </button>
           ))}
-          <button
-            onClick={() => setActiveTab("All")}
-            style={{
-              ...styles.tab,
-              background: activeTab === "All" ? "#166534" : "white",
-              color: activeTab === "All" ? "white" : "#166534",
-            }}
-          >
-            All
-          </button>
         </div>
 
-        {/* PRODUCTS */}
+        {/* 🔥 PRODUCTS */}
         <div style={styles.container}>
           {filteredProducts.length === 0 ? (
-            <div style={{ gridColumn: "1/-1", textAlign: "center", padding: "40px" }}>
-              <p>No medicines available in this category.</p>
-            </div>
+            <p>No medicines available</p>
           ) : (
             filteredProducts.map((item, index) => (
-              <div
-                key={index}
-                style={styles.card}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = "scale(1.05)";
-                  e.currentTarget.style.boxShadow = "0 15px 30px rgba(0,0,0,0.2)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = "scale(1)";
-                  e.currentTarget.style.boxShadow = "none";
-                }}
-              >
+              <div key={index} style={styles.card}>
                 <img src={item.img} alt={item.name} style={styles.image} />
 
                 <h3 style={styles.productName}>{item.name}</h3>
                 <p style={styles.productDesc}>{item.desc}</p>
-                <p style={styles.price}>{item.price}</p>
+                <p style={styles.price}>₹{item.price}</p>
 
                 <div style={styles.buttonContainer}>
                   <button
                     style={styles.addToCartBtn}
                     onClick={() => addToCart(item)}
                   >
-                    🛒 Add to Cart
+                    🛒 Add
                   </button>
 
                   <a
@@ -155,6 +127,11 @@ export default function StorePage() {
                   >
                     <button style={styles.btn}>📲 Order</button>
                   </a>
+                </div>
+                <div style={{ marginTop: "30px" }}>
+                  <button style={styles.btn} onClick={placeOrder}>
+                    Place Order
+                  </button>
                 </div>
               </div>
             ))
@@ -192,7 +169,6 @@ const styles = {
     padding: "12px",
     borderRadius: "6px",
     marginBottom: "20px",
-    textAlign: "center",
     fontWeight: "600",
   },
 
@@ -210,7 +186,6 @@ const styles = {
     border: "2px solid #166534",
     cursor: "pointer",
     fontWeight: "600",
-    transition: "0.2s",
   },
 
   container: {
@@ -226,8 +201,7 @@ const styles = {
     borderRadius: "12px",
     background: "white",
     textAlign: "center",
-    transition: "0.3s ease",
-    cursor: "pointer",
+    transition: "0.3s",
     boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
   },
 
@@ -243,26 +217,23 @@ const styles = {
     fontSize: "18px",
     fontWeight: "700",
     color: "#166534",
-    marginBottom: "8px",
   },
 
   productDesc: {
     fontSize: "14px",
     color: "#666",
-    marginBottom: "12px",
   },
 
   price: {
     fontWeight: "700",
     color: "#166534",
     fontSize: "18px",
-    marginBottom: "15px",
+    margin: "10px 0",
   },
 
   buttonContainer: {
     display: "flex",
     gap: "10px",
-    marginTop: "15px",
   },
 
   addToCartBtn: {
@@ -273,20 +244,15 @@ const styles = {
     background: "white",
     color: "#166534",
     cursor: "pointer",
-    fontWeight: "600",
-    transition: "0.2s",
   },
 
   btn: {
     flex: 1,
-    marginTop: 0,
     padding: "10px",
     borderRadius: "8px",
     border: "none",
     background: "#166534",
     color: "white",
     cursor: "pointer",
-    fontWeight: "600",
-    transition: "0.2s",
   },
 };

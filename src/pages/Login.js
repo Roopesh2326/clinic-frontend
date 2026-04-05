@@ -1,102 +1,48 @@
 import React, { useState } from "react";
-import axios from "axios";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("");   // ✅ FIX
+  const [password, setPassword] = useState(""); // ✅ FIX
 
-  const handleLogin = async () => {
-    try {
-      const response = await axios.post("https://clinic-backend-mxto.onrender.com/login", {
-        email,
-        password
-      }, { withCredentials: true });
+  const handleLogin = () => {
+    let users = JSON.parse(localStorage.getItem("users")) || [];
 
-      alert(response.data.message);
+    const user = users.find(
+      (u) => u.email === email && u.password === password
+    );
 
-      // SAVE LOGIN STATE
-      localStorage.setItem("isLoggedIn", true);
-      localStorage.setItem("role", response.data.role);
+    if (!user) {
+      alert("Invalid credentials");
+      return;
+    }
 
-      // REDIRECT BASED ON ROLE
-      if (response.data.role === "admin") {
-        window.location.href = "/admin";
-      } else {
-        window.location.href = "/store";
-      }
-    } catch (error) {
-      alert(error.response?.data?.message || "Login failed");
+    localStorage.setItem("isLoggedIn", true);
+    localStorage.setItem("role", user.role);
+
+    if (user.role === "admin") {
+      window.location.href = "/admin";
+    } else {
+      window.location.href = "/store";
     }
   };
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.heading}>Login</h2>
+    <div style={{ padding: "100px", textAlign: "center" }}>
+      <h2>Login</h2>
 
       <input
         type="email"
         placeholder="Email"
-        style={styles.input}
-        onChange={(e) => setEmail(e.target.value)}
-      />
+        onChange={(e) => setEmail(e.target.value)} // ✅ FIX
+      /><br /><br />
 
       <input
         type="password"
         placeholder="Password"
-        style={styles.input}
-        onChange={(e) => setPassword(e.target.value)}
-      />
+        onChange={(e) => setPassword(e.target.value)} // ✅ FIX
+      /><br /><br />
 
-      <button style={styles.btn} onClick={handleLogin}>
-        Login
-      </button>
-
-      {/* 🔥 SIGNUP LINK */}
-      <p style={{ marginTop: "15px" }}>
-        Don't have an account?{" "}
-        <a href="/signup" style={{ color: "#166534" }}>
-          Signup
-        </a>
-      </p>
+      <button onClick={handleLogin}>Login</button>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    maxWidth: "400px",
-    margin: "50px auto",
-    padding: "30px",
-    background: "white",
-    borderRadius: "10px",
-    boxShadow: "0 4px 8px rgba(0,0,0,0.1)",
-    textAlign: "center",
-  },
-
-  heading: {
-    marginBottom: "20px",
-    color: "#166534",
-  },
-
-  input: {
-    display: "block",
-    margin: "10px auto",
-    padding: "12px",
-    width: "100%",
-    borderRadius: "5px",
-    border: "1px solid #ccc",
-    fontSize: "16px",
-  },
-
-  btn: {
-    marginTop: "10px",
-    padding: "12px",
-    width: "100%",
-    background: "#166534",
-    color: "white",
-    border: "none",
-    borderRadius: "5px",
-    cursor: "pointer",
-    fontSize: "16px",
-  },
-};

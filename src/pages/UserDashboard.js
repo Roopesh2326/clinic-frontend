@@ -145,7 +145,7 @@ export default function UserDashboard() {
                 <TableBody>
                   {orders.map((order, idx) => (
                     <TableRow key={idx} style={{ borderBottom: "1px solid #eee" }}>
-                      <TableCell>#{order.id.toString().slice(-6)}</TableCell>
+                      <TableCell>#{(order.id || idx + 1).toString().slice(-6)}</TableCell>
                       <TableCell>{order.date}</TableCell>
                       <TableCell>
                         {order.items.map((item, idx) => (
@@ -155,7 +155,7 @@ export default function UserDashboard() {
                       <TableCell><strong>₹{order.total}</strong></TableCell>
                       <TableCell>
                         <Chip
-                          label={order.paymentMethod.charAt(0).toUpperCase() + order.paymentMethod.slice(1)}
+                          label={(order.paymentMethod || "cash").charAt(0).toUpperCase() + (order.paymentMethod || "cash").slice(1)}
                           size="small"
                           style={{
                             background: order.paymentMethod === "card" ? "#e0f2fe" : order.paymentMethod === "upi" ? "#f0fdf4" : "#fef3c7",
