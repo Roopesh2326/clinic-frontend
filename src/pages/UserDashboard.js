@@ -16,12 +16,13 @@ export default function UserDashboard() {
     }
   }, []);
 
-  if (!user) return (
+  if (!user) {
+    return (
     <Container style={{ padding: "40px 20px", textAlign: "center" }}>
-      <Typography>Loading...</Typography>
+      <Typography>No user data found, Please login again</Typography>
     </Container>
   );
-
+  }
   const getTotalSpent = () => {
     return orders.reduce((total, order) => total + order.total, 0);
   };

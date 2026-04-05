@@ -18,7 +18,11 @@ export default function Login() {
 
     localStorage.setItem("isLoggedIn", true);
     localStorage.setItem("role", user.role);
-
+    
+    localStorage.setItem("user", JSON.stringify({
+      email,
+      role: Response.data.role
+    }))
     if (user.role === "admin") {
       window.location.href = "/admin";
     } else {
