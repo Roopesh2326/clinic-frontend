@@ -17,9 +17,8 @@ export default function Login() {
 
       localStorage.setItem("isLoggedIn", true);
       localStorage.setItem("role", res.data.role);
-
+      localStorage.setItem("email", email); // ✅ store email for dashboard
       localStorage.setItem("user", JSON.stringify({
-        email,
         role: res.data.role
       }));
 
