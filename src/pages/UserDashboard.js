@@ -3,18 +3,22 @@ import { Link } from "react-router-dom";
 import { Container, Grid, Card, CardContent, Typography, Button, Box, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Avatar } from "@mui/material";
 
 export default function UserDashboard() {
-  const [user, SetUser] = useState({
+  const [user] = useState({
     name: "User",
     email: localStorage.getItem("email") || "user@gmail.com", 
     phone: "N/A",})
   const [cart] = useState(JSON.parse(localStorage.getItem("cart")) || []);
   const [orders] = useState(JSON.parse(localStorage.getItem("orders")) || []);
+  
+   useEffect(() => {
+    const isLoggedIn = localStorage.getItem("isLoggedIn");
+    const role = (localStorage.getItem("role") || "").toLowerCase();
 
-  useEffect(() => {
-    if (localStorage.getItem("isLoggedIn") !== "true" || localStorage.getItem("role") !== "user") {
+    if (isLoggedIn !== "true" || role !== "user") {
       window.location.href = "/login";
     }
   }, []);
+ 
   const getTotalSpent = () => {
     return orders.reduce((total, order) => total + order.total, 0);
   };
