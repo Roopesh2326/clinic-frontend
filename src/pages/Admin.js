@@ -41,10 +41,16 @@ export default function Admin() {
   // 📥 FETCH DATA
   useEffect(() => {
     const fetchData = () => {
-      fetch("https://clinic-backend-mxto.onrender.com/appointments")
-        .then((res) => res.json())
-        .then((data) => setData(data))
-        .catch(() => console.log("Error fetching appointments"));
+      fetch("https://clinic-backend-mxto.onrender.com/appointments", {
+        credentials: "include",
+      })
+        .then( res => {
+          if (!res.ok) throw new Error("Failed to fetch appointments");
+          return res.json();  
+        })
+        .then(data => setData(Array.isArray(data) ? data : []))
+        .catch(() => setData([]));
+        
 
       fetch("https://clinic-backend-mxto.onrender.com/users")
         .then((res) => res.json())
@@ -147,7 +153,6 @@ export default function Admin() {
     <h3>👥 Patients</h3>
     <p>{totalPatients}</p>
   </div>
-
   <div style={styles.card}>
     <h3>📦 Orders</h3>
     <p>{totalOrders}</p>
