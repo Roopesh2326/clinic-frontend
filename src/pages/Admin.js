@@ -162,6 +162,8 @@ export default function Admin() {
   console.log("USERS:", users);
   console.log("ORDERS:", orders);
 
+  console.log('Value of e:', e, 'Type of e:', typeof e);
+
   if (!authChecked) {
     return (
       <div style={{ padding: "30px", textAlign: "center" }}>
