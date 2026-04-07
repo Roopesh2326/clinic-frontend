@@ -145,6 +145,19 @@ export default function Admin() {
     <div style={styles.container}>
       <h2 style={styles.heading}>Admin Panel</h2>
 
+       {/* 👥 USERS */}
+      <h3>Registered Users</h3>
+      {safeUsers.length === 0 ? (
+        <p>No users found</p>
+      ) : (
+        safeUsers.map((user, i) => (
+          <div key={i} style={styles.listCard}>
+            <p>{user.name}</p>
+            <p>{user.email}</p>
+          </div>
+        ))
+      )}
+
       {/* 📊 DASHBOARD */}
       <div style={styles.dashboard}>
         <div style={styles.dashboardCard}>
@@ -182,18 +195,7 @@ export default function Admin() {
         </button>
       </div>
 
-      {/* 👥 USERS */}
-      <h3>Registered Users</h3>
-      {safeUsers.length === 0 ? (
-        <p>No users found</p>
-      ) : (
-        safeUsers.map((user, i) => (
-          <div key={i} style={styles.listCard}>
-            <p>{user.name}</p>
-            <p>{user.email}</p>
-          </div>
-        ))
-      )}
+     
 
       {/* 💊 ADD MEDICINE */}
       <div style={styles.box}>
