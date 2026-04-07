@@ -17,6 +17,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import Chatbot from "./components/Chatbot";
 import Appointment from "./components/Appointment";
+import ErrorBoundary from "./components/ErrorBoundary";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
 
@@ -33,16 +34,18 @@ function App() {
       <Navbar />
       <Chatbot />
 
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/store" element={<Store />} />
-        <Route path="/admin" element={<Admin />} />
-        <Route path="/dashboard" element={<UserDashboard />} />
-        <Route path="/cart" element={<Cart />} />
-        <Route path="/appointment" element={<Appointment />} />
-        <Route path="/signup" element={<Signup />} />
-        <Route path="/login" element={<Login />} />
-      </Routes>
+      <ErrorBoundary>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/store" element={<Store />} />
+          <Route path="/admin" element={<Admin />} />
+          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/cart" element={<Cart />} />
+          <Route path="/appointment" element={<Appointment />} />
+          <Route path="/signup" element={<Signup />} />
+          <Route path="/login" element={<Login />} />
+        </Routes>
+      </ErrorBoundary>
 
       <Footer />
     </Router>

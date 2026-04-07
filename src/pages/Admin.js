@@ -12,6 +12,9 @@ const safeReadArray = (key) => {
   }
 };
 
+const sanitizeObjectArray = (items) =>
+  items.filter((item) => item && typeof item === "object");
+
 export default function Admin() {
   const navigate = useNavigate();
   const [authChecked, setAuthChecked] = useState(false);
@@ -65,8 +68,8 @@ export default function Admin() {
         .catch(() => setUsers([]));
 
       // local
-      setMedicines(safeReadArray("medicines"));
-      setOrders(safeReadArray("orders"));
+      setMedicines(sanitizeObjectArray(safeReadArray("medicines")));
+      setOrders(sanitizeObjectArray(safeReadArray("orders")));
     };
 
     fetchData();
@@ -76,8 +79,8 @@ export default function Admin() {
   }, []);
 
   // 📊 SAFE DATA
-  const safeOrders = Array.isArray(orders) ? orders : [];
-  const safeUsers = Array.isArray(users) ? users : [];
+  const safeOrders = sanitizeObjectArray(Array.isArray(orders) ? orders : []);
+  const safeUsers = sanitizeObjectArray(Array.isArray(users) ? users : []);
 
   const totalPatients = data.length;
   const totalOrders = safeOrders.length;
@@ -253,7 +256,7 @@ export default function Admin() {
 
       {/* 📋 MEDICINES */}
       <h3>Medicines</h3>
-      {medicines.map((m, i) => (
+      {sanitizeObjectArray(medicines).map((m, i) => (
         <div key={i} style={styles.listCard}>
           <p>{m.name}</p>
           <p>₹{m.price}</p>

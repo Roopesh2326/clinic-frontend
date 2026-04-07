@@ -1,7 +1,9 @@
 import React, { useState } from "react";
 import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 export default function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");   // ✅ defined here
   const [password, setPassword] = useState(""); // ✅ defined here
 
@@ -16,16 +18,17 @@ export default function Login() {
       alert(res.data.message);
 
       localStorage.setItem("isLoggedIn", true);
-      localStorage.setItem("role", res.data.role.toLowerCase());
+      const normalizedRole = String(res.data?.role || "").toLowerCase().trim();
+      localStorage.setItem("role", normalizedRole);
       localStorage.setItem("email", email); // ✅ store email for dashboard
       localStorage.setItem("user", JSON.stringify({
         role: res.data.role
       }));
 
-      if (res.data.role === "admin") {
-        window.location.href = "/admin";
+      if (normalizedRole === "admin") {
+        navigate("/admin", { replace: true });
       } else {
-        window.location.href = "/dashboard";
+        navigate("/dashboard", { replace: true });
       }
 
     } catch (err) {

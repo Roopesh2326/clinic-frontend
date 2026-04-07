@@ -13,6 +13,9 @@ const safeReadArray = (key) => {
   }
 };
 
+const sanitizeOrders = (orders) =>
+  orders.filter((order) => order && typeof order === "object");
+
 export default function UserDashboard() {
   const navigate = useNavigate();
   const [authChecked, setAuthChecked] = useState(false);
@@ -22,7 +25,7 @@ export default function UserDashboard() {
     email: localStorage.getItem("email") || "user@gmail.com", 
     phone: "N/A",})
   const [cart] = useState(safeReadArray("cart"));
-  const [orders] = useState(safeReadArray("orders"));
+  const [orders] = useState(() => sanitizeOrders(safeReadArray("orders")));
   
    useEffect(() => {
     try {
