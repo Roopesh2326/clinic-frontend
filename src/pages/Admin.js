@@ -327,6 +327,9 @@ export default function Admin() {
         />
 
         <input
+          type="number"
+          min="1"
+          step="1"
           placeholder="Price"
           value={newMedicine.price}
           onChange={(e) =>

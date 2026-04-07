@@ -13,6 +13,51 @@ const safeReadArray = (key) => {
   }
 };
 
+const defaultHomeopathyMedicines = [
+  {
+    name: "Arnica Montana 30",
+    desc: "Useful for bruises, soreness, and injury recovery.",
+    price: 120,
+    category: "Pain Relief",
+    img: "https://images.unsplash.com/photo-1584308666744-24d5c474f2ae?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    name: "Nux Vomica 30",
+    desc: "Traditionally used for acidity, bloating, and indigestion support.",
+    price: 110,
+    category: "Digestive Care",
+    img: "https://images.unsplash.com/photo-1471864190281-a93a3070b6de?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    name: "Belladonna 30",
+    desc: "Commonly used for sudden fever and headache tendencies.",
+    price: 115,
+    category: "Fever & Cold",
+    img: "https://images.unsplash.com/photo-1587854692152-cbe660dbde88?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    name: "Bryonia Alba 30",
+    desc: "Supportive medicine for dry cough and body pain discomfort.",
+    price: 130,
+    category: "Respiratory",
+    img: "https://images.unsplash.com/photo-1576091160550-2173dba999ef?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    name: "Rhus Tox 30",
+    desc: "Often considered for joint stiffness and muscle strain.",
+    price: 125,
+    category: "Joint Care",
+    img: "https://images.unsplash.com/photo-1505751172876-fa1923c5c528?auto=format&fit=crop&w=600&q=80",
+  },
+  {
+    name: "Calendula Q",
+    desc: "Used in skin and wound-care supportive routines.",
+    price: 160,
+    category: "Skin Care",
+    img: "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?auto=format&fit=crop&w=600&q=80",
+  },
+];
+
 export default function StorePage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("All");
@@ -27,7 +72,7 @@ export default function StorePage() {
       const adminMedicines = safeReadArray("medicines").filter(
         (item) => item && typeof item === "object"
       );
-      setMedicines(adminMedicines);
+      setMedicines(adminMedicines.length ? adminMedicines : defaultHomeopathyMedicines);
     };
 
     loadMedicines();

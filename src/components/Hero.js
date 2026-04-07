@@ -18,16 +18,16 @@ export default function Hero() {
       </div>
       <style>{`
         @media (max-width: 960px) {
-          .hero-container { height: 520px; padding: 0 34px; }
+          .hero-container { min-height: 62vh !important; height: auto !important; padding: 24px 20px !important; background-attachment: scroll !important; }
           .hero-left-content { width: 100%; max-width: 100%; padding: 30px; }
-          .hero-title { font-size: 42px !important; }
-          .hero-subtitle { font-size: 17px !important; }
+          .hero-title { font-size: 38px !important; }
+          .hero-subtitle { font-size: 16px !important; }
         }
         @media (max-width: 600px) {
-          .hero-container { height: 460px; padding: 0 18px; }
-          .hero-left-content { padding: 22px; border-radius: 16px; }
-          .hero-title { font-size: 30px !important; }
-          .hero-subtitle { font-size: 15px !important; }
+          .hero-container { min-height: 54vh !important; padding: 18px 12px !important; align-items: flex-end !important; }
+          .hero-left-content { padding: 18px; border-radius: 14px; }
+          .hero-title { font-size: 26px !important; line-height: 1.2 !important; }
+          .hero-subtitle { font-size: 14px !important; line-height: 1.45 !important; margin-bottom: 18px !important; }
         }
       `}</style>    </section>
   );
@@ -37,14 +37,14 @@ const styles = {
   heroContainer: {
     position: "relative",
     width: "100%",
-    minHeight: "75vh",
+    minHeight: "68vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "flex-start",
     padding: "0 60px",
     color: "#fff",
     background: `url('${heroBg}') no-repeat center/cover`,
-    backgroundAttachment: "fixed",
+    backgroundAttachment: "scroll",
     overflow: "hidden",
   },
   heroOverlay: {
