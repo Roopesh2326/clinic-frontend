@@ -131,14 +131,15 @@ export default function Admin() {
 
   // ✏️ EDIT
   const editMedicine = (index) => {
-    const m = medicines[index];
+    const m = safeMedicines[index];
+    if (!m) return;
 
     const name = prompt("Edit name", m.name);
     const price = prompt("Edit price", m.price);
 
     if (!name || !price) return;
 
-    const updated = medicines.map((item, i) =>
+    const updated = safeMedicines.map((item, i) =>
       i === index ? { ...item, name, price } : item
     );
 
@@ -161,8 +162,6 @@ export default function Admin() {
   console.log("APPOINTMENTS:", appointments);
   console.log("USERS:", users);
   console.log("ORDERS:", orders);
-
-  console.log('Value of e:', e, 'Type of e:', typeof e);
 
   if (!authChecked) {
     return (
