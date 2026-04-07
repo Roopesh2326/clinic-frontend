@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppBar, Toolbar, Typography, Button, Box, Badge, IconButton, Menu, MenuItem, Grow } from "@mui/material";
 import MenuIcon from '@mui/icons-material/Menu';
 import HomeIcon from '@mui/icons-material/Home';
@@ -21,7 +21,7 @@ export default function Navbar() {
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const role = localStorage.getItem("role");
 
-  const safeReadCart = () => {
+  const safeReadCart = useCallback(() => {
     try {
       const raw = localStorage.getItem("cart");
       if (!raw) return [];
@@ -30,12 +30,12 @@ export default function Navbar() {
     } catch {
       return [];
     }
-  };
+  }, []);
 
-  const updateCartCount = () => {
+  const updateCartCount = useCallback(() => {
     const cartItems = safeReadCart();
     setCartCount(cartItems.length);
-  };
+  }, [safeReadCart]);
 
   useEffect(() => {
     updateCartCount();
@@ -52,7 +52,7 @@ export default function Navbar() {
       window.removeEventListener("cartUpdate", onStorage);
       window.removeEventListener("resize", onResize);
     };
-  }, []);
+  }, [updateCartCount]);
 
   const { handleLogout } = {
     handleLogout: () => {

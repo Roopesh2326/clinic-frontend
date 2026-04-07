@@ -251,7 +251,7 @@ export default function Admin() {
 
         <input type="file" onChange={handleImageSelect} />
 
-        {imgPreview && <img src={imgPreview} width="80" />}
+        {imgPreview && <img src={imgPreview} alt="Medicine preview" width="80" />}
 
         <button onClick={addMedicine}>Add</button>
       </div>
