@@ -159,10 +159,6 @@ export default function Admin() {
     };
     reader.readAsDataURL(file);
   };
-  console.log("APPOINTMENTS:", appointments);
-  console.log("USERS:", users);
-  console.log("ORDERS:", orders);
-
   if (!authChecked) {
     return (
       <div style={{ padding: "30px", textAlign: "center" }}>

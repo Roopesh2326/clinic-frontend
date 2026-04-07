@@ -45,7 +45,6 @@ export default function PaymentGateway({ total, onSuccess }) {
       }
     } catch (err) {
       setError("Card payment failed. Try again.");
-      console.log(err);
     }
     setLoading(false);
   };
@@ -81,7 +80,6 @@ export default function PaymentGateway({ total, onSuccess }) {
       }
     } catch (err) {
       setError("Stripe payment failed. Try again.");
-      console.log(err);
     }
     setLoading(false);
   };

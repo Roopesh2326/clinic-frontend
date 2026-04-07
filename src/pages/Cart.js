@@ -1,17 +1,30 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, Button, Box, Typography, Container, Grid } from "@mui/material";
 import PaymentGateway from "../components/PaymentGateway";
 
+const safeReadArray = (key) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export default function Cart() {
-  const [cart, setCart] = useState(JSON.parse(localStorage.getItem("cart")) || []);
+  const navigate = useNavigate();
+  const [cart, setCart] = useState(safeReadArray("cart"));
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [lastOrder, setLastOrder] = useState(null);
 
   useEffect(() => {
     if (!localStorage.getItem("isLoggedIn")) {
-      window.location.href = "/login";
+      navigate("/login", { replace: true });
     }
-  }, []);
+  }, [navigate]);
 
   const removeFromCart = (index) => {
     const newCart = cart.filter((_, i) => i !== index);
@@ -22,7 +35,7 @@ export default function Cart() {
 
   const getTotal = () => {
     return cart.reduce((total, item) => {
-      const price = parseInt(item.price.replace("₹", ""));
+      const price = Number(String(item?.price ?? "0").replace(/[^\d.]/g, "")) || 0;
       return total + price;
     }, 0);
   };
@@ -39,7 +52,7 @@ export default function Cart() {
       status: "Completed",
     };
 
-    const orders = JSON.parse(localStorage.getItem("orders")) || [];
+    const orders = safeReadArray("orders");
     orders.push(order);
     localStorage.setItem("orders", JSON.stringify(orders));
 
@@ -51,7 +64,7 @@ export default function Cart() {
     setOrderPlaced(true);
 
     setTimeout(() => {
-      window.location.href = "/dashboard";
+      navigate("/dashboard", { replace: true });
     }, 2000);
   };
 
@@ -59,7 +72,7 @@ export default function Cart() {
     if (!order) return;
 
     const receiptWin = window.open("", "_blank");
-    const itemsHtml = order.items
+    const itemsHtml = (Array.isArray(order?.items) ? order.items : [])
       .map(
         (item) => `<tr><td>${item.name}</td><td>${item.price}</td><td>${item.desc || "-"}</td></tr>`
       )
@@ -107,7 +120,7 @@ export default function Cart() {
       {cart.length === 0 ? (
         <Card style={styles.emptyCard}>
           <Typography variant="h6">Your cart is empty</Typography>
-          <Button variant="contained" color="success" onClick={() => window.location.href = "/"} style={{ marginTop: "15px" }}>
+          <Button variant="contained" color="success" onClick={() => navigate("/")} style={{ marginTop: "15px" }}>
             Continue Shopping
           </Button>
         </Card>

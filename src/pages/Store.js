@@ -1,16 +1,29 @@
 import React, { useState, useEffect } from "react";
 import { Container } from "@mui/material";
 
+const safeReadArray = (key) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export default function StorePage() {
   const [activeTab, setActiveTab] = useState("All");
-  const [cart, setCart] = useState(JSON.parse(localStorage.getItem("cart")) || []);
+  const [cart, setCart] = useState(safeReadArray("cart"));
   const [message, setMessage] = useState("");
   const [medicines, setMedicines] = useState([]);
 
   // ✅ LOAD MEDICINES FROM ADMIN (REAL TIME)
   useEffect(() => {
     const loadMedicines = () => {
-      const adminMedicines = JSON.parse(localStorage.getItem("medicines")) || [];
+      const adminMedicines = safeReadArray("medicines").filter(
+        (item) => item && typeof item === "object"
+      );
       setMedicines(adminMedicines);
     };
 
@@ -36,7 +49,7 @@ export default function StorePage() {
 
   // ✅ DYNAMIC CATEGORIES
   const getCategories = () => {
-    const cats = [...new Set(medicines.map((m) => m.category))];
+    const cats = [...new Set(medicines.map((m) => m?.category).filter(Boolean))];
     return ["All", ...cats];
   };
 
@@ -57,7 +70,7 @@ const placeOrder = () => {
     return sum + Number(item.price);
   }, 0);
 
-  const existingOrders = JSON.parse(localStorage.getItem("orders")) || [];
+  const existingOrders = safeReadArray("orders");
 
   const newOrder = {
     id: Date.now(), // ✅ IMPORTANT

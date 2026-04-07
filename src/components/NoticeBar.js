@@ -5,14 +5,13 @@ export default function NoticeBar() {
 
     useEffect(() => {
         fetch("https://clinic-backend-mxto.onrender.com/notice")
-            .then((res) => res.json())
+            .then((res) => (res.ok ? res.json() : null))
             .then((data) => {
-                console.log("Notice data:", data);
                 if (data && data.message) {
                     setNotice(data.message);
                 }
             })
-            .catch((error) => console.log("Error fetching notice:", error));
+            .catch(() => setNotice(""));
     }, []);
 
     if (!notice) return null;
