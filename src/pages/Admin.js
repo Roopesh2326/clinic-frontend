@@ -25,7 +25,51 @@ export default function Admin() {
     }
   }, []);
 
-  // 📢 UPDATE NOTICE
+  // 📥 FETCH DATA
+  useEffect(() => {
+    const fetchData = () => {
+      // appointments
+      fetch("https://clinic-backend-mxto.onrender.com/appointments", {
+        credentials: "include",
+      })
+        .then((res) => {
+          if (!res.ok) throw new Error("Unauthorized");
+          return res.json();
+        })
+        .then((data) => setData(Array.isArray(data) ? data : []))
+        .catch(() => setData([]));
+
+      // users
+      fetch("https://clinic-backend-mxto.onrender.com/users")
+        .then((res) => res.json())
+        .then((data) => setUsers(Array.isArray(data) ? data : []))
+        .catch(() => setUsers([]));
+
+      // local
+      setMedicines(JSON.parse(localStorage.getItem("medicines")) || []);
+      setOrders(JSON.parse(localStorage.getItem("orders")) || []);
+    };
+
+    fetchData();
+    window.addEventListener("storage", fetchData);
+
+    return () => window.removeEventListener("storage", fetchData);
+  }, []);
+
+  // 📊 SAFE DATA
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  const safeUsers = Array.isArray(users) ? users : [];
+
+  const totalPatients = data.length;
+  const totalOrders = safeOrders.length;
+  const totalMedicines = medicines.length;
+
+  const totalRevenue = safeOrders.reduce(
+    (sum, order) => sum + Number(order?.total || 0),
+    0
+  );
+
+  // 📢 NOTICE
   const updateNotice = async () => {
     try {
       await fetch("https://clinic-backend-mxto.onrender.com/notice", {
@@ -40,59 +84,10 @@ export default function Admin() {
     }
   };
 
-  // 📥 FETCH DATA
-  useEffect(() => {
-    const fetchData = () => {
-      fetch("https://clinic-backend-mxto.onrender.com/appointments", {
-        credentials: "include",
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error("Unauthorized");
-          return res.json();
-        })
-        .then((data) => setData(Array.isArray(data) ? data : []))
-        .catch(() => setData([]));
-
-      fetch("https://clinic-backend-mxto.onrender.com/users")
-        .then((res) => res.json())
-        .then((data) => setUsers(Array.isArray(data) ? data : []))
-        .catch(() => setUsers([]));
-
-      setMedicines(JSON.parse(localStorage.getItem("medicines")) || []);
-      setOrders(JSON.parse(localStorage.getItem("orders")) || []);
-    };
-
-    fetchData();
-    window.addEventListener("storage", fetchData);
-
-    return () => {
-      window.removeEventListener("storage", fetchData);
-    };
-  }, []);
-
-  // ✅ SAFE DATA
-  const safeOrders = Array.isArray(orders) ? orders : [];
-  const safeUsers = Array.isArray(users) ? users : [];
-
-  const totalPatients = data.length;
-  const totalOrders = safeOrders.length;
-  const totalMedicines = medicines.length;
-
-  const totalRevenue = safeOrders.reduce(
-    (sum, order) => sum + Number(order?.total || 0),
-    0
-  );
-
   // ➕ ADD MEDICINE
   const addMedicine = () => {
-    if (
-      !newMedicine.name ||
-      !newMedicine.desc ||
-      !newMedicine.price ||
-      !newMedicine.category ||
-      !newMedicine.img
-    ) {
-      alert("Fill all fields");
+    if (!newMedicine.name || !newMedicine.price) {
+      alert("Fill required fields");
       return;
     }
 
@@ -145,19 +140,6 @@ export default function Admin() {
     <div style={styles.container}>
       <h2 style={styles.heading}>Admin Panel</h2>
 
-       {/* 👥 USERS */}
-      <h3>Registered Users</h3>
-      {safeUsers.length === 0 ? (
-        <p>No users found</p>
-      ) : (
-        safeUsers.map((user, i) => (
-          <div key={i} style={styles.listCard}>
-            <p>{user.name}</p>
-            <p>{user.email}</p>
-          </div>
-        ))
-      )}
-
       {/* 📊 DASHBOARD */}
       <div style={styles.dashboard}>
         <div style={styles.dashboardCard}>
@@ -195,7 +177,20 @@ export default function Admin() {
         </button>
       </div>
 
-     
+      {/* 👥 USERS (FIXED INSIDE RETURN) */}
+      <h3 style={{ marginTop: "30px" }}>👥 Registered Users</h3>
+
+      {safeUsers.length === 0 ? (
+        <p>No users found</p>
+      ) : (
+        safeUsers.map((user, index) => (
+          <div key={index} style={styles.listCard}>
+            <p><b>{user.name}</b></p>
+            <p>{user.email}</p>
+            <p>{user.phone}</p>
+          </div>
+        ))
+      )}
 
       {/* 💊 ADD MEDICINE */}
       <div style={styles.box}>
