@@ -12,13 +12,15 @@ const safeReadArray = (key) => {
   }
 };
 
-const sanitizeObjectArray = (items) =>
-  items.filter((item) => item && typeof item === "object");
+const sanitizeObjectArray = (items) => {
+  if (!Array.isArray(items)) return [];
+  return items.filter((item) => item && typeof item === "object");
+};
 
 export default function Admin() {
   const navigate = useNavigate();
   const [authChecked, setAuthChecked] = useState(false);
-  const [data, setData] = useState([]);
+  const [appointments, setAppointments] = useState([]);
   const [notice, setNotice] = useState("");
   const [users, setUsers] = useState([]);
   const [medicines, setMedicines] = useState([]);
@@ -54,17 +56,14 @@ export default function Admin() {
       fetch("https://clinic-backend-mxto.onrender.com/appointments", {
         credentials: "include",
       })
-        .then((res) => {
-          if (!res.ok) throw new Error("Unauthorized");
-          return res.json();
-        })
-        .then((data) => setData(Array.isArray(data) ? data : []))
-        .catch(() => setData([]));
+        .then((res) => (res.ok ? res.json() : []))
+        .then((payload) => setAppointments(sanitizeObjectArray(payload)))
+        .catch(() => setAppointments([]));
 
       // users
       fetch("https://clinic-backend-mxto.onrender.com/users")
-        .then((res) => res.json())
-        .then((data) => setUsers(Array.isArray(data) ? data : []))
+        .then((res) => (res.ok ? res.json() : []))
+        .then((payload) => setUsers(sanitizeObjectArray(payload)))
         .catch(() => setUsers([]));
 
       // local
@@ -82,9 +81,11 @@ export default function Admin() {
   const safeOrders = sanitizeObjectArray(Array.isArray(orders) ? orders : []);
   const safeUsers = sanitizeObjectArray(Array.isArray(users) ? users : []);
 
-  const totalPatients = data.length;
+  const safeAppointments = sanitizeObjectArray(appointments);
+  const safeMedicines = sanitizeObjectArray(medicines);
+  const totalPatients = safeAppointments.length;
   const totalOrders = safeOrders.length;
-  const totalMedicines = medicines.length;
+  const totalMedicines = safeMedicines.length;
 
   const totalRevenue = safeOrders.reduce(
     (sum, order) => sum + Number(order?.total || 0),
@@ -157,7 +158,7 @@ export default function Admin() {
     };
     reader.readAsDataURL(file);
   };
-  console.log("DATA:", data);
+  console.log("APPOINTMENTS:", appointments);
   console.log("USERS:", users);
   console.log("ORDERS:", orders);
 
@@ -256,7 +257,7 @@ export default function Admin() {
 
       {/* 📋 MEDICINES */}
       <h3>Medicines</h3>
-      {sanitizeObjectArray(medicines).map((m, i) => (
+      {safeMedicines.map((m, i) => (
         <div key={i} style={styles.listCard}>
           <p>{m.name}</p>
           <p>₹{m.price}</p>
