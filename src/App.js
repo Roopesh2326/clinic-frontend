@@ -20,6 +20,7 @@ import Appointment from "./components/Appointment";
 import ErrorBoundary from "./components/ErrorBoundary";
 import Signup from "./pages/Signup";
 import Login from "./pages/Login";
+import ForgotPassword from "./pages/ForgotPassword";
 
 
 
@@ -44,6 +45,7 @@ function App() {
           <Route path="/appointment" element={<Appointment />} />
           <Route path="/signup" element={<Signup />} />
           <Route path="/login" element={<Login />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
         </Routes>
       </ErrorBoundary>
 

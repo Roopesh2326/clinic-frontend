@@ -33,6 +33,7 @@ export default function Admin() {
     img: "",
   });
   const [imgPreview, setImgPreview] = useState("");
+  const [userSearch, setUserSearch] = useState("");
 
   // 🔐 PROTECT ADMIN
   useEffect(() => {
@@ -61,7 +62,9 @@ export default function Admin() {
         .catch(() => setAppointments([]));
 
       // users
-      fetch("https://clinic-backend-mxto.onrender.com/users")
+      fetch("https://clinic-backend-mxto.onrender.com/users", {
+        credentials: "include",
+      })
         .then((res) => (res.ok ? res.json() : []))
         .then((payload) => setUsers(sanitizeObjectArray(payload)))
         .catch(() => setUsers([]));
@@ -83,14 +86,57 @@ export default function Admin() {
 
   const safeAppointments = sanitizeObjectArray(appointments);
   const safeMedicines = sanitizeObjectArray(medicines);
+  const filteredUsers = safeUsers.filter((user) => {
+    const q = userSearch.toLowerCase().trim();
+    if (!q) return true;
+    return (
+      String(user?.name || "").toLowerCase().includes(q) ||
+      String(user?.email || "").toLowerCase().includes(q) ||
+      String(user?.phone || "").toLowerCase().includes(q) ||
+      String(user?.role || "").toLowerCase().includes(q)
+    );
+  });
   const totalPatients = safeAppointments.length;
   const totalOrders = safeOrders.length;
   const totalMedicines = safeMedicines.length;
+  const totalAdmins = safeUsers.filter((u) => u.role === "admin").length;
 
   const totalRevenue = safeOrders.reduce(
     (sum, order) => sum + Number(order?.total || 0),
     0
   );
+
+  const exportUsersCsv = () => {
+    if (!safeUsers.length) {
+      alert("No users to export");
+      return;
+    }
+
+    const headers = ["Name", "Email", "Phone", "Role", "User ID", "Joined Date"];
+    const rows = safeUsers.map((u) => [
+      u.name || "",
+      u.email || "",
+      u.phone || "",
+      u.role || "",
+      u._id || "",
+      u.createdAt ? new Date(u.createdAt).toLocaleString() : "",
+    ]);
+    const csvContent = [headers, ...rows]
+      .map((row) =>
+        row
+          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
+          .join(",")
+      )
+      .join("\n");
+
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `registered-users-${Date.now()}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   // 📢 NOTICE
   const updateNotice = async () => {
@@ -192,6 +238,10 @@ export default function Admin() {
           <h3>💊 Medicines</h3>
           <p>{totalMedicines}</p>
         </div>
+        <div style={styles.dashboardCard}>
+          <h3>🛡️ Admin Accounts</h3>
+          <p>{totalAdmins}</p>
+        </div>
       </div>
 
       {/* 🔔 NOTICE */}
@@ -210,15 +260,29 @@ export default function Admin() {
 
       {/* 👥 USERS (FIXED INSIDE RETURN) */}
       <h3 style={{ marginTop: "30px" }}>👥 Registered Users</h3>
+      <div style={styles.box}>
+        <input
+          value={userSearch}
+          onChange={(e) => setUserSearch(e.target.value)}
+          placeholder="Search user by name/email/phone/role"
+          style={styles.input}
+        />
+        <button style={styles.btn} onClick={exportUsersCsv}>
+          Export Users CSV
+        </button>
+      </div>
 
-      {safeUsers.length === 0 ? (
+      {filteredUsers.length === 0 ? (
         <p>No users found</p>
       ) : (
-        safeUsers.map((user, index) => (
+        filteredUsers.map((user, index) => (
           <div key={index} style={styles.listCard}>
-            <p><b>{user.name}</b></p>
-            <p>{user.email}</p>
-            <p>{user.phone}</p>
+            <p><b>Name:</b> {user.name || "-"}</p>
+            <p><b>Email:</b> {user.email || "-"}</p>
+            <p><b>Phone:</b> {user.phone || "-"}</p>
+            <p><b>Role:</b> {user.role || "-"}</p>
+            <p><b>User ID:</b> {user._id || "-"}</p>
+            <p><b>Joined:</b> {user.createdAt ? new Date(user.createdAt).toLocaleString() : "-"}</p>
           </div>
         ))
       )}

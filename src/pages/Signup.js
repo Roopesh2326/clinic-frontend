@@ -1,39 +1,35 @@
 import React, { useState } from "react";
+import axios from "axios";
+import { useNavigate } from "react-router-dom";
 
 export default function Signup() {
+  const navigate = useNavigate();
   const [name, setName] = useState(""); 
   const [email, setEmail] = useState(""); 
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!name || !email || !password || !phone) {
       alert("Please fill all fields");
       return;
     }
 
-    let users = JSON.parse(localStorage.getItem("users")) || [];
-
-    const exists = users.find((u) => u.email === email);
-
-    if (exists) {
-      alert("User already exists");
-      return;
-    }
-
     const role = email === "admin@clinic.com" ? "admin" : "user";
-
-    users.push({ name, email, password, phone, role });
-
-    localStorage.setItem("users", JSON.stringify(users));
-
-    alert("Signup successful");
-    window.location.href = "/login";
+    try {
+      const res = await axios.post("https://clinic-backend-mxto.onrender.com/register", {
+        name,
+        email,
+        password,
+        phone,
+        role,
+      });
+      alert(res.data?.message || "Signup successful");
+      navigate("/login", { replace: true });
+    } catch (err) {
+      alert(err.response?.data?.message || "Signup failed");
+    }
   };
-
-  const existingUsers = JSON.parse(localStorage.getItem("users")) || [];
-  const newUser = { name, email, password, phone, role: "user"  };
-  localStorage.setItem("users", JSON.stringify([...existingUsers, newUser]));
 
   return (
     <div style={{ padding: "100px", textAlign: "center" }}>

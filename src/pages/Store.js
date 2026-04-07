@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Container } from "@mui/material";
+import { useNavigate } from "react-router-dom";
 
 const safeReadArray = (key) => {
   try {
@@ -13,10 +14,12 @@ const safeReadArray = (key) => {
 };
 
 export default function StorePage() {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState("All");
   const [cart, setCart] = useState(safeReadArray("cart"));
   const [message, setMessage] = useState("");
   const [medicines, setMedicines] = useState([]);
+  const role = (localStorage.getItem("role") || "").toLowerCase();
 
   // ✅ LOAD MEDICINES FROM ADMIN (REAL TIME)
   useEffect(() => {
@@ -92,6 +95,13 @@ const placeOrder = () => {
     <Container maxWidth="lg" style={styles.wrapper}>
       <div style={styles.section}>
         <h2 style={styles.heading}>💊 Medicines & Syrups</h2>
+        {role === "admin" && (
+          <div style={{ marginBottom: "20px" }}>
+            <button style={styles.btn} onClick={() => navigate("/admin")}>
+              Back to Admin Panel
+            </button>
+          </div>
+        )}
 
         {message && <div style={styles.message}>{message}</div>}
 
