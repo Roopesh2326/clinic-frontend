@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 const safeReadArray = (key) => {
   try {
@@ -12,6 +13,8 @@ const safeReadArray = (key) => {
 };
 
 export default function Admin() {
+  const navigate = useNavigate();
+  const [authChecked, setAuthChecked] = useState(false);
   const [data, setData] = useState([]);
   const [notice, setNotice] = useState("");
   const [users, setUsers] = useState([]);
@@ -28,13 +31,18 @@ export default function Admin() {
 
   // 🔐 PROTECT ADMIN
   useEffect(() => {
-    if (
-      !localStorage.getItem("isLoggedIn") ||
-      localStorage.getItem("role") !== "admin"
-    ) {
-      window.location.href = "/login";
+    try {
+      const isLoggedIn = localStorage.getItem("isLoggedIn");
+      const role = (localStorage.getItem("role") || "").toLowerCase().trim();
+      if (isLoggedIn !== "true" || role !== "admin") {
+        navigate("/login", { replace: true });
+        return;
+      }
+      setAuthChecked(true);
+    } catch {
+      navigate("/login", { replace: true });
     }
-  }, []);
+  }, [navigate]);
 
   // 📥 FETCH DATA
   useEffect(() => {
@@ -149,6 +157,14 @@ export default function Admin() {
   console.log("DATA:", data);
   console.log("USERS:", users);
   console.log("ORDERS:", orders);
+
+  if (!authChecked) {
+    return (
+      <div style={{ padding: "30px", textAlign: "center" }}>
+        <h3>Loading admin dashboard...</h3>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.container}>

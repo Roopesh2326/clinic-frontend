@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Container, Grid, Card, CardContent, Typography, Button, Box, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Avatar } from "@mui/material";
 
 const safeReadArray = (key) => {
@@ -14,6 +14,9 @@ const safeReadArray = (key) => {
 };
 
 export default function UserDashboard() {
+  const navigate = useNavigate();
+  const [authChecked, setAuthChecked] = useState(false);
+
   const [user] = useState({
     name: "User",
     email: localStorage.getItem("email") || "user@gmail.com", 
@@ -22,13 +25,27 @@ export default function UserDashboard() {
   const [orders] = useState(safeReadArray("orders"));
   
    useEffect(() => {
-    const isLoggedIn = localStorage.getItem("isLoggedIn");
-    const role = (localStorage.getItem("role") || "").toLowerCase();
+    try {
+      const isLoggedIn = localStorage.getItem("isLoggedIn");
+      const role = (localStorage.getItem("role") || "").toLowerCase().trim();
 
-    if (isLoggedIn !== "true" || role !== "user") {
-      window.location.href = "/login";
+      if (isLoggedIn !== "true" || role !== "user") {
+        navigate("/login", { replace: true });
+        return;
+      }
+      setAuthChecked(true);
+    } catch {
+      navigate("/login", { replace: true });
     }
-  }, []);
+  }, [navigate]);
+
+  if (!authChecked) {
+    return (
+      <Container maxWidth="lg" style={{ padding: "40px 20px", textAlign: "center" }}>
+        <Typography variant="body1">Loading dashboard...</Typography>
+      </Container>
+    );
+  }
  
   const getTotalSpent = () => {
     return orders.reduce((total, order) => total + Number(order?.total || 0), 0);

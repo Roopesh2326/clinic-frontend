@@ -21,8 +21,19 @@ export default function Navbar() {
   const isLoggedIn = localStorage.getItem("isLoggedIn");
   const role = localStorage.getItem("role");
 
+  const safeReadCart = () => {
+    try {
+      const raw = localStorage.getItem("cart");
+      if (!raw) return [];
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  };
+
   const updateCartCount = () => {
-    const cartItems = JSON.parse(localStorage.getItem("cart")) || [];
+    const cartItems = safeReadCart();
     setCartCount(cartItems.length);
   };
 
