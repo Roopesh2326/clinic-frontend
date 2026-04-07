@@ -22,6 +22,7 @@ export default function Admin() {
   const [authChecked, setAuthChecked] = useState(false);
   const [appointments, setAppointments] = useState([]);
   const [notice, setNotice] = useState("");
+  const [noticeHours, setNoticeHours] = useState("");
   const [users, setUsers] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [orders, setOrders] = useState([]);
@@ -144,12 +145,28 @@ export default function Admin() {
       await fetch("https://clinic-backend-mxto.onrender.com/notice", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: notice }),
+        credentials: "include",
+        body: JSON.stringify({ message: notice, expiresInHours: noticeHours }),
       });
       alert("Notice updated");
       setNotice("");
+      setNoticeHours("");
     } catch {
       alert("Error updating notice");
+    }
+  };
+
+  const clearNotice = async () => {
+    try {
+      await fetch("https://clinic-backend-mxto.onrender.com/notice", {
+        method: "DELETE",
+        credentials: "include",
+      });
+      alert("Notice deleted");
+      setNotice("");
+      setNoticeHours("");
+    } catch {
+      alert("Error deleting notice");
     }
   };
 
@@ -253,8 +270,17 @@ export default function Admin() {
           placeholder="Enter notice"
           style={styles.input}
         />
+        <input
+          value={noticeHours}
+          onChange={(e) => setNoticeHours(e.target.value)}
+          placeholder="Auto delete in hours (optional)"
+          style={styles.input}
+        />
         <button style={styles.btn} onClick={updateNotice}>
           Update
+        </button>
+        <button style={{ ...styles.btn, marginLeft: "10px", background: "#dc2626" }} onClick={clearNotice}>
+          Delete Notice
         </button>
       </div>
 
