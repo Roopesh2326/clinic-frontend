@@ -2,13 +2,24 @@ import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Container, Grid, Card, CardContent, Typography, Button, Box, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Avatar } from "@mui/material";
 
+const safeReadArray = (key) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export default function UserDashboard() {
   const [user] = useState({
     name: "User",
     email: localStorage.getItem("email") || "user@gmail.com", 
     phone: "N/A",})
-  const [cart] = useState(JSON.parse(localStorage.getItem("cart")) || []);
-  const [orders] = useState(JSON.parse(localStorage.getItem("orders")) || []);
+  const [cart] = useState(safeReadArray("cart"));
+  const [orders] = useState(safeReadArray("orders"));
   
    useEffect(() => {
     const isLoggedIn = localStorage.getItem("isLoggedIn");
@@ -20,14 +31,15 @@ export default function UserDashboard() {
   }, []);
  
   const getTotalSpent = () => {
-    return orders.reduce((total, order) => total + order.total, 0);
+    return orders.reduce((total, order) => total + Number(order?.total || 0), 0);
   };
 
   const generateReceipt = (order) => {
     if (!order) return;
 
     const receiptWin = window.open("", "_blank");
-    const itemsHtml = order.items
+    const orderItems = Array.isArray(order?.items) ? order.items : [];
+    const itemsHtml = orderItems
       .map((item) => `<tr><td>${item.name}</td><td>${item.price}</td><td>${item.desc || "-"}</td></tr>`)
       .join("");
 
@@ -145,7 +157,7 @@ export default function UserDashboard() {
                       <TableCell>#{(order.id || idx + 1).toString().slice(-6)}</TableCell>
                       <TableCell>{order.date}</TableCell>
                       <TableCell>
-                        {order.items.map((item, idx) => (
+                        {(Array.isArray(order.items) ? order.items : []).map((item, idx) => (
                           <div key={idx} style={{ fontSize: "12px", marginBottom: "2px" }}>{item.name} - {item.price}</div>
                         ))}
                       </TableCell>

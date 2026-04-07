@@ -1,5 +1,16 @@
 import { useEffect, useState } from "react";
 
+const safeReadArray = (key) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+};
+
 export default function Admin() {
   const [data, setData] = useState([]);
   const [notice, setNotice] = useState("");
@@ -46,8 +57,8 @@ export default function Admin() {
         .catch(() => setUsers([]));
 
       // local
-      setMedicines(JSON.parse(localStorage.getItem("medicines")) || []);
-      setOrders(JSON.parse(localStorage.getItem("orders")) || []);
+      setMedicines(safeReadArray("medicines"));
+      setOrders(safeReadArray("orders"));
     };
 
     fetchData();
