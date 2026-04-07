@@ -135,6 +135,9 @@ export default function Admin() {
     };
     reader.readAsDataURL(file);
   };
+  console.log("DATA:", data);
+  console.log("USERS:", users);
+  console.log("ORDERS:", orders);
 
   return (
     <div style={styles.container}>
