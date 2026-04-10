@@ -53,7 +53,7 @@ export default function UserDashboard() {
 
     const fetchOrders = () => {
       axios
-        .get(`${BASE_URL}/orders/my`, { withCredentials: true })
+        .get(`${BASE_URL}/my-orders`, { withCredentials: true })
         .then((res) => {
           if (Array.isArray(res.data)) {
             setOrders(res.data);
@@ -61,8 +61,8 @@ export default function UserDashboard() {
         })
         .catch((err) => {
           console.error("Failed to fetch orders:", err);
-          // fallback to localStorage if backend fails
-          setOrders(safeReadArray("orders"));
+          // // fallback to localStorage if backend fails
+          // setOrders(safeReadArray("orders"));
         });
     };
 
