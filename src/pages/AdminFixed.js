@@ -44,7 +44,7 @@ export default function Admin() {
   });
   const [imgPreview, setImgPreview] = useState("");
   const [userSearch, setUserSearch] = useState("");
-  const [notification, setNotification] = useState({ open: false, message: "" });
+  const [notification, setNotification] = useState({ open: false, message: "", severity: "info" });
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
 
@@ -63,7 +63,51 @@ export default function Admin() {
     }
   }, [navigate]);
 
-  // FETCH DATA
+  // 🔄 REAL-TIME NOTIFICATIONS
+  useEffect(() => {
+    if (!authChecked) return;
+
+    const eventSource = new EventSource(
+      "https://clinic-backend-mxto.onrender.com/notifications",
+      { withCredentials: true }
+    );
+
+    eventSource.onmessage = (event) => {
+      try {
+        const notificationData = JSON.parse(event.data);
+        console.log("Received notification:", notificationData);
+
+        if (notificationData.type === "new_order") {
+          // Refresh orders when new order comes in
+          fetch("https://clinic-backend-mxto.onrender.com/my-orders", {
+            credentials: "include",
+          })
+            .then((res) => (res.ok ? res.json() : []))
+            .then((payload) => setOrders(sanitizeObjectArray(payload)))
+            .catch(() => setOrders([]));
+
+          // Show notification
+          setNotification({
+            open: true,
+            message: `New order received! Total: $${notificationData.data.total}`,
+            severity: "info"
+          });
+        }
+      } catch (error) {
+        console.error("Error parsing notification:", error);
+      }
+    };
+
+    eventSource.onerror = (error) => {
+      console.error("EventSource error:", error);
+    };
+
+    return () => {
+      eventSource.close();
+    };
+  }, [authChecked]);
+
+  // 📥 FETCH DATA
   useEffect(() => {
     const fetchData = () => {
       // appointments
@@ -109,51 +153,7 @@ export default function Admin() {
     };
   }, []);
 
-  // 🔄 REAL-TIME NOTIFICATIONS
-  useEffect(() => {
-    if (!authChecked) return;
-
-    const eventSource = new EventSource(
-      "https://clinic-backend-mxto.onrender.com/notifications",
-      { withCredentials: true }
-    );
-
-    eventSource.onmessage = (event) => {
-      try {
-        const notification = JSON.parse(event.data);
-        console.log("Received notification:", notification);
-
-        if (notification.type === "new_order") {
-          // Refresh orders when new order comes in
-          fetch("https://clinic-backend-mxto.onrender.com/my-orders", {
-            credentials: "include",
-          })
-            .then((res) => (res.ok ? res.json() : []))
-            .then((payload) => setOrders(sanitizeObjectArray(payload)))
-            .catch(() => setOrders([]));
-
-          // Show notification
-          setNotification({
-            open: true,
-            message: `New order received! Total: $${notification.data.total}`,
-            severity: "info"
-          });
-        }
-      } catch (error) {
-        console.error("Error parsing notification:", error);
-      }
-    };
-
-    eventSource.onerror = (error) => {
-      console.error("EventSource error:", error);
-    };
-
-    return () => {
-      eventSource.close();
-    };
-  }, [authChecked]);
-
-  // SAFE DATA
+  // 📊 SAFE DATA
   const safeOrders = sanitizeObjectArray(Array.isArray(orders) ? orders : []);
   const safeUsers = sanitizeObjectArray(Array.isArray(users) ? users : []);
 
@@ -179,36 +179,38 @@ export default function Admin() {
     0
   );
 
-  const exportUsersCsv = () => {
-    if (!safeUsers.length) {
-      alert("No users to export");
-      return;
+  // 🔄 UPDATE ORDER STATUS
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      await fetch(`https://clinic-backend-mxto.onrender.com/orders/${orderId}/status`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ status: newStatus }),
+      });
+
+      // Refresh orders after update
+      fetch("https://clinic-backend-mxto.onrender.com/my-orders", {
+        credentials: "include",
+      })
+        .then((res) => (res.ok ? res.json() : []))
+        .then((payload) => setOrders(sanitizeObjectArray(payload)))
+        .catch(() => setOrders([]));
+
+      setNotification({
+        open: true,
+        message: `Order status updated to ${newStatus}`,
+        severity: "success"
+      });
+      setStatusDialogOpen(false);
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      setNotification({
+        open: true,
+        message: "Failed to update order status",
+        severity: "error"
+      });
     }
-
-    const headers = ["Name", "Email", "Phone", "Role", "User ID", "Joined Date"];
-    const rows = safeUsers.map((u) => [
-      u.name || "",
-      u.email || "",
-      u.phone || "",
-      u.role || "",
-      u._id || "",
-      u.createdAt ? new Date(u.createdAt).toLocaleString() : "",
-    ]);
-    const csvContent = [headers, ...rows]
-      .map((row) =>
-        row
-          .map((cell) => `"${String(cell).replace(/"/g, '""')}"`)
-          .join(",")
-      )
-      .join("\n");
-
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `registered-users-${Date.now()}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
   };
 
   // 📢 NOTICE
@@ -242,59 +244,32 @@ export default function Admin() {
     }
   };
 
-  // ➕ ADD MEDICINE
-  const addMedicine = () => {
-    if (!newMedicine.name || !newMedicine.price) {
-      alert("Fill required fields");
-      return;
-    }
+  // 🖼 IMAGE
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
 
-    const updated = [...medicines, newMedicine];
-    setMedicines(updated);
-    localStorage.setItem("medicines", JSON.stringify(updated));
-
-    setNewMedicine({ name: "", desc: "", price: "", category: "", img: "" });
-    setImgPreview("");
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setNewMedicine({ ...newMedicine, img: reader.result });
+      setImgPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
   };
 
-  // ❌ DELETE
-  const deleteMedicine = (index) => {
-    const updated = medicines.filter((_, i) => i !== index);
-    setMedicines(updated);
-    localStorage.setItem("medicines", JSON.stringify(updated));
-  };
-
-  // ✏️ EDIT
-  const editMedicine = (index) => {
-    const m = safeMedicines[index];
-    if (!m) return;
-
+  if (!authChecked) {
+    return (
+      <div style={{ padding: "30px", textAlign: "center" }}>
+        <h3>Loading admin dashboard...</h3>
+      </div>
+    );
   }
-};
 
-eventSource.onerror = (error) => {
-  console.error("EventSource error:", error);
-};
-
-return () => {
-  eventSource.close();
-};
-}, [authChecked]);
-
-// SAFE DATA
-const safeOrders = sanitizeObjectArray(Array.isArray(orders) ? orders : []);
-const safeUsers = sanitizeObjectArray(Array.isArray(users) ? users : []);
-
-const safeAppointments = sanitizeObjectArray(appointments);
-const safeMedicines = sanitizeObjectArray(medicines);
-const filteredUsers = safeUsers.filter((user) => {
-  const q = userSearch.toLowerCase().trim();
-  if (!q) return true;
   return (
-    String(user?.name || "").toLowerCase().includes(q) ||
-    String(user?.email || "").toLowerCase().includes(q) ||
-    String(user?.phone || "").toLowerCase().includes(q) ||
-    String(user?.role || "").toLowerCase().includes(q)
+    <div style={styles.container}>
+      <h2 style={styles.heading}>Admin Panel</h2>
+
+      {/* 📊 DASHBOARD */}
       <div style={styles.dashboard}>
         <div style={styles.dashboardCard}>
           <h3>👥 Patients</h3>
@@ -321,6 +296,72 @@ const filteredUsers = safeUsers.filter((user) => {
         </div>
       </div>
 
+      {/* 📦 ORDERS TABLE */}
+      <div style={styles.box}>
+        <h3>Recent Orders</h3>
+        <TableContainer component={Paper}>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Order ID</TableCell>
+                <TableCell>Customer</TableCell>
+                <TableCell>Date</TableCell>
+                <TableCell>Amount</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {safeOrders.slice(0, 10).map((order) => {
+                const orderId = order._id ? order._id.toString().slice(-8).toUpperCase() : "N/A";
+                const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "-";
+                const statusColors = {
+                  "Delivered": { background: "#dcfce7", color: "#166534" },
+                  "Approved": { background: "#dbeafe", color: "#1e40af" },
+                  "Out for Delivery": { background: "#fef3c7", color: "#92400e" },
+                  "Cancelled": { background: "#fee2e2", color: "#991b1b" },
+                  "Pending": { background: "#fef3c7", color: "#92400e" }
+                };
+                const statusStyle = statusColors[order.status] || statusColors["Pending"];
+
+                return (
+                  <TableRow key={order._id}>
+                    <TableCell>#{orderId}</TableCell>
+                    <TableCell>{order.userId?.name || "Unknown"}</TableCell>
+                    <TableCell>{orderDate}</TableCell>
+                    <TableCell>${order.total || 0}</TableCell>
+                    <TableCell>
+                      <Chip 
+                        label={order.status || "Pending"} 
+                        size="small"
+                        style={{ 
+                          backgroundColor: statusStyle.background, 
+                          color: statusStyle.color,
+                          fontWeight: "bold"
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Tooltip title="Update Status">
+                        <IconButton 
+                          size="small"
+                          onClick={() => {
+                            setSelectedOrder(order);
+                            setStatusDialogOpen(true);
+                          }}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </TableContainer>
+      </div>
+
       {/* 🔔 NOTICE */}
       <div style={styles.box}>
         <h3>Update Notice</h3>
@@ -344,7 +385,7 @@ const filteredUsers = safeUsers.filter((user) => {
         </button>
       </div>
 
-      {/* 👥 USERS (FIXED INSIDE RETURN) */}
+      {/* 👥 USERS */}
       <h3 style={{ marginTop: "30px" }}>👥 Registered Users</h3>
       <div style={styles.box}>
         <input
@@ -353,9 +394,7 @@ const filteredUsers = safeUsers.filter((user) => {
           placeholder="Search user by name/email/phone/role"
           style={styles.input}
         />
-        <button style={styles.btn} onClick={exportUsersCsv}>
-          Export Users CSV
-        </button>
+        <button style={styles.btn}>Export Users CSV</button>
       </div>
 
       {filteredUsers.length === 0 ? (
@@ -373,49 +412,59 @@ const filteredUsers = safeUsers.filter((user) => {
         ))
       )}
 
-      {/* 💊 ADD MEDICINE */}
-      <div style={styles.box}>
-        <h3>Add Medicine</h3>
+      {/* STATUS UPDATE DIALOG */}
+      <Dialog open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Update Order Status</DialogTitle>
+        <DialogContent>
+          {selectedOrder && (
+            <Box sx={{ pt: 2 }}>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Order ID: #{selectedOrder._id?.toString().slice(-8).toUpperCase()}
+              </Typography>
+              <FormControl fullWidth>
+                <InputLabel>New Status</InputLabel>
+                <Select
+                  value={selectedOrder.status}
+                  onChange={(e) => setSelectedOrder({...selectedOrder, status: e.target.value})}
+                  label="New Status"
+                >
+                  <MenuItem value="Pending">Pending</MenuItem>
+                  <MenuItem value="Approved">Approved</MenuItem>
+                  <MenuItem value="Out for Delivery">Out for Delivery</MenuItem>
+                  <MenuItem value="Delivered">Delivered</MenuItem>
+                  <MenuItem value="Cancelled">Cancelled</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStatusDialogOpen(false)}>Cancel</Button>
+          <Button 
+            onClick={() => updateOrderStatus(selectedOrder._id, selectedOrder.status)}
+            variant="contained" 
+            color="primary"
+          >
+            Update Status
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-        <input
-          placeholder="Name"
-          value={newMedicine.name}
-          onChange={(e) =>
-            setNewMedicine({ ...newMedicine, name: e.target.value })
-          }
-          style={styles.input}
-        />
-
-        <input
-          type="number"
-          min="1"
-          step="1"
-          placeholder="Price"
-          value={newMedicine.price}
-          onChange={(e) =>
-            setNewMedicine({ ...newMedicine, price: e.target.value })
-          }
-          style={styles.input}
-        />
-
-        <input type="file" onChange={handleImageSelect} />
-
-        {imgPreview && <img src={imgPreview} alt="Medicine preview" width="80" />}
-
-        <button onClick={addMedicine}>Add</button>
-      </div>
-
-      {/* 📋 MEDICINES */}
-      <h3>Medicines</h3>
-      {safeMedicines.map((m, i) => (
-        <div key={i} style={styles.listCard}>
-          <p>{m.name}</p>
-          <p>₹{m.price}</p>
-
-          <button onClick={() => editMedicine(i)}>Edit</button>
-          <button onClick={() => deleteMedicine(i)}>Delete</button>
-        </div>
-      ))}
+      {/* NOTIFICATION SNACKBAR */}
+      <Snackbar
+        open={notification.open}
+        autoHideDuration={6000}
+        onClose={() => setNotification({ ...notification, open: false })}
+        anchorOrigin={{ vertical: "top", horizontal: "right" }}
+      >
+        <Alert 
+          onClose={() => setNotification({ ...notification, open: false })}
+          severity={notification.severity}
+          sx={{ width: "100%" }}
+        >
+          {notification.message}
+        </Alert>
+      </Snackbar>
     </div>
   );
 }
@@ -423,14 +472,12 @@ const filteredUsers = safeUsers.filter((user) => {
 const styles = {
   container: { padding: "30px" },
   heading: { color: "#166534" },
-
   dashboard: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
     gap: "20px",
     marginBottom: "30px",
   },
-
   dashboardCard: {
     background: "#166534",
     color: "white",
@@ -438,30 +485,32 @@ const styles = {
     borderRadius: "10px",
     textAlign: "center",
   },
-
   box: {
     marginTop: "20px",
     padding: "20px",
     background: "#f0fdf4",
     borderRadius: "10px",
   },
-
   input: {
     display: "block",
     margin: "10px 0",
     padding: "10px",
+    width: "100%",
+    boxSizing: "border-box",
   },
-
   btn: {
-    padding: "10px",
+    padding: "10px 20px",
     background: "#166534",
     color: "white",
     border: "none",
+    borderRadius: "5px",
+    cursor: "pointer",
+    marginRight: "10px",
   },
-
   listCard: {
     border: "1px solid #ddd",
     padding: "10px",
     marginTop: "10px",
+    borderRadius: "5px",
   },
 };
