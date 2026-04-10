@@ -2,7 +2,9 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Button, Box, Typography, Container, Grid } from "@mui/material";
 import PaymentGateway from "../components/PaymentGateway";
+import axios from "axios";
 
+// ✅ Safe localStorage read
 const safeReadArray = (key) => {
   try {
     const raw = localStorage.getItem(key);
@@ -16,16 +18,19 @@ const safeReadArray = (key) => {
 
 export default function Cart() {
   const navigate = useNavigate();
+
   const [cart, setCart] = useState(safeReadArray("cart"));
   const [orderPlaced, setOrderPlaced] = useState(false);
   const [lastOrder, setLastOrder] = useState(null);
 
+  // 🔐 Redirect if not logged in
   useEffect(() => {
     if (!localStorage.getItem("isLoggedIn")) {
       navigate("/login", { replace: true });
     }
   }, [navigate]);
 
+  // ❌ Remove item
   const removeFromCart = (index) => {
     const newCart = cart.filter((_, i) => i !== index);
     setCart(newCart);
@@ -33,15 +38,20 @@ export default function Cart() {
     window.dispatchEvent(new Event("cartUpdate"));
   };
 
+  // 💰 Total calculation
   const getTotal = () => {
     return cart.reduce((total, item) => {
-      const price = Number(String(item?.price ?? "0").replace(/[^\d.]/g, "")) || 0;
+      const price =
+        Number(String(item?.price ?? "0").replace(/[^\d.]/g, "")) || 0;
       return total + price;
     }, 0);
   };
 
-  const handlePaymentSuccess = (paymentInfo) => {
-    alert(`✅ Payment successful!\n\nMethod: ${paymentInfo.method}\nAmount: ₹${getTotal()}\n\nYour order has been placed!`);
+  // ✅ PAYMENT SUCCESS HANDLER (FIXED)
+  const handlePaymentSuccess = async (paymentInfo) => {
+    alert(
+      `✅ Payment successful!\n\nMethod: ${paymentInfo.method}\nAmount: ₹${getTotal()}\n\nYour order has been placed!`
+    );
 
     const order = {
       id: Date.now(),
@@ -52,15 +62,33 @@ export default function Cart() {
       status: "Completed",
     };
 
-    const orders = safeReadArray("orders");
-    orders.push(order);
-    localStorage.setItem("orders", JSON.stringify(orders));
+    try {
+      // 🔥 Send order to backend
+      await axios.post(
+        "https://clinic-backend-mxto.onrender.com/orders",
+        {
+          items: cart,
+          total: getTotal(),
+        },
+        {
+          withCredentials: true,
+        }
+      );
 
-    // Keep last order for receipt before clearing cart
+      console.log("Order saved in backend ✅");
+    } catch (err) {
+      console.log(err);
+      alert("Order failed ❌");
+      return;
+    }
+
+    // ✅ Save for receipt
     setLastOrder(order);
 
+    // ✅ Clear cart
     localStorage.setItem("cart", JSON.stringify([]));
     window.dispatchEvent(new Event("cartUpdate"));
+
     setOrderPlaced(true);
 
     setTimeout(() => {
@@ -68,44 +96,63 @@ export default function Cart() {
     }, 2000);
   };
 
+  // 🧾 Receipt
   const generateReceipt = (order) => {
     if (!order) return;
 
     const receiptWin = window.open("", "_blank");
-    const itemsHtml = (Array.isArray(order?.items) ? order.items : [])
+
+    const itemsHtml = (order.items || [])
       .map(
-        (item) => `<tr><td>${item.name}</td><td>${item.price}</td><td>${item.desc || "-"}</td></tr>`
+        (item) =>
+          `<tr><td>${item.name}</td><td>${item.price}</td><td>${
+            item.desc || "-"
+          }</td></tr>`
       )
       .join("");
 
     receiptWin.document.write(`
-      <html><head><title>Receipt #${order.id}</title></head><body style="font-family: Arial, sans-serif; padding: 20px;">
+      <html>
+      <head><title>Receipt #${order.id}</title></head>
+      <body style="font-family: Arial; padding: 20px;">
       <h2>Clinic Shop Receipt</h2>
-      <p><strong>Order ID:</strong> ${order.id}</p>
-      <p><strong>Date:</strong> ${order.date}</p>
-      <p><strong>Payment:</strong> ${order.paymentMethod}</p>
-      <p><strong>Amount:</strong> ₹${order.total}</p>
-      <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; margin-top: 10px;">
-        <thead><tr><th>Medicine</th><th>Price</th><th>Description</th></tr></thead>
+      <p><b>Order ID:</b> ${order.id}</p>
+      <p><b>Date:</b> ${order.date}</p>
+      <p><b>Payment:</b> ${order.paymentMethod}</p>
+      <p><b>Amount:</b> ₹${order.total}</p>
+
+      <table border="1" cellpadding="6" cellspacing="0" style="width:100%; margin-top:10px;">
+        <thead>
+          <tr><th>Medicine</th><th>Price</th><th>Description</th></tr>
+        </thead>
         <tbody>${itemsHtml}</tbody>
       </table>
-      <p style="margin-top: 15px;"><strong>Status:</strong> ${order.status}</p>
-      </body></html>
+
+      <p><b>Status:</b> ${order.status}</p>
+      </body>
+      </html>
     `);
+
     receiptWin.document.close();
-    receiptWin.focus();
     receiptWin.print();
   };
 
+  // 🎉 Success screen
   if (orderPlaced) {
     return (
-      <Container maxWidth="md" style={styles.container}>
-        <Box style={styles.successBox}>
-          <Typography variant="h5" style={styles.successText}>✅ Order Placed Successfully!</Typography>
-          <Typography variant="body1" style={{ marginBottom: "20px" }}>Redirecting to dashboard...</Typography>
+      <Container maxWidth="md">
+        <Box style={{ textAlign: "center", marginTop: "100px" }}>
+          <Typography variant="h5">
+            ✅ Order Placed Successfully!
+          </Typography>
+
           {lastOrder && (
-            <Button variant="contained" color="primary" onClick={() => generateReceipt(lastOrder)}>
-              Download / Print Receipt
+            <Button
+              variant="contained"
+              onClick={() => generateReceipt(lastOrder)}
+              style={{ marginTop: "20px" }}
+            >
+              Print Receipt
             </Button>
           )}
         </Box>
@@ -113,40 +160,48 @@ export default function Cart() {
     );
   }
 
+  // 🛒 MAIN UI
   return (
-    <Container maxWidth="md" style={styles.container}>
-      <Typography variant="h4" style={styles.heading}>🛒 Your Cart</Typography>
+    <Container maxWidth="md">
+      <Typography variant="h4" style={{ margin: "20px 0" }}>
+        🛒 Your Cart
+      </Typography>
 
       {cart.length === 0 ? (
-        <Card style={styles.emptyCard}>
-          <Typography variant="h6">Your cart is empty</Typography>
-          <Button variant="contained" color="success" onClick={() => navigate("/")} style={{ marginTop: "15px" }}>
-            Continue Shopping
+        <Card style={{ padding: "20px", textAlign: "center" }}>
+          <Typography>Your cart is empty</Typography>
+          <Button
+            variant="contained"
+            onClick={() => navigate("/")}
+            style={{ marginTop: "10px" }}
+          >
+            Shop Now
           </Button>
         </Card>
       ) : (
         <Grid container spacing={3}>
           <Grid item xs={12} md={7}>
-            <Typography variant="h6" style={{ marginBottom: "15px" }}>📦 Items ({cart.length})</Typography>
-            <Box style={styles.items}>
-              {cart.map((item, index) => (
-                <Card key={index} style={styles.item}>
-                  <img src={item.img} alt={item.name} style={styles.image} />
-                  <Box style={styles.details}>
-                    <Typography variant="subtitle1" style={{ fontWeight: "600" }}>{item.name}</Typography>
-                    <Typography variant="body2">{item.desc}</Typography>
-                    <Typography variant="subtitle2" style={styles.price}>{item.price}</Typography>
-                  </Box>
-                  <Button variant="contained" color="error" size="small" onClick={() => removeFromCart(index)} style={{ marginTop: "10px" }}>
-                    Remove
-                  </Button>
-                </Card>
-              ))}
-            </Box>
+            {cart.map((item, index) => (
+              <Card key={index} style={{ padding: "10px", marginBottom: "10px" }}>
+                <img src={item.img} alt={item.name} width="80" />
+                <Typography>{item.name}</Typography>
+                <Typography>{item.price}</Typography>
+
+                <Button
+                  color="error"
+                  onClick={() => removeFromCart(index)}
+                >
+                  Remove
+                </Button>
+              </Card>
+            ))}
           </Grid>
 
           <Grid item xs={12} md={5}>
-            <PaymentGateway total={getTotal()} onSuccess={handlePaymentSuccess} />
+            <PaymentGateway
+              total={getTotal()}
+              onSuccess={handlePaymentSuccess}
+            />
           </Grid>
         </Grid>
       )}

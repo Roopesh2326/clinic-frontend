@@ -1,6 +1,13 @@
 import React, { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Container, Grid, Card, CardContent, Typography, Button, Box, Chip, Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Avatar } from "@mui/material";
+import axios from "axios";
+import {
+  Container, Grid, Card, CardContent, Typography, Button, Box,
+  Chip, Table, TableBody, TableCell, TableContainer, TableHead,
+  TableRow, Paper, Avatar
+} from "@mui/material";
+
+const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
 const safeReadArray = (key) => {
   try {
@@ -13,25 +20,23 @@ const safeReadArray = (key) => {
   }
 };
 
-const sanitizeOrders = (orders) =>
-  orders.filter((order) => order && typeof order === "object");
-
 export default function UserDashboard() {
   const navigate = useNavigate();
   const [authChecked, setAuthChecked] = useState(false);
+  const [orders, setOrders] = useState([]);
+  const [cart] = useState(safeReadArray("cart"));
 
   const [user] = useState({
-    name: "User",
-    email: localStorage.getItem("email") || "user@gmail.com", 
-    phone: "N/A",})
-  const [cart] = useState(safeReadArray("cart"));
-  const [orders] = useState(() => sanitizeOrders(safeReadArray("orders")));
-  
-   useEffect(() => {
+    name: localStorage.getItem("name") || "User",
+    email: localStorage.getItem("email") || "user@gmail.com",
+    phone: localStorage.getItem("phone") || "N/A",
+  });
+
+  // 🔐 AUTH CHECK
+  useEffect(() => {
     try {
       const isLoggedIn = localStorage.getItem("isLoggedIn");
       const role = (localStorage.getItem("role") || "").toLowerCase().trim();
-
       if (isLoggedIn !== "true" || role !== "user") {
         navigate("/login", { replace: true });
         return;
@@ -42,6 +47,32 @@ export default function UserDashboard() {
     }
   }, [navigate]);
 
+  // 📦 FETCH ORDERS FROM BACKEND
+  useEffect(() => {
+    if (!authChecked) return;
+
+    const fetchOrders = () => {
+      axios
+        .get(`${BASE_URL}/orders/my`, { withCredentials: true })
+        .then((res) => {
+          if (Array.isArray(res.data)) {
+            setOrders(res.data);
+          }
+        })
+        .catch((err) => {
+          console.error("Failed to fetch orders:", err);
+          // fallback to localStorage if backend fails
+          setOrders(safeReadArray("orders"));
+        });
+    };
+
+    fetchOrders();
+
+    // 🔄 Poll every 15 seconds so status updates from admin show in real-time
+    const interval = setInterval(fetchOrders, 15000);
+    return () => clearInterval(interval);
+  }, [authChecked]);
+
   if (!authChecked) {
     return (
       <Container maxWidth="lg" style={{ padding: "40px 20px", textAlign: "center" }}>
@@ -49,42 +80,83 @@ export default function UserDashboard() {
       </Container>
     );
   }
- 
-  const getTotalSpent = () => {
-    return orders.reduce((total, order) => total + Number(order?.total || 0), 0);
+
+  const getTotalSpent = () =>
+    orders.reduce((total, order) => total + Number(order?.total || 0), 0);
+
+  // 🟢 STATUS COLOR
+  const getStatusColor = (status) => {
+    switch ((status || "").toLowerCase()) {
+      case "delivered": return { background: "#dcfce7", color: "#166534" };
+      case "approved":
+      case "out for delivery": return { background: "#dbeafe", color: "#1e40af" };
+      case "cancelled": return { background: "#fee2e2", color: "#991b1b" };
+      default: return { background: "#fef3c7", color: "#92400e" }; // pending
+    }
   };
 
+  // 🧾 GENERATE RECEIPT (no jsPDF needed)
   const generateReceipt = (order) => {
     if (!order) return;
-
     const receiptWin = window.open("", "_blank");
-    const orderItems = Array.isArray(order?.items) ? order.items : [];
-    const itemsHtml = orderItems
-      .map((item) => `<tr><td>${item.name}</td><td>${item.price}</td><td>${item.desc || "-"}</td></tr>`)
+    const items = Array.isArray(order.items) ? order.items : [];
+    const itemsHtml = items
+      .map(
+        (item) =>
+          `<tr>
+            <td style="padding:6px 10px;">${item.name || "-"}</td>
+            <td style="padding:6px 10px;">₹${item.price || 0}</td>
+            <td style="padding:6px 10px;">${item.quantity || 1}</td>
+          </tr>`
+      )
       .join("");
 
+    const orderId = order._id
+      ? order._id.toString().slice(-6).toUpperCase()
+      : String(order.id || "N/A");
+    const orderDate = order.createdAt
+      ? new Date(order.createdAt).toLocaleString()
+      : order.date || "N/A";
+
     receiptWin.document.write(`
-      <html><head><title>Receipt #${order.id}</title></head><body style="font-family: Arial, sans-serif; padding: 20px;">
-        <h2>Clinic Shop Receipt</h2>
-        <p><strong>Order ID:</strong> ${order.id}</p>
-        <p><strong>Date:</strong> ${order.date}</p>
-        <p><strong>Payment:</strong> ${order.paymentMethod}</p>
-        <p><strong>Total:</strong> ₹${order.total}</p>
-        <table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%; margin-top: 10px;">
-          <thead><tr><th>Medicine</th><th>Price</th><th>Description</th></tr></thead>
-          <tbody>${itemsHtml}</tbody>
-        </table>
-        <p style="margin-top: 15px;"><strong>Status:</strong> ${order.status}</p>
-      </body></html>
+      <html>
+        <head><title>Receipt #${orderId}</title></head>
+        <body style="font-family: Arial, sans-serif; padding: 30px; max-width: 600px; margin: auto;">
+          <h2 style="color:#166534; text-align:center;">Digital Clinic</h2>
+          <p style="text-align:center; color:#555;">Order Receipt</p>
+          <hr style="border-color:#166534;" />
+          <p><strong>Order ID:</strong> #${orderId}</p>
+          <p><strong>Date:</strong> ${orderDate}</p>
+          <p><strong>Payment:</strong> ${order.paymentMethod || "Cash"}</p>
+          <p><strong>Status:</strong> ${order.status || "Pending"}</p>
+          <table border="1" cellpadding="0" cellspacing="0"
+            style="border-collapse:collapse; width:100%; margin-top:15px; font-size:14px;">
+            <thead style="background:#f0fdf4;">
+              <tr>
+                <th style="padding:8px 10px; text-align:left;">Medicine</th>
+                <th style="padding:8px 10px; text-align:left;">Price</th>
+                <th style="padding:8px 10px; text-align:left;">Qty</th>
+              </tr>
+            </thead>
+            <tbody>${itemsHtml}</tbody>
+          </table>
+          <h3 style="text-align:right; margin-top:15px;">Total: ₹${order.total}</h3>
+          <hr />
+          <p style="text-align:center; color:#888; font-size:12px;">
+            Thank you for choosing Digital Clinic!
+          </p>
+          <script>window.onload = () => { window.print(); }<\/script>
+        </body>
+      </html>
     `);
     receiptWin.document.close();
-    receiptWin.focus();
-    receiptWin.print();
   };
 
   return (
     <Container maxWidth="lg" style={styles.container}>
-      <Typography variant="h4" style={styles.heading}>👤 User Dashboard</Typography>
+      <Typography variant="h4" style={styles.heading}>
+        👤 User Dashboard
+      </Typography>
 
       <Grid container spacing={3}>
         {/* PROFILE CARD */}
@@ -146,13 +218,23 @@ export default function UserDashboard() {
       {/* ORDER HISTORY */}
       <Card style={{ ...styles.card, marginTop: "30px" }}>
         <CardContent>
-          <Typography variant="h6" style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
+          <Typography
+            variant="h6"
+            style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}
+          >
             📋 Order History
+            <Chip
+              label="Auto-refreshes every 15s"
+              size="small"
+              style={{ background: "#dcfce7", color: "#166534", fontSize: "10px" }}
+            />
           </Typography>
 
           {orders.length === 0 ? (
             <Box style={styles.emptyState}>
-              <Typography variant="body1" style={{ marginBottom: "15px" }}>No orders yet</Typography>
+              <Typography variant="body1" style={{ marginBottom: "15px" }}>
+                No orders yet
+              </Typography>
               <Link to="/" style={{ textDecoration: "none" }}>
                 <Button variant="contained" color="success">Start Shopping</Button>
               </Link>
@@ -172,34 +254,59 @@ export default function UserDashboard() {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {orders.map((order, idx) => (
-                    <TableRow key={idx} style={{ borderBottom: "1px solid #eee" }}>
-                      <TableCell>#{(order.id || idx + 1).toString().slice(-6)}</TableCell>
-                      <TableCell>{order.date}</TableCell>
-                      <TableCell>
-                        {(Array.isArray(order.items) ? order.items : []).map((item, idx) => (
-                          <div key={idx} style={{ fontSize: "12px", marginBottom: "2px" }}>{item.name} - {item.price}</div>
-                        ))}
-                      </TableCell>
-                      <TableCell><strong>₹{order.total}</strong></TableCell>
-                      <TableCell>
-                        <Chip
-                          label={(order.paymentMethod || "cash").charAt(0).toUpperCase() + (order.paymentMethod || "cash").slice(1)}
-                          size="small"
-                          style={{
-                            background: order.paymentMethod === "card" ? "#e0f2fe" : order.paymentMethod === "upi" ? "#f0fdf4" : "#fef3c7",
-                            color: "#000",
-                          }}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        <Chip label={order.status} size="small" color="success" variant="outlined" />
-                      </TableCell>
-                      <TableCell>
-                        <Button size="small" variant="outlined" onClick={() => generateReceipt(order)}>Print</Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                  {orders.map((order, idx) => {
+                    const orderId = order._id
+                      ? order._id.toString().slice(-6).toUpperCase()
+                      : String(order.id || idx + 1);
+                    const orderDate = order.createdAt
+                      ? new Date(order.createdAt).toLocaleDateString()
+                      : order.date || "-";
+                    const statusStyle = getStatusColor(order.status);
+
+                    return (
+                      <TableRow key={order._id || idx} style={{ borderBottom: "1px solid #eee" }}>
+                        <TableCell>#{orderId}</TableCell>
+                        <TableCell>{orderDate}</TableCell>
+                        <TableCell>
+                          {(Array.isArray(order.items) ? order.items : []).map((item, i) => (
+                            <div key={i} style={{ fontSize: "12px", marginBottom: "2px" }}>
+                              {item.name} — ₹{item.price}
+                            </div>
+                          ))}
+                        </TableCell>
+                        <TableCell><strong>₹{order.total}</strong></TableCell>
+                        <TableCell>
+                          <Chip
+                            label={(order.paymentMethod || "Cash").charAt(0).toUpperCase() + (order.paymentMethod || "Cash").slice(1)}
+                            size="small"
+                            style={{
+                              background:
+                                order.paymentMethod === "card" ? "#e0f2fe" :
+                                order.paymentMethod === "upi" ? "#f0fdf4" : "#fef3c7",
+                              color: "#000",
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Chip
+                            label={order.status || "Pending"}
+                            size="small"
+                            style={statusStyle}
+                          />
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            color="success"
+                            onClick={() => generateReceipt(order)}
+                          >
+                            📄 PDF
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -223,6 +330,8 @@ export default function UserDashboard() {
           onClick={() => {
             localStorage.removeItem("isLoggedIn");
             localStorage.removeItem("role");
+            localStorage.removeItem("email");
+            localStorage.removeItem("name");
             window.location.href = "/";
           }}
         >
@@ -234,82 +343,27 @@ export default function UserDashboard() {
 }
 
 const styles = {
-  container: {
-    padding: "40px 20px",
-    marginTop: "20px",
-    marginBottom: "40px",
-  },
-  heading: {
-    color: "#166534",
-    fontWeight: "700",
-    marginBottom: "30px",
-  },
-  card: {
-    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-    borderRadius: "10px",
-  },
-  profileHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: "15px",
-    marginBottom: "20px",
-  },
+  container: { padding: "40px 20px", marginTop: "20px", marginBottom: "40px" },
+  heading: { color: "#166534", fontWeight: "700", marginBottom: "30px" },
+  card: { boxShadow: "0 4px 12px rgba(0,0,0,0.1)", borderRadius: "10px" },
+  profileHeader: { display: "flex", alignItems: "center", gap: "15px", marginBottom: "20px" },
   avatar: {
-    width: 60,
-    height: 60,
+    width: 60, height: 60,
     background: "linear-gradient(135deg, #166534 0%, #4ade80 100%)",
     fontSize: "28px",
   },
-  userName: {
-    fontWeight: "700",
-    color: "#166534",
-  },
-  profileDetails: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "8px",
-  },
-  detailText: {
-    color: "#555",
-    lineHeight: "1.6",
-  },
+  userName: { fontWeight: "700", color: "#166534" },
+  profileDetails: { display: "flex", flexDirection: "column", gap: "8px" },
+  detailText: { color: "#555", lineHeight: "1.6" },
   statCard: {
     background: "linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)",
-    textAlign: "center",
-    borderRadius: "10px",
+    textAlign: "center", borderRadius: "10px",
     boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
   },
-  statContent: {
-    padding: "20px",
-  },
-  statIcon: {
-    fontSize: "32px",
-    marginBottom: "10px",
-    display: "block",
-  },
-  statNumber: {
-    color: "#166534",
-    fontWeight: "700",
-    marginBottom: "5px",
-  },
-  statLink: {
-    color: "#166534",
-    textDecoration: "none",
-    fontWeight: "600",
-    marginTop: "10px",
-    display: "block",
-  },
-  emptyState: {
-    padding: "40px 20px",
-    textAlign: "center",
-    background: "#f8fafc",
-    borderRadius: "8px",
-  },
-  actionButtons: {
-    display: "flex",
-    gap: "10px",
-    marginTop: "30px",
-    justifyContent: "center",
-    flexWrap: "wrap",
-  },
+  statContent: { padding: "20px" },
+  statIcon: { fontSize: "32px", marginBottom: "10px", display: "block" },
+  statNumber: { color: "#166534", fontWeight: "700", marginBottom: "5px" },
+  statLink: { color: "#166534", textDecoration: "none", fontWeight: "600", marginTop: "10px", display: "block" },
+  emptyState: { padding: "40px 20px", textAlign: "center", background: "#f8fafc", borderRadius: "8px" },
+  actionButtons: { display: "flex", gap: "10px", marginTop: "30px", justifyContent: "center", flexWrap: "wrap" },
 };

@@ -174,7 +174,9 @@ const placeOrder = () => {
           ) : (
             filteredProducts.map((item, index) => (
               <div key={index} style={styles.card}>
-                <img src={item.img} alt={item.name} style={styles.image} />
+                <div style={styles.imageWrap}>
+                  <img src={item.img} alt={item.name} style={styles.image} />
+                </div>
 
                 <h3 style={styles.productName}>{item.name}</h3>
                 <p style={styles.productDesc}>{item.desc}</p>
@@ -192,6 +194,7 @@ const placeOrder = () => {
                     href="https://wa.me/919752440622"
                     target="_blank"
                     rel="noreferrer"
+                    style={{ flex: 1 }}
                   >
                     <button style={styles.btn}>📲 Order</button>
                   </a>
@@ -265,20 +268,31 @@ const styles = {
   },
 
   card: {
-    padding: "20px",
+    padding: "16px",
     borderRadius: "12px",
     background: "white",
     textAlign: "center",
     transition: "0.3s",
     boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+    maxWidth: "420px",
+    width: "100%",
+    margin: "0 auto",
+  },
+
+  imageWrap: {
+    width: "100%",
+    aspectRatio: "16/9",
+    borderRadius: "10px",
+    overflow: "hidden",
+    marginBottom: "14px",
+    background: "#e2e8f0",
   },
 
   image: {
     width: "100%",
-    height: "180px",
+    height: "100%",
     objectFit: "cover",
-    borderRadius: "10px",
-    marginBottom: "15px",
+    display: "block",
   },
 
   productName: {
@@ -302,6 +316,7 @@ const styles = {
   buttonContainer: {
     display: "flex",
     gap: "10px",
+    alignItems: "stretch",
   },
 
   addToCartBtn: {
@@ -316,6 +331,7 @@ const styles = {
 
   btn: {
     flex: 1,
+    width: "100%",
     padding: "10px",
     borderRadius: "8px",
     border: "none",
