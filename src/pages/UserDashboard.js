@@ -47,13 +47,13 @@ export default function UserDashboard() {
     }
   }, [navigate]);
 
-  // 📦 FETCH ORDERS FROM BACKEND
+  // FETCH ORDERS FROM BACKEND
   useEffect(() => {
     if (!authChecked) return;
 
     const fetchOrders = () => {
       axios
-        .get(`${BASE_URL}/my-orders`, { withCredentials: true })
+        .get(`${BASE_URL}/user-orders`, { withCredentials: true })
         .then((res) => {
           if (Array.isArray(res.data)) {
             setOrders(res.data);
@@ -61,14 +61,14 @@ export default function UserDashboard() {
         })
         .catch((err) => {
           console.error("Failed to fetch orders:", err);
-          // // fallback to localStorage if backend fails
-          // setOrders(safeReadArray("orders"));
+          // fallback to localStorage if backend fails
+          setOrders(safeReadArray("orders"));
         });
     };
 
     fetchOrders();
 
-    // 🔄 Poll every 15 seconds so status updates from admin show in real-time
+    // Poll every 15 seconds so status updates from admin show in real-time
     const interval = setInterval(fetchOrders, 15000);
     return () => clearInterval(interval);
   }, [authChecked]);
