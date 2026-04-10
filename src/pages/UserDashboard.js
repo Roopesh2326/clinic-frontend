@@ -145,7 +145,7 @@ export default function UserDashboard() {
           <p style="text-align:center; color:#888; font-size:12px;">
             Thank you for choosing Digital Clinic!
           </p>
-          <script>window.onload = () => { window.print(); }<\/script>
+          <script>window.onload = () => { window.print(); }</script>
         </body>
       </html>
     `);
