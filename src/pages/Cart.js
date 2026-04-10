@@ -140,8 +140,9 @@ export default function Cart() {
   // 🎉 Success screen
   if (orderPlaced) {
     return (
-      <Container maxWidth="md">
-        <Box style={{ textAlign: "center", marginTop: "100px" }}>
+      <Container maxWidth="md"
+        style={styles.Container}>
+        <Box style={styles.successBox}>
           <Typography variant="h5">
             ✅ Order Placed Successfully!
           </Typography>
@@ -163,12 +164,13 @@ export default function Cart() {
   // 🛒 MAIN UI
   return (
     <Container maxWidth="md">
-      <Typography variant="h4" style={{ margin: "20px 0" }}>
+      <Typography variant="h4" 
+      style={styles.heading}>
         🛒 Your Cart
       </Typography>
 
       {cart.length === 0 ? (
-        <Card style={{ padding: "20px", textAlign: "center" }}>
+        <Card style={styles.item}>
           <Typography>Your cart is empty</Typography>
           <Button
             variant="contained"
@@ -182,8 +184,8 @@ export default function Cart() {
         <Grid container spacing={3}>
           <Grid item xs={12} md={7}>
             {cart.map((item, index) => (
-              <Card key={index} style={{ padding: "10px", marginBottom: "10px" }}>
-                <img src={item.img} alt={item.name} width="80" />
+              <Card key={index} style={styles.item}>
+                <img src={item.img} alt={item.name} style={styles.image} />
                 <Typography>{item.name}</Typography>
                 <Typography>{item.price}</Typography>
 
