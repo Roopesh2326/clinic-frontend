@@ -12,6 +12,7 @@ import Admin from "./pages/Admin";
 import UserDashboard from "./pages/UserDashboard";
 import Cart from "./pages/Cart";
 import Store from "./pages/Store";
+import MyOrders from "./pages/MyOrders";
 import NoticeBar from "./components/NoticeBar";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
@@ -41,6 +42,7 @@ function App() {
           <Route path="/store" element={<Store />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/my-orders" element={<MyOrders />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/appointment" element={<Appointment />} />
           <Route path="/signup" element={<Signup />} />
