@@ -26,10 +26,11 @@ export default function UserDashboard() {
   const [orders, setOrders] = useState([]);
   const [cart] = useState(safeReadArray("cart"));
 
-  const [user] = useState({
-    name: localStorage.getItem("name") || "User",
-    email: localStorage.getItem("email") || "user@gmail.com",
-    phone: localStorage.getItem("phone") || "N/A",
+  // ✅ userInfo as state so profile fetch can update it for existing users
+  const [userInfo, setUserInfo] = useState({
+    name: localStorage.getItem("name") || "",
+    email: localStorage.getItem("email") || "",
+    phone: localStorage.getItem("phone") || "",
   });
 
   // 🔐 AUTH CHECK
@@ -47,28 +48,41 @@ export default function UserDashboard() {
     }
   }, [navigate]);
 
-  // FETCH ORDERS FROM BACKEND
+  // 👤 FETCH PROFILE — fixes existing users who don't have name/phone in localStorage
+  useEffect(() => {
+    if (!authChecked) return;
+    if (!localStorage.getItem("name")) {
+      axios
+        .get(`${BASE_URL}/profile`, { withCredentials: true })
+        .then((res) => {
+          const { name, email, phone } = res.data;
+          localStorage.setItem("name", name || "");
+          localStorage.setItem("email", email || "");
+          localStorage.setItem("phone", phone || "");
+          setUserInfo({
+            name: name || "User",
+            email: email || "",
+            phone: phone || "N/A",
+          });
+        })
+        .catch(() => {});
+    }
+  }, [authChecked]);
+
+  // 📦 FETCH ORDERS — polls every 15s so admin status updates appear in real-time
   useEffect(() => {
     if (!authChecked) return;
 
     const fetchOrders = () => {
       axios
-        .get(`${BASE_URL}/user-orders`, { withCredentials: true })
+        .get(`${BASE_URL}/orders/my`, { withCredentials: true })
         .then((res) => {
-          if (Array.isArray(res.data)) {
-            setOrders(res.data);
-          }
+          if (Array.isArray(res.data)) setOrders(res.data);
         })
-        .catch((err) => {
-          console.error("Failed to fetch orders:", err);
-          // fallback to localStorage if backend fails
-          setOrders(safeReadArray("orders"));
-        });
+        .catch(() => setOrders(safeReadArray("orders")));
     };
 
     fetchOrders();
-
-    // Poll every 15 seconds so status updates from admin show in real-time
     const interval = setInterval(fetchOrders, 15000);
     return () => clearInterval(interval);
   }, [authChecked]);
@@ -84,26 +98,25 @@ export default function UserDashboard() {
   const getTotalSpent = () =>
     orders.reduce((total, order) => total + Number(order?.total || 0), 0);
 
-  // 🟢 STATUS COLOR
   const getStatusColor = (status) => {
     switch ((status || "").toLowerCase()) {
       case "delivered": return { background: "#dcfce7", color: "#166534" };
       case "approved":
       case "out for delivery": return { background: "#dbeafe", color: "#1e40af" };
       case "cancelled": return { background: "#fee2e2", color: "#991b1b" };
-      default: return { background: "#fef3c7", color: "#92400e" }; // pending
+      default: return { background: "#fef3c7", color: "#92400e" };
     }
   };
 
-  // 🧾 GENERATE RECEIPT (no jsPDF needed)
+  // 🧾 RECEIPT — window.open, no jsPDF needed
   const generateReceipt = (order) => {
     if (!order) return;
     const receiptWin = window.open("", "_blank");
     const items = Array.isArray(order.items) ? order.items : [];
     const itemsHtml = items
       .map(
-        (item) =>
-          `<tr>
+        (item) => `
+          <tr>
             <td style="padding:6px 10px;">${item.name || "-"}</td>
             <td style="padding:6px 10px;">₹${item.price || 0}</td>
             <td style="padding:6px 10px;">${item.quantity || 1}</td>
@@ -121,31 +134,31 @@ export default function UserDashboard() {
     receiptWin.document.write(`
       <html>
         <head><title>Receipt #${orderId}</title></head>
-        <body style="font-family: Arial, sans-serif; padding: 30px; max-width: 600px; margin: auto;">
-          <h2 style="color:#166534; text-align:center;">Digital Clinic</h2>
-          <p style="text-align:center; color:#555;">Order Receipt</p>
+        <body style="font-family:Arial,sans-serif;padding:30px;max-width:600px;margin:auto;">
+          <h2 style="color:#166534;text-align:center;">Digital Clinic</h2>
+          <p style="text-align:center;color:#555;">Order Receipt</p>
           <hr style="border-color:#166534;" />
           <p><strong>Order ID:</strong> #${orderId}</p>
           <p><strong>Date:</strong> ${orderDate}</p>
           <p><strong>Payment:</strong> ${order.paymentMethod || "Cash"}</p>
           <p><strong>Status:</strong> ${order.status || "Pending"}</p>
           <table border="1" cellpadding="0" cellspacing="0"
-            style="border-collapse:collapse; width:100%; margin-top:15px; font-size:14px;">
+            style="border-collapse:collapse;width:100%;margin-top:15px;font-size:14px;">
             <thead style="background:#f0fdf4;">
               <tr>
-                <th style="padding:8px 10px; text-align:left;">Medicine</th>
-                <th style="padding:8px 10px; text-align:left;">Price</th>
-                <th style="padding:8px 10px; text-align:left;">Qty</th>
+                <th style="padding:8px 10px;text-align:left;">Medicine</th>
+                <th style="padding:8px 10px;text-align:left;">Price</th>
+                <th style="padding:8px 10px;text-align:left;">Qty</th>
               </tr>
             </thead>
             <tbody>${itemsHtml}</tbody>
           </table>
-          <h3 style="text-align:right; margin-top:15px;">Total: ₹${order.total}</h3>
+          <h3 style="text-align:right;margin-top:15px;">Total: ₹${order.total}</h3>
           <hr />
-          <p style="text-align:center; color:#888; font-size:12px;">
+          <p style="text-align:center;color:#888;font-size:12px;">
             Thank you for choosing Digital Clinic!
           </p>
-          <script>window.onload = () => { window.print(); }</script>
+          <script>window.onload = () => { window.print(); }<\/script>
         </body>
       </html>
     `);
@@ -154,9 +167,7 @@ export default function UserDashboard() {
 
   return (
     <Container maxWidth="lg" style={styles.container}>
-      <Typography variant="h4" style={styles.heading}>
-        👤 User Dashboard
-      </Typography>
+      <Typography variant="h4" style={styles.heading}>👤 User Dashboard</Typography>
 
       <Grid container spacing={3}>
         {/* PROFILE CARD */}
@@ -164,18 +175,22 @@ export default function UserDashboard() {
           <Card style={styles.card}>
             <CardContent>
               <Box style={styles.profileHeader}>
-                <Avatar style={styles.avatar}>{user.name.charAt(0)}</Avatar>
+                <Avatar style={styles.avatar}>
+                  {(userInfo.name || "U").charAt(0).toUpperCase()}
+                </Avatar>
                 <Box>
-                  <Typography variant="h6" style={styles.userName}>{user.name}</Typography>
+                  <Typography variant="h6" style={styles.userName}>
+                    {userInfo.name || "User"}
+                  </Typography>
                   <Chip label="👤 User" size="small" style={{ marginTop: "5px" }} />
                 </Box>
               </Box>
               <Box style={styles.profileDetails}>
                 <Typography variant="body2" style={styles.detailText}>
-                  <strong>📧 Email:</strong> {user.email}
+                  <strong>📧 Email:</strong> {userInfo.email || "N/A"}
                 </Typography>
                 <Typography variant="body2" style={styles.detailText}>
-                  <strong>📱 Phone:</strong> {user.phone}
+                  <strong>📱 Phone:</strong> {userInfo.phone || "N/A"}
                 </Typography>
                 <Typography variant="body2" style={styles.detailText}>
                   <strong>💰 Total Spent:</strong> ₹{getTotalSpent()}
@@ -218,10 +233,7 @@ export default function UserDashboard() {
       {/* ORDER HISTORY */}
       <Card style={{ ...styles.card, marginTop: "30px" }}>
         <CardContent>
-          <Typography
-            variant="h6"
-            style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}
-          >
+          <Typography variant="h6" style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
             📋 Order History
             <Chip
               label="Auto-refreshes every 15s"
@@ -232,9 +244,7 @@ export default function UserDashboard() {
 
           {orders.length === 0 ? (
             <Box style={styles.emptyState}>
-              <Typography variant="body1" style={{ marginBottom: "15px" }}>
-                No orders yet
-              </Typography>
+              <Typography variant="body1" style={{ marginBottom: "15px" }}>No orders yet</Typography>
               <Link to="/" style={{ textDecoration: "none" }}>
                 <Button variant="contained" color="success">Start Shopping</Button>
               </Link>
@@ -257,14 +267,14 @@ export default function UserDashboard() {
                   {orders.map((order, idx) => {
                     const orderId = order._id
                       ? order._id.toString().slice(-6).toUpperCase()
-                      : String(order.id || idx + 1);
+                      : String(idx + 1);
                     const orderDate = order.createdAt
                       ? new Date(order.createdAt).toLocaleDateString()
-                      : order.date || "-";
+                      : "-";
                     const statusStyle = getStatusColor(order.status);
 
                     return (
-                      <TableRow key={order._id || idx} style={{ borderBottom: "1px solid #eee" }}>
+                      <TableRow key={order._id || idx}>
                         <TableCell>#{orderId}</TableCell>
                         <TableCell>{orderDate}</TableCell>
                         <TableCell>
@@ -288,20 +298,11 @@ export default function UserDashboard() {
                           />
                         </TableCell>
                         <TableCell>
-                          <Chip
-                            label={order.status || "Pending"}
-                            size="small"
-                            style={statusStyle}
-                          />
+                          <Chip label={order.status || "Pending"} size="small" style={statusStyle} />
                         </TableCell>
                         <TableCell>
-                          <Button
-                            size="small"
-                            variant="outlined"
-                            color="success"
-                            onClick={() => generateReceipt(order)}
-                          >
-                            📄 PDF
+                          <Button size="small" variant="outlined" color="success" onClick={() => generateReceipt(order)}>
+                            🧾 Receipt
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -332,6 +333,7 @@ export default function UserDashboard() {
             localStorage.removeItem("role");
             localStorage.removeItem("email");
             localStorage.removeItem("name");
+            localStorage.removeItem("phone");
             window.location.href = "/";
           }}
         >
