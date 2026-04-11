@@ -30,10 +30,11 @@ export default function MyOrders() {
     }
   }, [navigate]);
 
-  // 📦 FETCH ORDERS — correct endpoint /orders/my
+  // 📦 FETCH ORDERS
   const fetchOrders = async () => {
     try {
       setLoading(true);
+      // ✅ Fixed endpoint from /user-orders to /orders/my
       const res = await axios.get(`${BASE_URL}/orders/my`, { withCredentials: true });
       if (Array.isArray(res.data)) {
         setOrders(res.data);
@@ -50,7 +51,7 @@ export default function MyOrders() {
   useEffect(() => {
     if (!authChecked) return;
     fetchOrders();
-    // 🔄 Poll every 10s so admin status updates appear automatically
+    // 🔄 Real-time status updates every 10 seconds
     const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
   }, [authChecked]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -66,7 +67,7 @@ export default function MyOrders() {
     }
   };
 
-  // 🧾 RECEIPT
+  // 🧾 RECEIPT — using string concat to avoid escape character lint errors
   const generateReceipt = (order) => {
     if (!order) return;
     const receiptWin = window.open("", "_blank");
@@ -89,6 +90,7 @@ export default function MyOrders() {
     const orderDate = order.createdAt
       ? new Date(order.createdAt).toLocaleString()
       : order.date || "N/A";
+
     const statusColor = getStatusColor(order.status).color;
 
     const html =
@@ -139,12 +141,11 @@ export default function MyOrders() {
 
       {/* HEADER */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Typography variant="h4" sx={{ fontWeight: "bold", color: "#166534" }}>
+        <Typography variant="h4" component="h1" sx={{ fontWeight: "bold", color: "#166534" }}>
           📦 My Orders
         </Typography>
         <Button
           variant="outlined"
-          color="success"
           onClick={fetchOrders}
           disabled={loading}
           startIcon={loading ? <CircularProgress size={20} /> : null}
@@ -154,7 +155,9 @@ export default function MyOrders() {
       </Box>
 
       {/* ERROR */}
-      {error && <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>}
+      {error && (
+        <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
+      )}
 
       {/* EMPTY STATE */}
       {orders.length === 0 && !loading ? (
@@ -164,7 +167,7 @@ export default function MyOrders() {
               No orders found
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              You have not placed any orders yet.
+              You have not placed any orders yet. Start shopping to see your orders here.
             </Typography>
             <Button variant="contained" color="success" onClick={() => navigate("/")}>
               Browse Medicines
@@ -184,13 +187,7 @@ export default function MyOrders() {
 
             return (
               <Grid item xs={12} md={6} lg={4} key={order._id || idx}>
-                <Card sx={{
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  borderRadius: "12px",
-                  boxShadow: "0 2px 12px rgba(0,0,0,0.08)"
-                }}>
+                <Card sx={{ height: "100%", display: "flex", flexDirection: "column", borderRadius: "12px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
                   <CardContent sx={{ flexGrow: 1 }}>
 
                     {/* ORDER ID + STATUS */}
@@ -217,7 +214,7 @@ export default function MyOrders() {
                       💊 Items: {Array.isArray(order.items) ? order.items.length : 0}
                     </Typography>
 
-                    {/* ITEMS PREVIEW */}
+                    {/* ITEMS LIST */}
                     {Array.isArray(order.items) && order.items.slice(0, 3).map((item, i) => (
                       <Typography key={i} variant="caption" display="block" color="text.secondary">
                         • {item.name} — Rs.{item.price}
@@ -262,7 +259,7 @@ export default function MyOrders() {
       {/* AUTO REFRESH NOTE */}
       <Box sx={{ mt: 4, p: 2, backgroundColor: "#f0fdf4", borderRadius: 1 }}>
         <Typography variant="caption" color="text.secondary">
-          🔄 Orders auto-refresh every 10 seconds. Status updates from admin appear automatically.
+          🔄 Orders auto-refresh every 10 seconds. Status updates from admin will appear automatically.
         </Typography>
       </Box>
     </Container>
