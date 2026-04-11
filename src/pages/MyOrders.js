@@ -120,7 +120,7 @@ export default function MyOrders() {
       "<p>Thank you for choosing Digital Clinic!</p>" +
       "<p>For any queries, please contact our support team.</p>" +
       "</div>" +
-      "<scr"+"ipt>window.onload = function(){ window.print(); }</scr" + "ipt>" +
+      "<script>window.onload = function(){ window.print(); }</script>" +
       "</body></html>";
 
     receiptWin.document.write(html);
