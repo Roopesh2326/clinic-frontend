@@ -3,8 +3,7 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
   Container, Typography, Card, CardContent, Button, Box,
-  Chip, Table, TableBody, TableCell, TableContainer, TableHead,
-  TableRow, Paper, Grid, Alert, CircularProgress
+  Chip, Grid, Alert, CircularProgress
 } from "@mui/material";
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
@@ -16,7 +15,7 @@ export default function MyOrders() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  // Auth check
+  // 🔐 AUTH CHECK
   useEffect(() => {
     try {
       const isLoggedIn = localStorage.getItem("isLoggedIn");
@@ -31,11 +30,12 @@ export default function MyOrders() {
     }
   }, [navigate]);
 
-  // Fetch orders
+  // 📦 FETCH ORDERS
   const fetchOrders = async () => {
     try {
       setLoading(true);
-      const res = await axios.get(`${BASE_URL}/user-orders`, { withCredentials: true });
+      // ✅ Fixed endpoint from /user-orders to /orders/my
+      const res = await axios.get(`${BASE_URL}/orders/my`, { withCredentials: true });
       if (Array.isArray(res.data)) {
         setOrders(res.data);
         setError("");
@@ -51,100 +51,79 @@ export default function MyOrders() {
   useEffect(() => {
     if (!authChecked) return;
     fetchOrders();
-
-    // Real-time updates every 10 seconds
+    // 🔄 Real-time status updates every 10 seconds
     const interval = setInterval(fetchOrders, 10000);
     return () => clearInterval(interval);
-  }, [authChecked]);
+  }, [authChecked]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Status color mapping
+  // 🟢 STATUS COLOR
   const getStatusColor = (status) => {
     switch ((status || "").toLowerCase()) {
       case "delivered": return { background: "#dcfce7", color: "#166534" };
       case "approved": return { background: "#dbeafe", color: "#1e40af" };
       case "out for delivery": return { background: "#fef3c7", color: "#92400e" };
       case "cancelled": return { background: "#fee2e2", color: "#991b1b" };
-      default: return { background: "#fef3c7", color: "#92400e" }; // pending
+      default: return { background: "#fef3c7", color: "#92400e" };
     }
   };
 
-  // Generate receipt
+  // 🧾 RECEIPT — using string concat to avoid escape character lint errors
   const generateReceipt = (order) => {
     if (!order) return;
     const receiptWin = window.open("", "_blank");
     const items = Array.isArray(order.items) ? order.items : [];
+
     const itemsHtml = items
-      .map(
-        (item) =>
-          `<tr>
-            <td style="padding:6px 10px;">${item.name || "-"}</td>
-            <td style="padding:6px 10px;">${item.quantity || 1}</td>
-            <td style="padding:6px 10px;">${item.price || 0}</td>
-            <td style="padding:6px 10px;">${(item.price || 0) * (item.quantity || 1)}</td>
-          </tr>`
+      .map((item) =>
+        "<tr>" +
+        "<td style='padding:6px 10px;'>" + (item.name || "-") + "</td>" +
+        "<td style='padding:6px 10px;'>" + (item.quantity || 1) + "</td>" +
+        "<td style='padding:6px 10px;'>Rs." + (item.price || 0) + "</td>" +
+        "<td style='padding:6px 10px;'>Rs." + ((item.price || 0) * (item.quantity || 1)) + "</td>" +
+        "</tr>"
       )
       .join("");
 
     const orderId = order._id
-      ? order._id.toString().slice(-8).toUpperCase()
+      ? order._id.toString().slice(-6).toUpperCase()
       : String(order.id || "N/A");
     const orderDate = order.createdAt
       ? new Date(order.createdAt).toLocaleString()
       : order.date || "N/A";
 
-    receiptWin.document.write(`
-      <html>
-        <head>
-          <title>Order Receipt #${orderId}</title>
-          <style>
-            body { font-family: Arial, sans-serif; padding: 30px; max-width: 800px; margin: auto; }
-            .header { text-align: center; color: #166534; margin-bottom: 30px; }
-            .order-info { background: #f8f9fa; padding: 15px; border-radius: 8px; margin: 20px 0; }
-            .total { text-align: right; font-size: 18px; font-weight: bold; margin: 20px 0; }
-            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
-            th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-            th { background: #f0fdf4; font-weight: bold; }
-            .footer { text-align: center; color: #888; font-size: 12px; margin-top: 30px; }
-          </style>
-        </head>
-        <body>
-          <div class="header">
-            <h1>HealthCare Clinic</h1>
-            <p>Order Receipt</p>
-          </div>
-          
-          <div class="order-info">
-            <p><strong>Order ID:</strong> #${orderId}</p>
-            <p><strong>Date:</strong> ${orderDate}</p>
-            <p><strong>Payment Method:</strong> ${order.paymentMethod || "Cash"}</p>
-            <p><strong>Status:</strong> <span style="color: ${getStatusColor(order.status).color}">${order.status || "Pending"}</span></p>
-          </div>
+    const statusColor = getStatusColor(order.status).color;
 
-          <table>
-            <thead>
-              <tr>
-                <th>Medicine</th>
-                <th>Quantity</th>
-                <th>Unit Price</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>${itemsHtml}</tbody>
-          </table>
-          
-          <div class="total">
-            Total Amount: ${order.total || 0}
-          </div>
-          
-          <div class="footer">
-            <p>Thank you for choosing HealthCare Clinic!</p>
-            <p>For any queries, please contact our support team.</p>
-          </div>
-          
-          <script>window.onload = () => { window.print(); }</script>
-        </body>
-      </html>
-    `);
+    const html =
+      "<html><head><title>Receipt #" + orderId + "</title>" +
+      "<style>" +
+      "body{font-family:Arial,sans-serif;padding:30px;max-width:800px;margin:auto;}" +
+      ".header{text-align:center;color:#166534;margin-bottom:30px;}" +
+      ".order-info{background:#f8f9fa;padding:15px;border-radius:8px;margin:20px 0;}" +
+      ".total{text-align:right;font-size:18px;font-weight:bold;margin:20px 0;}" +
+      "table{width:100%;border-collapse:collapse;margin:20px 0;}" +
+      "th,td{padding:12px;text-align:left;border-bottom:1px solid #ddd;}" +
+      "th{background:#f0fdf4;font-weight:bold;}" +
+      ".footer{text-align:center;color:#888;font-size:12px;margin-top:30px;}" +
+      "</style></head><body>" +
+      "<div class='header'><h1>Digital Clinic</h1><p>Order Receipt</p></div>" +
+      "<div class='order-info'>" +
+      "<p><strong>Order ID:</strong> #" + orderId + "</p>" +
+      "<p><strong>Date:</strong> " + orderDate + "</p>" +
+      "<p><strong>Payment:</strong> " + (order.paymentMethod || "Cash") + "</p>" +
+      "<p><strong>Status:</strong> <span style='color:" + statusColor + ";'>" + (order.status || "Pending") + "</span></p>" +
+      "</div>" +
+      "<table><thead><tr>" +
+      "<th>Medicine</th><th>Qty</th><th>Unit Price</th><th>Total</th>" +
+      "</tr></thead><tbody>" + itemsHtml + "</tbody></table>" +
+      "<div class='total'>Total Amount: Rs." + (order.total || 0) + "</div>" +
+      "<div class='footer'>" +
+      "<p>Thank you for choosing Digital Clinic!</p>" +
+      "<p>For any queries, please contact our support team.</p>" +
+      "</div>" +
+      "<script>window.onload = function(){ window.print(); }</scr" + "ipt>" +
+      "</body></html>";
+
+    receiptWin.document.write(html);
     receiptWin.document.close();
   };
 
@@ -159,26 +138,28 @@ export default function MyOrders() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
+
+      {/* HEADER */}
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Typography variant="h4" component="h1" sx={{ fontWeight: "bold", color: "#166534" }}>
-          My Orders
+          📦 My Orders
         </Typography>
-        <Button 
-          variant="outlined" 
+        <Button
+          variant="outlined"
           onClick={fetchOrders}
           disabled={loading}
           startIcon={loading ? <CircularProgress size={20} /> : null}
         >
-          Refresh
+          {loading ? "Refreshing..." : "Refresh"}
         </Button>
       </Box>
 
+      {/* ERROR */}
       {error && (
-        <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
-        </Alert>
+        <Alert severity="error" sx={{ mb: 3 }}>{error}</Alert>
       )}
 
+      {/* EMPTY STATE */}
       {orders.length === 0 && !loading ? (
         <Card sx={{ textAlign: "center", py: 8 }}>
           <CardContent>
@@ -186,13 +167,9 @@ export default function MyOrders() {
               No orders found
             </Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-              You haven't placed any orders yet. Start shopping to see your orders here.
+              You have not placed any orders yet. Start shopping to see your orders here.
             </Typography>
-            <Button 
-              variant="contained" 
-              color="success"
-              onClick={() => navigate("/store")}
-            >
+            <Button variant="contained" color="success" onClick={() => navigate("/")}>
               Browse Medicines
             </Button>
           </CardContent>
@@ -201,26 +178,26 @@ export default function MyOrders() {
         <Grid container spacing={3}>
           {orders.map((order, idx) => {
             const orderId = order._id
-              ? order._id.toString().slice(-8).toUpperCase()
-              : String(order.id || idx + 1);
+              ? order._id.toString().slice(-6).toUpperCase()
+              : String(idx + 1);
             const orderDate = order.createdAt
               ? new Date(order.createdAt).toLocaleDateString()
-              : order.date || "-";
+              : "-";
             const statusStyle = getStatusColor(order.status);
 
             return (
               <Grid item xs={12} md={6} lg={4} key={order._id || idx}>
-                <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+                <Card sx={{ height: "100%", display: "flex", flexDirection: "column", borderRadius: "12px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
                   <CardContent sx={{ flexGrow: 1 }}>
+
+                    {/* ORDER ID + STATUS */}
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
-                      <Typography variant="h6" component="div">
-                        Order #{orderId}
-                      </Typography>
-                      <Chip 
-                        label={order.status || "Pending"} 
+                      <Typography variant="h6">#{orderId}</Typography>
+                      <Chip
+                        label={order.status || "Pending"}
                         size="small"
-                        sx={{ 
-                          backgroundColor: statusStyle.background, 
+                        sx={{
+                          backgroundColor: statusStyle.background,
                           color: statusStyle.color,
                           fontWeight: "bold"
                         }}
@@ -228,35 +205,45 @@ export default function MyOrders() {
                     </Box>
 
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Date: {orderDate}
+                      📅 Date: {orderDate}
                     </Typography>
-                    
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                      Payment: {order.paymentMethod || "Cash"}
+                      💳 Payment: {order.paymentMethod || "Cash"}
                     </Typography>
-
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Items: {Array.isArray(order.items) ? order.items.length : 0}
+                      💊 Items: {Array.isArray(order.items) ? order.items.length : 0}
                     </Typography>
 
-                    <Box sx={{ mt: "auto", pt: 2 }}>
-                      <Typography variant="h6" color="primary" sx={{ mb: 2 }}>
-                        Total: ${order.total || 0}
+                    {/* ITEMS LIST */}
+                    {Array.isArray(order.items) && order.items.slice(0, 3).map((item, i) => (
+                      <Typography key={i} variant="caption" display="block" color="text.secondary">
+                        • {item.name} — Rs.{item.price}
                       </Typography>
-                      
-                      <Button 
-                        variant="outlined" 
+                    ))}
+                    {Array.isArray(order.items) && order.items.length > 3 && (
+                      <Typography variant="caption" color="text.secondary">
+                        +{order.items.length - 3} more items
+                      </Typography>
+                    )}
+
+                    {/* TOTAL + ACTIONS */}
+                    <Box sx={{ mt: 2, pt: 2, borderTop: "1px solid #eee" }}>
+                      <Typography variant="h6" color="success.main" sx={{ mb: 2 }}>
+                        Total: Rs.{order.total || 0}
+                      </Typography>
+                      <Button
+                        variant="outlined"
                         size="small"
+                        color="success"
                         onClick={() => generateReceipt(order)}
                         sx={{ mr: 1 }}
                       >
-                        View Receipt
+                        🧾 Receipt
                       </Button>
-                      
-                      <Button 
-                        variant="text" 
+                      <Button
+                        variant="text"
                         size="small"
-                        onClick={() => navigate("/store")}
+                        onClick={() => navigate("/")}
                       >
                         Order Again
                       </Button>
@@ -269,9 +256,10 @@ export default function MyOrders() {
         </Grid>
       )}
 
-      <Box sx={{ mt: 4, p: 2, backgroundColor: "#f5f5f5", borderRadius: 1 }}>
+      {/* AUTO REFRESH NOTE */}
+      <Box sx={{ mt: 4, p: 2, backgroundColor: "#f0fdf4", borderRadius: 1 }}>
         <Typography variant="caption" color="text.secondary">
-          Orders auto-refresh every 10 seconds. Status updates will appear automatically.
+          🔄 Orders auto-refresh every 10 seconds. Status updates from admin will appear automatically.
         </Typography>
       </Box>
     </Container>

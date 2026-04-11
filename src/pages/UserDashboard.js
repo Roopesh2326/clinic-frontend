@@ -26,7 +26,6 @@ export default function UserDashboard() {
   const [orders, setOrders] = useState([]);
   const [cart] = useState(safeReadArray("cart"));
 
-  // ✅ userInfo as state so profile fetch can update it for existing users
   const [userInfo, setUserInfo] = useState({
     name: localStorage.getItem("name") || "",
     email: localStorage.getItem("email") || "",
@@ -48,7 +47,7 @@ export default function UserDashboard() {
     }
   }, [navigate]);
 
-  // 👤 FETCH PROFILE — fixes existing users who don't have name/phone in localStorage
+  // 👤 FETCH PROFILE for existing users missing name/phone
   useEffect(() => {
     if (!authChecked) return;
     if (!localStorage.getItem("name")) {
@@ -69,7 +68,7 @@ export default function UserDashboard() {
     }
   }, [authChecked]);
 
-  // 📦 FETCH ORDERS — polls every 15s so admin status updates appear in real-time
+  // 📦 FETCH ORDERS — poll every 15s for real-time status updates
   useEffect(() => {
     if (!authChecked) return;
 
@@ -101,26 +100,26 @@ export default function UserDashboard() {
   const getStatusColor = (status) => {
     switch ((status || "").toLowerCase()) {
       case "delivered": return { background: "#dcfce7", color: "#166534" };
-      case "approved":
+      case "approved": return { background: "#dbeafe", color: "#1e40af" };
       case "out for delivery": return { background: "#dbeafe", color: "#1e40af" };
       case "cancelled": return { background: "#fee2e2", color: "#991b1b" };
       default: return { background: "#fef3c7", color: "#92400e" };
     }
   };
 
-  // 🧾 RECEIPT — window.open, no jsPDF needed
+  // 🧾 RECEIPT — no jsPDF needed
   const generateReceipt = (order) => {
     if (!order) return;
     const receiptWin = window.open("", "_blank");
     const items = Array.isArray(order.items) ? order.items : [];
     const itemsHtml = items
       .map(
-        (item) => `
-          <tr>
-            <td style="padding:6px 10px;">${item.name || "-"}</td>
-            <td style="padding:6px 10px;">₹${item.price || 0}</td>
-            <td style="padding:6px 10px;">${item.quantity || 1}</td>
-          </tr>`
+        (item) =>
+          "<tr>" +
+          "<td style='padding:6px 10px;'>" + (item.name || "-") + "</td>" +
+          "<td style='padding:6px 10px;'>Rs." + (item.price || 0) + "</td>" +
+          "<td style='padding:6px 10px;'>" + (item.quantity || 1) + "</td>" +
+          "</tr>"
       )
       .join("");
 
@@ -131,37 +130,30 @@ export default function UserDashboard() {
       ? new Date(order.createdAt).toLocaleString()
       : order.date || "N/A";
 
-    receiptWin.document.write(`
-      <html>
-        <head><title>Receipt #${orderId}</title></head>
-        <body style="font-family:Arial,sans-serif;padding:30px;max-width:600px;margin:auto;">
-          <h2 style="color:#166534;text-align:center;">Digital Clinic</h2>
-          <p style="text-align:center;color:#555;">Order Receipt</p>
-          <hr style="border-color:#166534;" />
-          <p><strong>Order ID:</strong> #${orderId}</p>
-          <p><strong>Date:</strong> ${orderDate}</p>
-          <p><strong>Payment:</strong> ${order.paymentMethod || "Cash"}</p>
-          <p><strong>Status:</strong> ${order.status || "Pending"}</p>
-          <table border="1" cellpadding="0" cellspacing="0"
-            style="border-collapse:collapse;width:100%;margin-top:15px;font-size:14px;">
-            <thead style="background:#f0fdf4;">
-              <tr>
-                <th style="padding:8px 10px;text-align:left;">Medicine</th>
-                <th style="padding:8px 10px;text-align:left;">Price</th>
-                <th style="padding:8px 10px;text-align:left;">Qty</th>
-              </tr>
-            </thead>
-            <tbody>${itemsHtml}</tbody>
-          </table>
-          <h3 style="text-align:right;margin-top:15px;">Total: ₹${order.total}</h3>
-          <hr />
-          <p style="text-align:center;color:#888;font-size:12px;">
-            Thank you for choosing Digital Clinic!
-          </p>
-          <script>window.onload = () => { window.print(); }<\/script>
-        </body>
-      </html>
-    `);
+    const html =
+      "<html><head><title>Receipt #" + orderId + "</title></head>" +
+      "<body style='font-family:Arial,sans-serif;padding:30px;max-width:600px;margin:auto;'>" +
+      "<h2 style='color:#166534;text-align:center;'>Digital Clinic</h2>" +
+      "<p style='text-align:center;color:#555;'>Order Receipt</p>" +
+      "<hr style='border-color:#166534;'/>" +
+      "<p><strong>Order ID:</strong> #" + orderId + "</p>" +
+      "<p><strong>Date:</strong> " + orderDate + "</p>" +
+      "<p><strong>Payment:</strong> " + (order.paymentMethod || "Cash") + "</p>" +
+      "<p><strong>Status:</strong> " + (order.status || "Pending") + "</p>" +
+      "<table border='1' cellpadding='0' cellspacing='0' style='border-collapse:collapse;width:100%;margin-top:15px;font-size:14px;'>" +
+      "<thead style='background:#f0fdf4;'><tr>" +
+      "<th style='padding:8px 10px;text-align:left;'>Medicine</th>" +
+      "<th style='padding:8px 10px;text-align:left;'>Price</th>" +
+      "<th style='padding:8px 10px;text-align:left;'>Qty</th>" +
+      "</tr></thead>" +
+      "<tbody>" + itemsHtml + "</tbody></table>" +
+      "<h3 style='text-align:right;margin-top:15px;'>Total: Rs." + order.total + "</h3>" +
+      "<hr/>" +
+      "<p style='text-align:center;color:#888;font-size:12px;'>Thank you for choosing Digital Clinic!</p>" +
+      "<script>window.onload = function(){ window.print(); }</scr" + "ipt>" +
+      "</body></html>";
+
+    receiptWin.document.write(html);
     receiptWin.document.close();
   };
 
@@ -170,7 +162,7 @@ export default function UserDashboard() {
       <Typography variant="h4" style={styles.heading}>👤 User Dashboard</Typography>
 
       <Grid container spacing={3}>
-        {/* PROFILE CARD */}
+        {/* PROFILE */}
         <Grid item xs={12} md={6}>
           <Card style={styles.card}>
             <CardContent>
@@ -193,7 +185,7 @@ export default function UserDashboard() {
                   <strong>📱 Phone:</strong> {userInfo.phone || "N/A"}
                 </Typography>
                 <Typography variant="body2" style={styles.detailText}>
-                  <strong>💰 Total Spent:</strong> ₹{getTotalSpent()}
+                  <strong>💰 Total Spent:</strong> Rs.{getTotalSpent()}
                 </Typography>
                 <Typography variant="body2" style={styles.detailText}>
                   <strong>📦 Orders Placed:</strong> {orders.length}
@@ -203,7 +195,7 @@ export default function UserDashboard() {
           </Card>
         </Grid>
 
-        {/* QUICK STATS */}
+        {/* STATS */}
         <Grid item xs={12} md={6}>
           <Grid container spacing={2}>
             <Grid item xs={6}>
@@ -222,7 +214,7 @@ export default function UserDashboard() {
                   <Typography style={styles.statIcon}>📦</Typography>
                   <Typography variant="h6" style={styles.statNumber}>{orders.length}</Typography>
                   <Typography variant="body2">Orders Placed</Typography>
-                  <Typography variant="caption">Track & manage</Typography>
+                  <Typography variant="caption">Track and manage</Typography>
                 </CardContent>
               </Card>
             </Grid>
@@ -235,11 +227,7 @@ export default function UserDashboard() {
         <CardContent>
           <Typography variant="h6" style={{ marginBottom: "20px", display: "flex", alignItems: "center", gap: "8px" }}>
             📋 Order History
-            <Chip
-              label="Auto-refreshes every 15s"
-              size="small"
-              style={{ background: "#dcfce7", color: "#166534", fontSize: "10px" }}
-            />
+            <Chip label="Auto-refreshes every 15s" size="small" style={{ background: "#dcfce7", color: "#166534", fontSize: "10px" }} />
           </Typography>
 
           {orders.length === 0 ? (
@@ -280,19 +268,17 @@ export default function UserDashboard() {
                         <TableCell>
                           {(Array.isArray(order.items) ? order.items : []).map((item, i) => (
                             <div key={i} style={{ fontSize: "12px", marginBottom: "2px" }}>
-                              {item.name} — ₹{item.price}
+                              {item.name} — Rs.{item.price}
                             </div>
                           ))}
                         </TableCell>
-                        <TableCell><strong>₹{order.total}</strong></TableCell>
+                        <TableCell><strong>Rs.{order.total}</strong></TableCell>
                         <TableCell>
                           <Chip
                             label={(order.paymentMethod || "Cash").charAt(0).toUpperCase() + (order.paymentMethod || "Cash").slice(1)}
                             size="small"
                             style={{
-                              background:
-                                order.paymentMethod === "card" ? "#e0f2fe" :
-                                order.paymentMethod === "upi" ? "#f0fdf4" : "#fef3c7",
+                              background: order.paymentMethod === "card" ? "#e0f2fe" : order.paymentMethod === "upi" ? "#f0fdf4" : "#fef3c7",
                               color: "#000",
                             }}
                           />
@@ -315,7 +301,7 @@ export default function UserDashboard() {
         </CardContent>
       </Card>
 
-      {/* ACTION BUTTONS */}
+      {/* ACTIONS */}
       <Box style={styles.actionButtons}>
         <Link to="/" style={{ textDecoration: "none" }}>
           <Button variant="contained" color="success">🛍️ Continue Shopping</Button>
@@ -349,19 +335,11 @@ const styles = {
   heading: { color: "#166534", fontWeight: "700", marginBottom: "30px" },
   card: { boxShadow: "0 4px 12px rgba(0,0,0,0.1)", borderRadius: "10px" },
   profileHeader: { display: "flex", alignItems: "center", gap: "15px", marginBottom: "20px" },
-  avatar: {
-    width: 60, height: 60,
-    background: "linear-gradient(135deg, #166534 0%, #4ade80 100%)",
-    fontSize: "28px",
-  },
+  avatar: { width: 60, height: 60, background: "linear-gradient(135deg, #166534 0%, #4ade80 100%)", fontSize: "28px" },
   userName: { fontWeight: "700", color: "#166534" },
   profileDetails: { display: "flex", flexDirection: "column", gap: "8px" },
   detailText: { color: "#555", lineHeight: "1.6" },
-  statCard: {
-    background: "linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)",
-    textAlign: "center", borderRadius: "10px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-  },
+  statCard: { background: "linear-gradient(135deg, #f0fdf4 0%, #e0f2fe 100%)", textAlign: "center", borderRadius: "10px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" },
   statContent: { padding: "20px" },
   statIcon: { fontSize: "32px", marginBottom: "10px", display: "block" },
   statNumber: { color: "#166534", fontWeight: "700", marginBottom: "5px" },
