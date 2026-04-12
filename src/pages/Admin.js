@@ -133,6 +133,7 @@ export default function Admin() {
   const totalOrders = safeOrders.length;
   const totalRevenue = safeOrders.reduce((sum, o) => sum + Number(o?.total || 0), 0);
   const totalAdmins = safeUsers.filter((u) => u.role === "admin").length;
+  <Typography>Total Admins: {totalAdmins}</Typography>
 
   const ordersByStatus = {
     Pending: safeOrders.filter((o) => o.status === "Pending").length,
@@ -253,6 +254,7 @@ export default function Admin() {
       setNotification({ open: true, message: "Failed to remove medicine", severity: "error" });
     }
   };
+  <Button onClick={() => deleteMedicine(editingMed._id)}>Delete</Button>
 
   const openStockUpdate = (med) => {
     setStockMed(med);
