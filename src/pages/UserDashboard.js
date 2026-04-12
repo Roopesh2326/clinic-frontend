@@ -150,7 +150,7 @@ export default function UserDashboard() {
       "<h3 style='text-align:right;margin-top:15px;'>Total: Rs." + order.total + "</h3>" +
       "<hr/>" +
       "<p style='text-align:center;color:#888;font-size:12px;'>Thank you for choosing Digital Clinic!</p>" +
-      "<script>window.onload = function(){ window.print(); }</scr" + "ipt>" +
+      "<script>window.onload = function(){ window.print(); }</script>" +
       "</body></html>";
 
     receiptWin.document.write(html);
