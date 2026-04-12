@@ -1,24 +1,9 @@
 {
   "version": 2,
-  "name": "clinic-frontend",
-  "builds": [
+  "rewrites": [
     {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build"
-      }
+      "source": "/((?!static|.*\\..*).*)",
+      "destination": "/index.html"
     }
-  ],
-  "routes": [
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
-  "outputDirectory": "build",
-  "installCommand": "npm install",
-  "buildCommand": "npm run build",
-  "devCommand": "npm start",
-  "framework": "create-react-app"
+  ]
 }
