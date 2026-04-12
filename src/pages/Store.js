@@ -60,13 +60,15 @@ const defaultHomeopathyMedicines = [
 
 export default function StorePage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState("All");
+  const [activeCategory, setActiveCategory] = useState("All");
   const [cart, setCart] = useState(safeReadArray("cart"));
-  const [message, setMessage] = useState("");
   const [medicines, setMedicines] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState("default");
+  const [addedItems, setAddedItems] = useState({});
   const role = (localStorage.getItem("role") || "").toLowerCase();
 
-  // ✅ LOAD MEDICINES FROM ADMIN (REAL TIME)
+  // ✅ LOAD MEDICINES
   useEffect(() => {
     const loadMedicines = () => {
       const adminMedicines = safeReadArray("medicines").filter(
@@ -74,12 +76,8 @@ export default function StorePage() {
       );
       setMedicines(adminMedicines.length ? adminMedicines : defaultHomeopathyMedicines);
     };
-
     loadMedicines();
-
-    // 🔥 Auto update when admin changes
     window.addEventListener("storage", loadMedicines);
-
     return () => window.removeEventListener("storage", loadMedicines);
   }, []);
 
@@ -88,78 +86,129 @@ export default function StorePage() {
     const newCart = [...cart, product];
     setCart(newCart);
     localStorage.setItem("cart", JSON.stringify(newCart));
-
     window.dispatchEvent(new Event("cartUpdate"));
-
-    setMessage(`${product.name} added to cart`);
-    setTimeout(() => setMessage(""), 2000);
+    // Show added feedback per item
+    setAddedItems((prev) => ({ ...prev, [product.name]: true }));
+    setTimeout(() => {
+      setAddedItems((prev) => ({ ...prev, [product.name]: false }));
+    }, 1500);
   };
 
-  // ✅ DYNAMIC CATEGORIES
+  // ✅ CATEGORIES
   const getCategories = () => {
     const cats = [...new Set(medicines.map((m) => m?.category).filter(Boolean))];
     return ["All", ...cats];
   };
 
-  // ✅ FILTER
-  const filteredProducts =
-    activeTab === "All"
-      ? medicines
-      : medicines.filter((item) => item.category === activeTab);
+  // ✅ CART ITEM COUNT for a product
+  const getCartCount = (productName) =>
+    cart.filter((item) => item.name === productName).length;
 
-  // ✅ PLACE ORDER
-const placeOrder = () => {
-  if (cart.length === 0) {
-    alert("Cart is empty");
-    return;
-  }
+  // ✅ FILTER + SEARCH + SORT
+  const getFilteredMedicines = () => {
+    let result = [...medicines];
 
-  const totalAmount = cart.reduce((sum, item) => {
-    return sum + Number(item.price);
-  }, 0);
+    // Category filter
+    if (activeCategory !== "All") {
+      result = result.filter((item) => item.category === activeCategory);
+    }
 
-  const existingOrders = safeReadArray("orders");
+    // Search filter
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(
+        (item) =>
+          String(item.name || "").toLowerCase().includes(q) ||
+          String(item.desc || "").toLowerCase().includes(q) ||
+          String(item.category || "").toLowerCase().includes(q)
+      );
+    }
 
-  const newOrder = {
-    id: Date.now(), // ✅ IMPORTANT
-    items: cart,
-    total: totalAmount,
-    status: "Completed", // ✅ SHOW SUCCESS
-    paymentMethod: "cash", // ✅ FIX DASHBOARD
-    date: new Date().toLocaleString(),
+    // Sort
+    if (sortBy === "price-asc") {
+      result.sort((a, b) => Number(a.price) - Number(b.price));
+    } else if (sortBy === "price-desc") {
+      result.sort((a, b) => Number(b.price) - Number(a.price));
+    } else if (sortBy === "name-asc") {
+      result.sort((a, b) => String(a.name).localeCompare(String(b.name)));
+    }
+
+    return result;
   };
 
-  const updatedOrders = [...existingOrders, newOrder];
-
-  localStorage.setItem("orders", JSON.stringify(updatedOrders));
-
-  alert("Order placed successfully!");
-};
+  const filteredMedicines = getFilteredMedicines();
+  const cartTotal = cart.reduce((sum, item) => sum + Number(item.price || 0), 0);
 
   return (
     <Container maxWidth="lg" style={styles.wrapper}>
       <div style={styles.section}>
-        <h2 style={styles.heading}>💊 Medicines & Syrups</h2>
-        {role === "admin" && (
-          <div style={{ marginBottom: "20px" }}>
-            <button style={styles.btn} onClick={() => navigate("/admin")}>
-              Back to Admin Panel
+
+        {/* ── HEADER ── */}
+        <div style={styles.headerRow}>
+          <div>
+            <h2 style={styles.heading}>💊 Medicine Store</h2>
+            <p style={styles.subHeading}>
+              {medicines.length} medicines available
+            </p>
+          </div>
+          <div style={styles.headerActions}>
+            {role === "admin" && (
+              <button style={styles.adminBtn} onClick={() => navigate("/admin")}>
+                ⚙️ Admin Panel
+              </button>
+            )}
+            <button style={styles.cartBtn} onClick={() => navigate("/cart")}>
+              🛒 Cart ({cart.length})
+              {cart.length > 0 && (
+                <span style={styles.cartTotal}> · Rs.{cartTotal}</span>
+              )}
             </button>
           </div>
-        )}
+        </div>
 
-        {message && <div style={styles.message}>{message}</div>}
+        {/* ── SEARCH + SORT ── */}
+        <div style={styles.controlsRow}>
+          <div style={styles.searchBox}>
+            <span style={styles.searchIcon}>🔍</span>
+            <input
+              type="text"
+              placeholder="Search medicines by name, category, or description..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={styles.searchInput}
+            />
+            {searchQuery && (
+              <button
+                style={styles.clearBtn}
+                onClick={() => setSearchQuery("")}
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            style={styles.sortSelect}
+          >
+            <option value="default">Sort: Default</option>
+            <option value="price-asc">Price: Low to High</option>
+            <option value="price-desc">Price: High to Low</option>
+            <option value="name-asc">Name: A to Z</option>
+          </select>
+        </div>
 
-        {/* 🔥 TABS */}
+        {/* ── CATEGORY TABS ── */}
         <div style={styles.tabs}>
           {getCategories().map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => setActiveCategory(tab)}
               style={{
                 ...styles.tab,
-                background: activeTab === tab ? "#166534" : "white",
-                color: activeTab === tab ? "white" : "#166534",
+                background: activeCategory === tab ? "#166534" : "white",
+                color: activeCategory === tab ? "white" : "#166534",
+                boxShadow: activeCategory === tab ? "0 2px 8px rgba(22,101,52,0.3)" : "none",
               }}
             >
               {tab}
@@ -167,47 +216,101 @@ const placeOrder = () => {
           ))}
         </div>
 
-        {/* 🔥 PRODUCTS */}
-        <div style={styles.container}>
-          {filteredProducts.length === 0 ? (
-            <p>No medicines available</p>
+        {/* ── RESULTS COUNT ── */}
+        <div style={styles.resultsRow}>
+          {searchQuery ? (
+            <p style={styles.resultsText}>
+              {filteredMedicines.length} result{filteredMedicines.length !== 1 ? "s" : ""} for
+              <strong> "{searchQuery}"</strong>
+            </p>
           ) : (
-            filteredProducts.map((item, index) => (
-              <div key={index} style={styles.card}>
-                <div style={styles.imageWrap}>
-                  <img src={item.img} alt={item.name} style={styles.image} />
-                </div>
-
-                <h3 style={styles.productName}>{item.name}</h3>
-                <p style={styles.productDesc}>{item.desc}</p>
-                <p style={styles.price}>₹{item.price}</p>
-
-                <div style={styles.buttonContainer}>
-                  <button
-                    style={styles.addToCartBtn}
-                    onClick={() => addToCart(item)}
-                  >
-                    🛒 Add
-                  </button>
-
-                  <a
-                    href="https://wa.me/919752440622"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ flex: 1 }}
-                  >
-                    <button style={styles.btn}>📲 Order</button>
-                  </a>
-                </div>
-                <div style={{ marginTop: "30px" }}>
-                  <button style={styles.btn} onClick={placeOrder}>
-                    Place Order
-                  </button>
-                </div>
-              </div>
-            ))
+            <p style={styles.resultsText}>
+              Showing <strong>{filteredMedicines.length}</strong> medicines
+              {activeCategory !== "All" && <> in <strong>{activeCategory}</strong></>}
+            </p>
           )}
         </div>
+
+        {/* ── PRODUCTS GRID ── */}
+        {filteredMedicines.length === 0 ? (
+          <div style={styles.emptyState}>
+            <p style={{ fontSize: "48px", margin: "0 0 16px" }}>🔍</p>
+            <h3 style={{ color: "#166534", margin: "0 0 8px" }}>No medicines found</h3>
+            <p style={{ color: "#888" }}>
+              Try a different search term or category
+            </p>
+            <button
+              style={{ ...styles.cartBtn, marginTop: "16px" }}
+              onClick={() => { setSearchQuery(""); setActiveCategory("All"); }}
+            >
+              Clear Filters
+            </button>
+          </div>
+        ) : (
+          <div style={styles.grid}>
+            {filteredMedicines.map((item, index) => {
+              const inCart = getCartCount(item.name);
+              const justAdded = addedItems[item.name];
+              return (
+                <div key={index} style={styles.card}>
+                  {/* CATEGORY BADGE */}
+                  {item.category && (
+                    <div style={styles.categoryBadge}>{item.category}</div>
+                  )}
+
+                  {/* IMAGE */}
+                  <div style={styles.imageWrap}>
+                    <img src={item.img} alt={item.name} style={styles.image} />
+                  </div>
+
+                  {/* INFO */}
+                  <div style={styles.cardBody}>
+                    <h3 style={styles.productName}>{item.name}</h3>
+                    <p style={styles.productDesc}>{item.desc}</p>
+
+                    <div style={styles.priceRow}>
+                      <span style={styles.price}>Rs.{item.price}</span>
+                      {inCart > 0 && (
+                        <span style={styles.inCartBadge}>
+                          {inCart} in cart
+                        </span>
+                      )}
+                    </div>
+
+                    {/* BUTTONS */}
+                    <div style={styles.buttonContainer}>
+                      <button
+                        style={{
+                          ...styles.addToCartBtn,
+                          background: justAdded ? "#166534" : "white",
+                          color: justAdded ? "white" : "#166534",
+                        }}
+                        onClick={() => addToCart(item)}
+                      >
+                        {justAdded ? "✅ Added!" : "🛒 Add to Cart"}
+                      </button>
+                      <a
+                        href="https://wa.me/919752440622"
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ flex: 1 }}
+                      >
+                        <button style={styles.whatsappBtn}>📲 Order</button>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── FLOATING CART BUTTON (mobile) ── */}
+        {cart.length > 0 && (
+          <button style={styles.floatingCart} onClick={() => navigate("/cart")}>
+            🛒 {cart.length} items · Rs.{cartTotal} → Checkout
+          </button>
+        )}
       </div>
     </Container>
   );
@@ -217,120 +320,236 @@ const styles = {
   wrapper: {
     padding: "20px",
     marginTop: "20px",
-    marginBottom: "40px",
+    marginBottom: "80px",
   },
-
   section: {
-    padding: "40px 20px",
+    padding: "32px 24px",
     background: "#f8fafc",
-    textAlign: "center",
-    borderRadius: "10px",
+    borderRadius: "16px",
   },
 
+  // Header
+  headerRow: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    marginBottom: "28px",
+    flexWrap: "wrap",
+    gap: "16px",
+  },
   heading: {
-    fontSize: "36px",
-    marginBottom: "30px",
+    fontSize: "32px",
+    margin: "0 0 4px",
     color: "#166534",
     fontWeight: "700",
   },
-
-  message: {
-    background: "#d4edda",
-    color: "#155724",
-    padding: "12px",
-    borderRadius: "6px",
-    marginBottom: "20px",
-    fontWeight: "600",
+  subHeading: {
+    margin: 0,
+    color: "#888",
+    fontSize: "14px",
   },
-
-  tabs: {
+  headerActions: {
     display: "flex",
-    justifyContent: "center",
-    gap: "10px",
-    marginBottom: "30px",
+    gap: "12px",
+    alignItems: "center",
     flexWrap: "wrap",
   },
-
-  tab: {
-    padding: "10px 20px",
-    borderRadius: "20px",
-    border: "2px solid #166534",
-    cursor: "pointer",
-    fontWeight: "600",
-  },
-
-  container: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))",
-    gap: "30px",
-    maxWidth: "1200px",
-    margin: "0 auto",
-  },
-
-  card: {
-    padding: "16px",
-    borderRadius: "12px",
-    background: "white",
-    textAlign: "center",
-    transition: "0.3s",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
-    maxWidth: "420px",
-    width: "100%",
-    margin: "0 auto",
-  },
-
-  imageWrap: {
-    width: "100%",
-    aspectRatio: "16/9",
-    borderRadius: "10px",
-    overflow: "hidden",
-    marginBottom: "14px",
-    background: "#e2e8f0",
-  },
-
-  image: {
-    width: "100%",
-    height: "100%",
-    objectFit: "cover",
-    display: "block",
-  },
-
-  productName: {
-    fontSize: "18px",
-    fontWeight: "700",
-    color: "#166534",
-  },
-
-  productDesc: {
-    fontSize: "14px",
-    color: "#666",
-  },
-
-  price: {
-    fontWeight: "700",
-    color: "#166534",
-    fontSize: "18px",
-    margin: "10px 0",
-  },
-
-  buttonContainer: {
-    display: "flex",
-    gap: "10px",
-    alignItems: "stretch",
-  },
-
-  addToCartBtn: {
-    flex: 1,
-    padding: "10px",
+  adminBtn: {
+    padding: "10px 18px",
     borderRadius: "8px",
     border: "2px solid #166534",
     background: "white",
     color: "#166534",
     cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "14px",
+  },
+  cartBtn: {
+    padding: "10px 20px",
+    borderRadius: "8px",
+    border: "none",
+    background: "#166534",
+    color: "white",
+    cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "14px",
+  },
+  cartTotal: {
+    opacity: 0.85,
+    fontSize: "13px",
   },
 
-  btn: {
+  // Search + Sort
+  controlsRow: {
+    display: "flex",
+    gap: "12px",
+    marginBottom: "20px",
+    flexWrap: "wrap",
+  },
+  searchBox: {
     flex: 1,
+    minWidth: "260px",
+    display: "flex",
+    alignItems: "center",
+    background: "white",
+    border: "1.5px solid #d1d5db",
+    borderRadius: "10px",
+    padding: "0 12px",
+    gap: "8px",
+  },
+  searchIcon: {
+    fontSize: "16px",
+  },
+  searchInput: {
+    flex: 1,
+    border: "none",
+    outline: "none",
+    padding: "12px 0",
+    fontSize: "14px",
+    background: "transparent",
+    color: "#111",
+  },
+  clearBtn: {
+    background: "none",
+    border: "none",
+    cursor: "pointer",
+    color: "#888",
+    fontSize: "14px",
+    padding: "4px",
+  },
+  sortSelect: {
+    padding: "10px 14px",
+    borderRadius: "10px",
+    border: "1.5px solid #d1d5db",
+    background: "white",
+    fontSize: "14px",
+    color: "#111",
+    cursor: "pointer",
+    outline: "none",
+    minWidth: "180px",
+  },
+
+  // Category tabs
+  tabs: {
+    display: "flex",
+    justifyContent: "center",
+    gap: "10px",
+    marginBottom: "16px",
+    flexWrap: "wrap",
+  },
+  tab: {
+    padding: "8px 18px",
+    borderRadius: "20px",
+    border: "2px solid #166534",
+    cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "13px",
+    transition: "all 0.2s",
+  },
+
+  // Results
+  resultsRow: {
+    textAlign: "center",
+    marginBottom: "24px",
+  },
+  resultsText: {
+    color: "#888",
+    fontSize: "14px",
+    margin: 0,
+  },
+
+  // Grid
+  grid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))",
+    gap: "24px",
+    maxWidth: "1200px",
+    margin: "0 auto",
+  },
+
+  // Card
+  card: {
+    borderRadius: "14px",
+    background: "white",
+    boxShadow: "0 2px 12px rgba(0,0,0,0.07)",
+    overflow: "hidden",
+    transition: "transform 0.2s, box-shadow 0.2s",
+    position: "relative",
+  },
+  categoryBadge: {
+    position: "absolute",
+    top: "10px",
+    left: "10px",
+    background: "rgba(22,101,52,0.85)",
+    color: "white",
+    padding: "3px 10px",
+    borderRadius: "12px",
+    fontSize: "11px",
+    fontWeight: "600",
+    zIndex: 1,
+  },
+  imageWrap: {
+    width: "100%",
+    height: "180px",
+    overflow: "hidden",
+    background: "#e2e8f0",
+  },
+  image: {
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
+    display: "block",
+    transition: "transform 0.3s",
+  },
+  cardBody: {
+    padding: "16px",
+  },
+  productName: {
+    fontSize: "16px",
+    fontWeight: "700",
+    color: "#166534",
+    margin: "0 0 6px",
+  },
+  productDesc: {
+    fontSize: "13px",
+    color: "#666",
+    margin: "0 0 12px",
+    lineHeight: "1.5",
+  },
+  priceRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: "12px",
+  },
+  price: {
+    fontWeight: "700",
+    color: "#166534",
+    fontSize: "20px",
+  },
+  inCartBadge: {
+    background: "#dcfce7",
+    color: "#166534",
+    padding: "3px 10px",
+    borderRadius: "12px",
+    fontSize: "12px",
+    fontWeight: "600",
+  },
+  buttonContainer: {
+    display: "flex",
+    gap: "8px",
+  },
+  addToCartBtn: {
+    flex: 1,
+    padding: "10px",
+    borderRadius: "8px",
+    border: "2px solid #166534",
+    cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "13px",
+    transition: "all 0.2s",
+  },
+  whatsappBtn: {
     width: "100%",
     padding: "10px",
     borderRadius: "8px",
@@ -338,5 +557,34 @@ const styles = {
     background: "#166534",
     color: "white",
     cursor: "pointer",
+    fontWeight: "600",
+    fontSize: "13px",
+  },
+
+  // Empty state
+  emptyState: {
+    textAlign: "center",
+    padding: "60px 20px",
+    background: "white",
+    borderRadius: "12px",
+  },
+
+  // Floating cart
+  floatingCart: {
+    position: "fixed",
+    bottom: "24px",
+    left: "50%",
+    transform: "translateX(-50%)",
+    background: "#166534",
+    color: "white",
+    border: "none",
+    borderRadius: "50px",
+    padding: "14px 28px",
+    fontSize: "15px",
+    fontWeight: "700",
+    cursor: "pointer",
+    boxShadow: "0 4px 20px rgba(22,101,52,0.4)",
+    zIndex: 1000,
+    whiteSpace: "nowrap",
   },
 };
