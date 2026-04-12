@@ -8,24 +8,16 @@ import {
   DialogActions, IconButton, Tooltip, Snackbar, Box, Button,
   Badge, TextField, InputAdornment
 } from "@mui/material";
-import { Edit, Search, NotificationsActive, TrendingUp, People, ShoppingCart, AttachMoney, Inventory } from "@mui/icons-material";
+import {
+  Edit, Search, NotificationsActive, TrendingUp, People,
+  ShoppingCart, AttachMoney, Inventory
+} from "@mui/icons-material";
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
 const sanitizeObjectArray = (items) => {
   if (!Array.isArray(items)) return [];
   return items.filter((item) => item && typeof item === "object");
-};
-
-const safeReadArray = (key) => {
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
-    return [];
-  }
 };
 
 export default function Admin() {
@@ -37,8 +29,6 @@ export default function Admin() {
   const [users, setUsers] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [orders, setOrders] = useState([]);
-  const [newMedicine, setNewMedicine] = useState({ name: "", desc: "", price: "", category: "", img: "" });
-  const [imgPreview, setImgPreview] = useState("");
   const [userSearch, setUserSearch] = useState("");
   const [orderSearch, setOrderSearch] = useState("");
   const [notification, setNotification] = useState({ open: false, message: "", severity: "info" });
@@ -48,7 +38,21 @@ export default function Admin() {
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const prevOrdersRef = useRef([]);
 
-  // ── POS STATE ──
+  // Medicine form state
+  const [medForm, setMedForm] = useState({
+    name: "", desc: "", price: "", category: "",
+    img: "", stock: "100", lowStockThreshold: "10", unit: "units"
+  });
+  const [imgPreview, setImgPreview] = useState("");
+  const [editingMed, setEditingMed] = useState(null); // medicine being edited
+  const [medEditOpen, setMedEditOpen] = useState(false);
+  const [stockUpdateOpen, setStockUpdateOpen] = useState(false);
+  const [stockMed, setStockMed] = useState(null);
+  const [stockValue, setStockValue] = useState("");
+  const [stockOperation, setStockOperation] = useState("set");
+  const [lowStockMeds, setLowStockMeds] = useState([]);
+
+  // POS state
   const [posCart, setPosCart] = useState([]);
   const [posCustomerName, setPosCustomerName] = useState("");
   const [posCustomerPhone, setPosCustomerPhone] = useState("");
@@ -73,23 +77,25 @@ export default function Admin() {
     }
   }, [navigate]);
 
-  // 📥 FETCH DATA
+  // 📥 FETCH ALL DATA
   useEffect(() => {
     if (!authChecked) return;
 
     const fetchData = () => {
+      // Appointments
       fetch(`${BASE_URL}/appointments`, { credentials: "include" })
         .then((res) => (res.ok ? res.json() : []))
         .then((payload) => setAppointments(sanitizeObjectArray(payload)))
         .catch(() => setAppointments([]));
 
+      // Users
       fetch(`${BASE_URL}/users`, { credentials: "include" })
         .then((res) => (res.ok ? res.json() : []))
         .then((payload) => setUsers(sanitizeObjectArray(payload)))
         .catch(() => setUsers([]));
 
-      axios
-        .get(`${BASE_URL}/orders`, { withCredentials: true })
+      // Orders
+      axios.get(`${BASE_URL}/orders`, { withCredentials: true })
         .then((res) => {
           const fetched = sanitizeObjectArray(res.data);
           if (prevOrdersRef.current.length > 0 && fetched.length > prevOrdersRef.current.length) {
@@ -100,29 +106,32 @@ export default function Admin() {
           prevOrdersRef.current = fetched;
           setOrders(fetched);
         })
-        .catch(() => setOrders(sanitizeObjectArray(safeReadArray("orders"))));
+        .catch(() => setOrders([]));
 
-      setMedicines(sanitizeObjectArray(safeReadArray("medicines")));
+      // ✅ Medicines from backend
+      axios.get(`${BASE_URL}/medicines/all`, { withCredentials: true })
+        .then((res) => setMedicines(sanitizeObjectArray(res.data)))
+        .catch(() => setMedicines([]));
+
+      // Low stock alerts
+      axios.get(`${BASE_URL}/medicines/low-stock`, { withCredentials: true })
+        .then((res) => setLowStockMeds(sanitizeObjectArray(res.data)))
+        .catch(() => setLowStockMeds([]));
     };
 
     fetchData();
     const interval = setInterval(fetchData, 15000);
-    window.addEventListener("storage", fetchData);
-    return () => {
-      clearInterval(interval);
-      window.removeEventListener("storage", fetchData);
-    };
+    return () => clearInterval(interval);
   }, [authChecked]);
 
   // 📊 COMPUTED DATA
-  const safeOrders = sanitizeObjectArray(Array.isArray(orders) ? orders : []);
-  const safeUsers = sanitizeObjectArray(Array.isArray(users) ? users : []);
+  const safeOrders = sanitizeObjectArray(orders);
+  const safeUsers = sanitizeObjectArray(users);
   const safeAppointments = sanitizeObjectArray(appointments);
   const safeMedicines = sanitizeObjectArray(medicines);
 
   const totalOrders = safeOrders.length;
   const totalRevenue = safeOrders.reduce((sum, o) => sum + Number(o?.total || 0), 0);
-  const totalMedicines = safeMedicines.length;
   const totalAdmins = safeUsers.filter((u) => u.role === "admin").length;
 
   const ordersByStatus = {
@@ -165,14 +174,128 @@ export default function Admin() {
     Completed: { bg: "#dcfce7", color: "#166534" },
   };
 
-  // ✏️ UPDATE ORDER STATUS
-  const updateOrderStatus = async (orderId, newStatus) => {
+  // ── MEDICINE FUNCTIONS ──
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setMedForm((prev) => ({ ...prev, img: reader.result }));
+      setImgPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const addMedicine = async () => {
+    if (!medForm.name || !medForm.price) {
+      setNotification({ open: true, message: "Name and price are required", severity: "error" });
+      return;
+    }
     try {
-      await axios.patch(
-        `${BASE_URL}/orders/${orderId}/status`,
-        { status: newStatus },
+      await axios.post(`${BASE_URL}/medicines`, {
+        ...medForm,
+        price: Number(medForm.price),
+        stock: Number(medForm.stock),
+        lowStockThreshold: Number(medForm.lowStockThreshold),
+      }, { withCredentials: true });
+
+      setNotification({ open: true, message: "Medicine added successfully!", severity: "success" });
+      setMedForm({ name: "", desc: "", price: "", category: "", img: "", stock: "100", lowStockThreshold: "10", unit: "units" });
+      setImgPreview("");
+
+      // Refresh medicines
+      axios.get(`${BASE_URL}/medicines/all`, { withCredentials: true })
+        .then((res) => setMedicines(sanitizeObjectArray(res.data)))
+        .catch(() => {});
+    } catch (err) {
+      setNotification({ open: true, message: err?.response?.data?.message || "Failed to add medicine", severity: "error" });
+    }
+  };
+
+  const openEditMedicine = (med) => {
+    setEditingMed({ ...med });
+    setMedEditOpen(true);
+  };
+
+  const saveEditMedicine = async () => {
+    try {
+      await axios.put(`${BASE_URL}/medicines/${editingMed._id}`, {
+        name: editingMed.name,
+        desc: editingMed.desc,
+        price: Number(editingMed.price),
+        category: editingMed.category,
+        stock: Number(editingMed.stock),
+        lowStockThreshold: Number(editingMed.lowStockThreshold),
+        unit: editingMed.unit,
+        isActive: editingMed.isActive,
+      }, { withCredentials: true });
+
+      setNotification({ open: true, message: "Medicine updated!", severity: "success" });
+      setMedEditOpen(false);
+      setEditingMed(null);
+
+      axios.get(`${BASE_URL}/medicines/all`, { withCredentials: true })
+        .then((res) => setMedicines(sanitizeObjectArray(res.data)))
+        .catch(() => {});
+    } catch {
+      setNotification({ open: true, message: "Failed to update medicine", severity: "error" });
+    }
+  };
+
+  const deleteMedicine = async (id) => {
+    if (!window.confirm("Remove this medicine from the store?")) return;
+    try {
+      await axios.delete(`${BASE_URL}/medicines/${id}`, { withCredentials: true });
+      setNotification({ open: true, message: "Medicine removed", severity: "success" });
+      setMedicines((prev) => prev.filter((m) => m._id !== id));
+    } catch {
+      setNotification({ open: true, message: "Failed to remove medicine", severity: "error" });
+    }
+  };
+
+  const openStockUpdate = (med) => {
+    setStockMed(med);
+    setStockValue("");
+    setStockOperation("add");
+    setStockUpdateOpen(true);
+  };
+
+  const saveStockUpdate = async () => {
+    if (!stockValue || isNaN(stockValue)) {
+      setNotification({ open: true, message: "Enter a valid number", severity: "error" });
+      return;
+    }
+    try {
+      const res = await axios.patch(
+        `${BASE_URL}/medicines/${stockMed._id}/stock`,
+        { stock: Number(stockValue), operation: stockOperation },
         { withCredentials: true }
       );
+      setNotification({ open: true, message: "Stock updated!", severity: "success" });
+      setStockUpdateOpen(false);
+      setMedicines((prev) => prev.map((m) => m._id === stockMed._id ? res.data.medicine : m));
+
+      // Refresh low stock
+      axios.get(`${BASE_URL}/medicines/low-stock`, { withCredentials: true })
+        .then((r) => setLowStockMeds(sanitizeObjectArray(r.data)))
+        .catch(() => {});
+    } catch {
+      setNotification({ open: true, message: "Failed to update stock", severity: "error" });
+    }
+  };
+
+  const getStockStatus = (med) => {
+    if (med.stock <= 0) return { label: "Out of Stock", bg: "#fee2e2", color: "#991b1b" };
+    if (med.stock <= med.lowStockThreshold) return { label: "Low Stock", bg: "#fef3c7", color: "#92400e" };
+    return { label: "In Stock", bg: "#dcfce7", color: "#166534" };
+  };
+
+  // ── ORDER FUNCTIONS ──
+
+  const updateOrderStatus = async (orderId, newStatus) => {
+    try {
+      await axios.patch(`${BASE_URL}/orders/${orderId}/status`, { status: newStatus }, { withCredentials: true });
       setOrders((prev) => prev.map((o) => o._id === orderId ? { ...o, status: newStatus } : o));
       setNotification({ open: true, message: "Status updated to " + newStatus, severity: "success" });
       setStatusDialogOpen(false);
@@ -181,21 +304,22 @@ export default function Admin() {
     }
   };
 
-  // 🧾 RECEIPT
   const generateReceipt = (order, isWalkIn) => {
     if (!order) return;
     const receiptWin = window.open("", "_blank");
     const items = Array.isArray(order.items) ? order.items : [];
-    const itemsHtml = items
-      .map((item) => "<tr><td style='padding:8px;border-bottom:1px solid #eee;'>" + (item.name || "-") + "</td><td style='padding:8px;border-bottom:1px solid #eee;'>Rs." + (item.price || 0) + "</td><td style='padding:8px;border-bottom:1px solid #eee;'>" + (item.quantity || 1) + "</td></tr>")
-      .join("");
+    const itemsHtml = items.map((item) =>
+      "<tr><td style='padding:8px;border-bottom:1px solid #eee;'>" + (item.name || "-") +
+      "</td><td style='padding:8px;border-bottom:1px solid #eee;'>Rs." + (item.price || 0) +
+      "</td><td style='padding:8px;border-bottom:1px solid #eee;'>" + (item.quantity || 1) + "</td></tr>"
+    ).join("");
     const orderId = order._id ? order._id.toString().slice(-6).toUpperCase() : "N/A";
     const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleString() : new Date().toLocaleString();
     const customerName = isWalkIn
-      ? (order.guestInfo?.name || posCustomerName || "Walk-in Customer")
+      ? (order.guestInfo?.name || "Walk-in Customer")
       : (order.userId?.name || order.userId?.email || "N/A");
-
-    const html = "<html><head><title>Receipt #" + orderId + "</title></head>" +
+    const html =
+      "<html><head><title>Receipt #" + orderId + "</title></head>" +
       "<body style='font-family:Arial,sans-serif;padding:30px;max-width:600px;margin:auto;'>" +
       "<h2 style='color:#166534;text-align:center;'>Digital Clinic</h2>" +
       "<p style='text-align:center;color:#888;'>Order Receipt</p><hr/>" +
@@ -204,9 +328,12 @@ export default function Admin() {
       "<p><strong>Customer:</strong> " + customerName + "</p>" +
       (isWalkIn ? "<p><strong>Type:</strong> Walk-in</p>" : "") +
       "<p><strong>Payment:</strong> " + (order.paymentMethod || "Cash") + "</p>" +
-      "<p><strong>Status:</strong> " + (order.status || "Completed") + "</p>" +
+      "<p><strong>Status:</strong> " + (order.status || "Pending") + "</p>" +
       "<table style='width:100%;border-collapse:collapse;margin-top:15px;'>" +
-      "<thead><tr style='background:#f0fdf4;'><th style='padding:8px;text-align:left;'>Medicine</th><th style='padding:8px;text-align:left;'>Price</th><th style='padding:8px;text-align:left;'>Qty</th></tr></thead>" +
+      "<thead><tr style='background:#f0fdf4;'>" +
+      "<th style='padding:8px;text-align:left;'>Medicine</th>" +
+      "<th style='padding:8px;text-align:left;'>Price</th>" +
+      "<th style='padding:8px;text-align:left;'>Qty</th></tr></thead>" +
       "<tbody>" + itemsHtml + "</tbody></table>" +
       "<h3 style='text-align:right;'>Total: Rs." + order.total + "</h3><hr/>" +
       "<p style='text-align:center;color:#888;font-size:12px;'>Thank you for choosing Digital Clinic!</p>" +
@@ -216,7 +343,8 @@ export default function Admin() {
     receiptWin.document.close();
   };
 
-  // 📢 NOTICE
+  // ── NOTICE FUNCTIONS ──
+
   const updateNotice = async () => {
     try {
       await fetch(`${BASE_URL}/notice`, {
@@ -224,7 +352,7 @@ export default function Admin() {
         credentials: "include",
         body: JSON.stringify({ message: notice, expiresInHours: noticeHours }),
       });
-      setNotification({ open: true, message: "Notice updated successfully", severity: "success" });
+      setNotification({ open: true, message: "Notice updated", severity: "success" });
       setNotice(""); setNoticeHours("");
     } catch {
       setNotification({ open: true, message: "Error updating notice", severity: "error" });
@@ -240,62 +368,8 @@ export default function Admin() {
     }
   };
 
-  // 💊 MEDICINE
-  const addMedicine = () => {
-    if (!newMedicine.name || !newMedicine.price) { alert("Fill required fields"); return; }
-    const updated = [...medicines, newMedicine];
-    setMedicines(updated);
-    localStorage.setItem("medicines", JSON.stringify(updated));
-    setNewMedicine({ name: "", desc: "", price: "", category: "", img: "" });
-    setImgPreview("");
-    setNotification({ open: true, message: "Medicine added", severity: "success" });
-  };
-
-  const deleteMedicine = (index) => {
-    const updated = medicines.filter((_, i) => i !== index);
-    setMedicines(updated);
-    localStorage.setItem("medicines", JSON.stringify(updated));
-  };
-
-  const editMedicine = (index) => {
-    const m = safeMedicines[index];
-    if (!m) return;
-    const name = prompt("Edit name", m.name);
-    const price = prompt("Edit price", m.price);
-    if (!name || !price) return;
-    const updated = safeMedicines.map((item, i) => i === index ? { ...item, name, price } : item);
-    setMedicines(updated);
-    localStorage.setItem("medicines", JSON.stringify(updated));
-  };
-
-  const handleImageSelect = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setNewMedicine({ ...newMedicine, img: reader.result });
-      setImgPreview(reader.result);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const exportUsersCsv = () => {
-    if (!safeUsers.length) { alert("No users to export"); return; }
-    const headers = ["Name", "Email", "Phone", "Role", "User ID", "Joined Date"];
-    const rows = safeUsers.map((u) => [u.name || "", u.email || "", u.phone || "", u.role || "", u._id || "", u.createdAt ? new Date(u.createdAt).toLocaleString() : ""]);
-    const csvContent = [headers, ...rows].map((row) => row.map((cell) => '"' + String(cell).replace(/"/g, '""') + '"').join(",")).join("\n");
-    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "users-" + Date.now() + ".csv";
-    link.click();
-    URL.revokeObjectURL(url);
-  };
-
   // ── POS FUNCTIONS ──
 
-  // Search registered user by phone
   const searchUserByPhone = async (phone) => {
     if (!phone || phone.length < 5) { setPosMatchedUser(null); return; }
     setPosSearchingUser(true);
@@ -314,29 +388,26 @@ export default function Admin() {
     }
   };
 
-  // Add medicine to POS cart
   const posAddToCart = (medicine) => {
-    const existing = posCart.find((item) => item.name === medicine.name);
+    if (medicine.stock <= 0) {
+      setNotification({ open: true, message: medicine.name + " is out of stock", severity: "error" });
+      return;
+    }
+    const existing = posCart.find((item) => item._id === medicine._id);
     if (existing) {
       setPosCart(posCart.map((item) =>
-        item.name === medicine.name
-          ? { ...item, quantity: (item.quantity || 1) + 1 }
-          : item
+        item._id === medicine._id ? { ...item, quantity: (item.quantity || 1) + 1 } : item
       ));
     } else {
       setPosCart([...posCart, { ...medicine, quantity: 1 }]);
     }
   };
 
-  // Remove from POS cart
-  const posRemoveFromCart = (name) => {
-    setPosCart(posCart.filter((item) => item.name !== name));
-  };
+  const posRemoveFromCart = (id) => setPosCart(posCart.filter((item) => item._id !== id));
 
-  // Change quantity in POS cart
-  const posChangeQty = (name, delta) => {
+  const posChangeQty = (id, delta) => {
     setPosCart(posCart.map((item) => {
-      if (item.name === name) {
+      if (item._id === id) {
         const newQty = (item.quantity || 1) + delta;
         return newQty <= 0 ? null : { ...item, quantity: newQty };
       }
@@ -344,99 +415,91 @@ export default function Admin() {
     }).filter(Boolean));
   };
 
-  // POS total
-  const posTotal = posCart.reduce((sum, item) =>
-    sum + Number(item.price || 0) * (item.quantity || 1), 0
-  );
+  const posTotal = posCart.reduce((sum, item) => sum + Number(item.price || 0) * (item.quantity || 1), 0);
 
-  // Filtered medicines for POS search
   const posFilteredMedicines = safeMedicines.filter((m) => {
+    if (!m.isActive) return false;
     if (!posSearch.trim()) return true;
     return String(m.name || "").toLowerCase().includes(posSearch.toLowerCase());
   });
 
-  // Place walk-in order
   const posPlaceOrder = async () => {
-    if (posCart.length === 0) {
-      setNotification({ open: true, message: "Add at least one medicine", severity: "error" });
-      return;
-    }
-    if (!posCustomerName.trim()) {
-      setNotification({ open: true, message: "Enter customer name", severity: "error" });
-      return;
-    }
+    if (posCart.length === 0) { setNotification({ open: true, message: "Add at least one medicine", severity: "error" }); return; }
+    if (!posCustomerName.trim()) { setNotification({ open: true, message: "Enter customer name", severity: "error" }); return; }
     setPosPlacing(true);
     try {
-      const payload = {
-        items: posCart.map((item) => ({
-          name: item.name,
-          price: item.price,
-          quantity: item.quantity || 1,
-          img: item.img || "",
-        })),
+      const res = await axios.post(`${BASE_URL}/orders/walk-in`, {
+        items: posCart.map((item) => ({ name: item.name, price: item.price, quantity: item.quantity || 1, img: item.img || "" })),
         total: posTotal,
         paymentMethod: posPaymentMethod,
         guestName: posCustomerName,
         guestPhone: posCustomerPhone,
         existingUserId: posMatchedUser ? posMatchedUser._id : null,
-      };
+      }, { withCredentials: true });
 
-      const res = await axios.post(`${BASE_URL}/orders/walk-in`, payload, { withCredentials: true });
-
-      setNotification({ open: true, message: "Walk-in order created successfully!", severity: "success" });
-
-      // Print receipt automatically
+      setNotification({ open: true, message: "Walk-in order created!", severity: "success" });
       generateReceipt(res.data.order, true);
 
-      // Reset POS
-      setPosCart([]);
-      setPosCustomerName("");
-      setPosCustomerPhone("");
-      setPosPaymentMethod("cash");
-      setPosMatchedUser(null);
-      setPosSearch("");
+      setPosCart([]); setPosCustomerName(""); setPosCustomerPhone("");
+      setPosPaymentMethod("cash"); setPosMatchedUser(null); setPosSearch("");
 
-      // Refresh orders
-      axios.get(`${BASE_URL}/orders`, { withCredentials: true })
-        .then((r) => setOrders(sanitizeObjectArray(r.data)))
-        .catch(() => {});
-
+      // Refresh medicines and orders
+      axios.get(`${BASE_URL}/medicines/all`, { withCredentials: true }).then((r) => setMedicines(sanitizeObjectArray(r.data))).catch(() => {});
+      axios.get(`${BASE_URL}/orders`, { withCredentials: true }).then((r) => setOrders(sanitizeObjectArray(r.data))).catch(() => {});
     } catch (err) {
-      const msg = err?.response?.data?.message || "Failed to create order";
-      setNotification({ open: true, message: msg, severity: "error" });
+      setNotification({ open: true, message: err?.response?.data?.message || "Failed to create order", severity: "error" });
     } finally {
       setPosPlacing(false);
     }
   };
 
+  const exportUsersCsv = () => {
+    if (!safeUsers.length) { alert("No users to export"); return; }
+    const headers = ["Name", "Email", "Phone", "Role", "Joined Date"];
+    const rows = safeUsers.map((u) => [u.name || "", u.email || "", u.phone || "", u.role || "", u.createdAt ? new Date(u.createdAt).toLocaleString() : ""]);
+    const csvContent = [headers, ...rows].map((row) => row.map((cell) => '"' + String(cell).replace(/"/g, '""') + '"').join(",")).join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url; link.download = "users-" + Date.now() + ".csv"; link.click();
+    URL.revokeObjectURL(url);
+  };
+
   if (!authChecked) {
-    return (
-      <div style={{ padding: "30px", textAlign: "center" }}>
-        <div style={styles.loader}></div>
-        <p style={{ color: "#166534", marginTop: "16px" }}>Loading admin panel...</p>
-      </div>
-    );
+    return <div style={{ padding: "30px", textAlign: "center" }}><p style={{ color: "#166534" }}>Loading admin panel...</p></div>;
   }
 
   const tabs = [
     { id: "dashboard", label: "📊 Dashboard" },
     { id: "orders", label: "📦 Orders" },
     { id: "pos", label: "🏪 Walk-in POS" },
+    { id: "inventory", label: "📦 Inventory" },
     { id: "users", label: "👥 Users" },
-    { id: "medicines", label: "💊 Medicines" },
     { id: "notices", label: "🔔 Notices" },
   ];
 
   return (
     <div style={styles.page}>
 
-      {/* ── HEADER ── */}
+      {/* HEADER */}
       <div style={styles.header}>
         <div>
           <h1 style={styles.headerTitle}>🏥 Admin Panel</h1>
           <p style={styles.headerSub}>Digital Clinic Management System</p>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          {lowStockMeds.length > 0 && (
+            <Tooltip title={lowStockMeds.length + " low stock alert(s)"}>
+              <IconButton
+                onClick={() => setActiveTab("inventory")}
+                style={{ background: "#fef3c7" }}
+              >
+                <Badge badgeContent={lowStockMeds.length} color="warning">
+                  <Inventory style={{ color: "#92400e" }} />
+                </Badge>
+              </IconButton>
+            </Tooltip>
+          )}
           <Tooltip title="New orders">
             <IconButton
               onClick={() => { setNewOrdersCount(0); setActiveTab("orders"); }}
@@ -451,14 +514,11 @@ export default function Admin() {
         </div>
       </div>
 
-      {/* ── TABS ── */}
+      {/* TABS */}
       <div style={styles.tabBar}>
         {tabs.map((tab) => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
-            style={{ ...styles.tab, ...(activeTab === tab.id ? styles.tabActive : {}) }}
-          >
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            style={{ ...styles.tab, ...(activeTab === tab.id ? styles.tabActive : {}) }}>
             {tab.label}
           </button>
         ))}
@@ -466,9 +526,21 @@ export default function Admin() {
 
       <div style={styles.content}>
 
-        {/* ══ DASHBOARD TAB ══ */}
+        {/* ══ DASHBOARD ══ */}
         {activeTab === "dashboard" && (
           <div>
+            {/* LOW STOCK BANNER */}
+            {lowStockMeds.length > 0 && (
+              <div style={styles.lowStockBanner}>
+                <span>⚠️ <strong>{lowStockMeds.length} medicine{lowStockMeds.length > 1 ? "s" : ""}</strong> running low or out of stock:</span>
+                <span style={{ marginLeft: "12px" }}>
+                  {lowStockMeds.map((m) => m.name + " (" + m.stock + " " + (m.unit || "units") + ")").join(" · ")}
+                </span>
+                <button style={styles.bannerBtn} onClick={() => setActiveTab("inventory")}>Manage Stock →</button>
+              </div>
+            )}
+
+            {/* STAT CARDS */}
             <div style={styles.statsGrid}>
               <div style={{ ...styles.statCard, borderTop: "4px solid #166534" }}>
                 <div style={styles.statIcon}><TrendingUp style={{ color: "#166534" }} /></div>
@@ -487,8 +559,8 @@ export default function Admin() {
               </div>
               <div style={{ ...styles.statCard, borderTop: "4px solid #f59e0b" }}>
                 <div style={styles.statIcon}><Inventory style={{ color: "#f59e0b" }} /></div>
-                <div style={styles.statValue}>{totalMedicines}</div>
-                <div style={styles.statLabel}>Medicines</div>
+                <div style={styles.statValue}>{safeMedicines.filter((m) => m.isActive).length}</div>
+                <div style={styles.statLabel}>Active Medicines</div>
               </div>
               <div style={{ ...styles.statCard, borderTop: "4px solid #ec4899" }}>
                 <div style={styles.statIcon}><AttachMoney style={{ color: "#ec4899" }} /></div>
@@ -497,6 +569,7 @@ export default function Admin() {
               </div>
             </div>
 
+            {/* ORDER STATUS */}
             <div style={styles.card}>
               <h3 style={styles.cardTitle}>📊 Orders by Status</h3>
               <div style={styles.statusGrid}>
@@ -517,76 +590,62 @@ export default function Admin() {
               </div>
             </div>
 
+            {/* RECENT ORDERS */}
             <div style={styles.card}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                 <h3 style={styles.cardTitle}>🕐 Recent Orders</h3>
                 <button style={styles.linkBtn} onClick={() => setActiveTab("orders")}>View all →</button>
               </div>
-              {recentOrders.length === 0 ? (
-                <p style={{ color: "#888", textAlign: "center", padding: "20px" }}>No orders yet</p>
-              ) : (
-                <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "8px" }}>
-                  <Table size="small">
-                    <TableHead style={{ background: "#f9fafb" }}>
-                      <TableRow>
-                        <TableCell><strong>Order ID</strong></TableCell>
-                        <TableCell><strong>Customer</strong></TableCell>
-                        <TableCell><strong>Amount</strong></TableCell>
-                        <TableCell><strong>Status</strong></TableCell>
-                        <TableCell><strong>Date</strong></TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {recentOrders.map((order) => {
-                        const sc = statusColors[order.status] || statusColors.Pending;
-                        return (
-                          <TableRow key={order._id} hover>
-                            <TableCell style={{ fontWeight: "600", color: "#166534" }}>
-                              #{order._id?.toString().slice(-6).toUpperCase()}
-                            </TableCell>
-                            <TableCell>
-                              {order.orderType === "walk-in"
-                                ? (order.guestInfo?.name || "Walk-in")
-                                : (order.userId?.name || order.userId?.email || "Unknown")}
-                              {order.orderType === "walk-in" && (
-                                <Chip label="Walk-in" size="small"
-                                  style={{ marginLeft: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px" }} />
-                              )}
-                            </TableCell>
-                            <TableCell><strong>Rs.{order.total}</strong></TableCell>
-                            <TableCell>
-                              <Chip label={order.status || "Pending"} size="small"
-                                style={{ background: sc.bg, color: sc.color, fontWeight: "600", fontSize: "11px" }} />
-                            </TableCell>
-                            <TableCell style={{ color: "#888", fontSize: "12px" }}>
-                              {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "-"}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              )}
+              <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "8px" }}>
+                <Table size="small">
+                  <TableHead style={{ background: "#f9fafb" }}>
+                    <TableRow>
+                      <TableCell><strong>Order ID</strong></TableCell>
+                      <TableCell><strong>Customer</strong></TableCell>
+                      <TableCell><strong>Amount</strong></TableCell>
+                      <TableCell><strong>Status</strong></TableCell>
+                      <TableCell><strong>Date</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {recentOrders.map((order) => {
+                      const sc = statusColors[order.status] || statusColors.Pending;
+                      return (
+                        <TableRow key={order._id} hover>
+                          <TableCell style={{ fontWeight: "600", color: "#166534" }}>#{order._id?.toString().slice(-6).toUpperCase()}</TableCell>
+                          <TableCell>
+                            {order.orderType === "walk-in" ? (order.guestInfo?.name || "Walk-in") : (order.userId?.name || "Unknown")}
+                            {order.orderType === "walk-in" && <Chip label="Walk-in" size="small" style={{ marginLeft: "6px", background: "#fef3c7", color: "#92400e", fontSize: "10px" }} />}
+                          </TableCell>
+                          <TableCell><strong>Rs.{order.total}</strong></TableCell>
+                          <TableCell><Chip label={order.status || "Pending"} size="small" style={{ background: sc.bg, color: sc.color, fontWeight: "600", fontSize: "11px" }} /></TableCell>
+                          <TableCell style={{ color: "#888", fontSize: "12px" }}>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "-"}</TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </div>
 
+            {/* SUMMARIES */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
               <div style={styles.card}>
                 <h3 style={styles.cardTitle}>💰 Revenue Summary</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
                   <div style={styles.summaryRow}><span style={{ color: "#555" }}>Total Revenue</span><span style={{ fontWeight: "700", color: "#166534" }}>Rs.{totalRevenue.toLocaleString()}</span></div>
-                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Delivered Orders</span><span style={{ fontWeight: "600" }}>{ordersByStatus.Delivered}</span></div>
-                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Pending Orders</span><span style={{ fontWeight: "600", color: "#92400e" }}>{ordersByStatus.Pending}</span></div>
+                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Delivered</span><span style={{ fontWeight: "600" }}>{ordersByStatus.Delivered}</span></div>
+                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Pending</span><span style={{ fontWeight: "600", color: "#92400e" }}>{ordersByStatus.Pending}</span></div>
                   <div style={styles.summaryRow}><span style={{ color: "#555" }}>Avg Order Value</span><span style={{ fontWeight: "600" }}>Rs.{totalOrders > 0 ? Math.round(totalRevenue / totalOrders) : 0}</span></div>
                 </div>
               </div>
               <div style={styles.card}>
-                <h3 style={styles.cardTitle}>👥 User Summary</h3>
+                <h3 style={styles.cardTitle}>📦 Inventory Summary</h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginTop: "8px" }}>
-                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Total Users</span><span style={{ fontWeight: "700", color: "#166534" }}>{safeUsers.length}</span></div>
-                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Admin Accounts</span><span style={{ fontWeight: "600" }}>{totalAdmins}</span></div>
-                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Regular Users</span><span style={{ fontWeight: "600" }}>{safeUsers.filter((u) => u.role === "user").length}</span></div>
-                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Appointments</span><span style={{ fontWeight: "600" }}>{safeAppointments.length}</span></div>
+                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Total Medicines</span><span style={{ fontWeight: "700", color: "#166534" }}>{safeMedicines.length}</span></div>
+                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Active</span><span style={{ fontWeight: "600" }}>{safeMedicines.filter((m) => m.isActive).length}</span></div>
+                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Low Stock</span><span style={{ fontWeight: "600", color: "#92400e" }}>{lowStockMeds.filter((m) => m.stock > 0).length}</span></div>
+                  <div style={styles.summaryRow}><span style={{ color: "#555" }}>Out of Stock</span><span style={{ fontWeight: "600", color: "#dc2626" }}>{lowStockMeds.filter((m) => m.stock <= 0).length}</span></div>
                 </div>
               </div>
             </div>
@@ -598,140 +657,91 @@ export default function Admin() {
           <div style={styles.card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
               <h3 style={styles.cardTitle}>📦 Order Management</h3>
-              <TextField
-                size="small"
-                placeholder="Search by customer, status, ID..."
-                value={orderSearch}
+              <TextField size="small" placeholder="Search orders..." value={orderSearch}
                 onChange={(e) => setOrderSearch(e.target.value)}
                 InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
-                style={{ minWidth: "280px" }}
-              />
+                style={{ minWidth: "280px" }} />
             </div>
-            {filteredOrders.length === 0 ? (
-              <div style={{ textAlign: "center", padding: "40px", color: "#888" }}><p>No orders found</p></div>
-            ) : (
-              <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "8px" }}>
-                <Table>
-                  <TableHead style={{ background: "#f9fafb" }}>
-                    <TableRow>
-                      <TableCell><strong>Order ID</strong></TableCell>
-                      <TableCell><strong>Customer</strong></TableCell>
-                      <TableCell><strong>Type</strong></TableCell>
-                      <TableCell><strong>Items</strong></TableCell>
-                      <TableCell><strong>Amount</strong></TableCell>
-                      <TableCell><strong>Payment</strong></TableCell>
-                      <TableCell><strong>Status</strong></TableCell>
-                      <TableCell><strong>Date</strong></TableCell>
-                      <TableCell><strong>Actions</strong></TableCell>
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {filteredOrders.map((order) => {
-                      const sc = statusColors[order.status] || statusColors.Pending;
-                      const customerName = order.orderType === "walk-in"
-                        ? (order.guestInfo?.name || "Walk-in Customer")
-                        : (order.userId?.name || "Unknown");
-                      const customerSub = order.orderType === "walk-in"
-                        ? (order.guestInfo?.phone || "")
-                        : (order.userId?.email || "");
-                      return (
-                        <TableRow key={order._id} hover>
-                          <TableCell style={{ fontWeight: "600", color: "#166534" }}>
-                            #{order._id?.toString().slice(-6).toUpperCase()}
-                          </TableCell>
-                          <TableCell>
-                            <div style={{ fontWeight: "600" }}>{customerName}</div>
-                            <div style={{ fontSize: "12px", color: "#888" }}>{customerSub}</div>
-                          </TableCell>
-                          <TableCell>
-                            <Chip
-                              label={order.orderType === "walk-in" ? "🏪 Walk-in" : "🌐 Online"}
-                              size="small"
-                              style={{
-                                background: order.orderType === "walk-in" ? "#fef3c7" : "#dbeafe",
-                                color: order.orderType === "walk-in" ? "#92400e" : "#1e40af",
-                                fontSize: "11px", fontWeight: "600"
-                              }}
-                            />
-                          </TableCell>
-                          <TableCell>
-                            {(Array.isArray(order.items) ? order.items : []).slice(0, 2).map((item, i) => (
-                              <div key={i} style={{ fontSize: "12px", color: "#555" }}>• {item.name}</div>
-                            ))}
-                            {Array.isArray(order.items) && order.items.length > 2 && (
-                              <div style={{ fontSize: "11px", color: "#888" }}>+{order.items.length - 2} more</div>
-                            )}
-                          </TableCell>
-                          <TableCell><strong>Rs.{order.total}</strong></TableCell>
-                          <TableCell style={{ textTransform: "capitalize" }}>{order.paymentMethod || "cash"}</TableCell>
-                          <TableCell>
-                            <Chip label={order.status || "Pending"} size="small"
-                              style={{ background: sc.bg, color: sc.color, fontWeight: "600", fontSize: "11px" }} />
-                          </TableCell>
-                          <TableCell style={{ fontSize: "12px", color: "#888" }}>
-                            {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Tooltip title="Update Status">
-                              <IconButton size="small" style={{ color: "#166534" }}
-                                onClick={() => { setSelectedOrder(order); setStatusDialogOpen(true); }}>
-                                <Edit fontSize="small" />
-                              </IconButton>
-                            </Tooltip>
-                            <button style={styles.receiptBtn} onClick={() => generateReceipt(order, order.orderType === "walk-in")}>
-                              🧾
-                            </button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            )}
+            <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "8px" }}>
+              <Table>
+                <TableHead style={{ background: "#f9fafb" }}>
+                  <TableRow>
+                    <TableCell><strong>Order ID</strong></TableCell>
+                    <TableCell><strong>Customer</strong></TableCell>
+                    <TableCell><strong>Type</strong></TableCell>
+                    <TableCell><strong>Items</strong></TableCell>
+                    <TableCell><strong>Amount</strong></TableCell>
+                    <TableCell><strong>Payment</strong></TableCell>
+                    <TableCell><strong>Status</strong></TableCell>
+                    <TableCell><strong>Date</strong></TableCell>
+                    <TableCell><strong>Actions</strong></TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredOrders.map((order) => {
+                    const sc = statusColors[order.status] || statusColors.Pending;
+                    const customerName = order.orderType === "walk-in" ? (order.guestInfo?.name || "Walk-in") : (order.userId?.name || "Unknown");
+                    const customerSub = order.orderType === "walk-in" ? (order.guestInfo?.phone || "") : (order.userId?.email || "");
+                    return (
+                      <TableRow key={order._id} hover>
+                        <TableCell style={{ fontWeight: "600", color: "#166534" }}>#{order._id?.toString().slice(-6).toUpperCase()}</TableCell>
+                        <TableCell>
+                          <div style={{ fontWeight: "600" }}>{customerName}</div>
+                          <div style={{ fontSize: "12px", color: "#888" }}>{customerSub}</div>
+                        </TableCell>
+                        <TableCell>
+                          <Chip label={order.orderType === "walk-in" ? "🏪 Walk-in" : "🌐 Online"} size="small"
+                            style={{ background: order.orderType === "walk-in" ? "#fef3c7" : "#dbeafe", color: order.orderType === "walk-in" ? "#92400e" : "#1e40af", fontSize: "11px", fontWeight: "600" }} />
+                        </TableCell>
+                        <TableCell>
+                          {(Array.isArray(order.items) ? order.items : []).slice(0, 2).map((item, i) => (
+                            <div key={i} style={{ fontSize: "12px", color: "#555" }}>• {item.name}</div>
+                          ))}
+                          {Array.isArray(order.items) && order.items.length > 2 && <div style={{ fontSize: "11px", color: "#888" }}>+{order.items.length - 2} more</div>}
+                        </TableCell>
+                        <TableCell><strong>Rs.{order.total}</strong></TableCell>
+                        <TableCell style={{ textTransform: "capitalize" }}>{order.paymentMethod || "cash"}</TableCell>
+                        <TableCell><Chip label={order.status || "Pending"} size="small" style={{ background: sc.bg, color: sc.color, fontWeight: "600", fontSize: "11px" }} /></TableCell>
+                        <TableCell style={{ fontSize: "12px", color: "#888" }}>{order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "-"}</TableCell>
+                        <TableCell>
+                          <Tooltip title="Update Status">
+                            <IconButton size="small" style={{ color: "#166534" }} onClick={() => { setSelectedOrder(order); setStatusDialogOpen(true); }}>
+                              <Edit fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <button style={styles.receiptBtn} onClick={() => generateReceipt(order, order.orderType === "walk-in")}>🧾</button>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
           </div>
         )}
 
-        {/* ══ WALK-IN POS TAB ══ */}
+        {/* ══ WALK-IN POS ══ */}
         {activeTab === "pos" && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: "24px", alignItems: "start" }}>
-
-            {/* LEFT — Medicine Selection */}
             <div>
               <div style={styles.card}>
                 <h3 style={styles.cardTitle}>🏪 Walk-in Point of Sale</h3>
-                <p style={{ color: "#888", fontSize: "14px", marginBottom: "16px" }}>
-                  Create an order for a customer buying medicines in person.
-                </p>
+                <p style={{ color: "#888", fontSize: "14px", marginBottom: "16px" }}>Create an order for a customer buying medicines in person.</p>
 
-                {/* Customer Details */}
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
                   <div>
                     <label style={styles.fieldLabel}>Customer Name *</label>
-                    <input
-                      placeholder="Enter customer name"
-                      value={posCustomerName}
-                      onChange={(e) => setPosCustomerName(e.target.value)}
-                      style={styles.inputField}
-                    />
+                    <input placeholder="Enter customer name" value={posCustomerName} onChange={(e) => setPosCustomerName(e.target.value)} style={styles.inputField} />
                   </div>
                   <div>
                     <label style={styles.fieldLabel}>Phone Number</label>
-                    <input
-                      placeholder="Enter phone to check account"
-                      value={posCustomerPhone}
-                      onChange={(e) => {
-                        setPosCustomerPhone(e.target.value);
-                        searchUserByPhone(e.target.value);
-                      }}
-                      style={styles.inputField}
-                    />
-                    {posSearchingUser && (
-                      <p style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>Checking...</p>
-                    )}
+                    <input placeholder="Enter phone to check account" value={posCustomerPhone}
+                      onChange={(e) => { setPosCustomerPhone(e.target.value); searchUserByPhone(e.target.value); }}
+                      style={styles.inputField} />
+                    {posSearchingUser && <p style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>Checking...</p>}
                     {posMatchedUser && (
                       <div style={{ marginTop: "6px", padding: "8px 12px", background: "#dcfce7", borderRadius: "8px", fontSize: "13px", color: "#166534" }}>
-                        ✅ Matched: <strong>{posMatchedUser.name}</strong> ({posMatchedUser.email}) — order will link to their account
+                        ✅ Matched: <strong>{posMatchedUser.name}</strong> — order will link to their account
                       </div>
                     )}
                     {!posMatchedUser && posCustomerPhone.length >= 5 && !posSearchingUser && (
@@ -742,142 +752,82 @@ export default function Admin() {
                   </div>
                 </div>
 
-                {/* Payment Method */}
                 <div style={{ marginBottom: "20px" }}>
                   <label style={styles.fieldLabel}>Payment Method</label>
                   <div style={{ display: "flex", gap: "10px" }}>
                     {["cash", "upi", "card"].map((method) => (
-                      <button
-                        key={method}
-                        onClick={() => setPosPaymentMethod(method)}
-                        style={{
-                          padding: "8px 20px",
-                          borderRadius: "8px",
-                          border: "2px solid",
-                          borderColor: posPaymentMethod === method ? "#166534" : "#d1d5db",
-                          background: posPaymentMethod === method ? "#166534" : "white",
-                          color: posPaymentMethod === method ? "white" : "#555",
-                          fontWeight: "600",
-                          cursor: "pointer",
-                          textTransform: "capitalize",
-                          fontSize: "14px",
-                        }}
-                      >
+                      <button key={method} onClick={() => setPosPaymentMethod(method)}
+                        style={{ padding: "8px 20px", borderRadius: "8px", border: "2px solid", borderColor: posPaymentMethod === method ? "#166534" : "#d1d5db", background: posPaymentMethod === method ? "#166534" : "white", color: posPaymentMethod === method ? "white" : "#555", fontWeight: "600", cursor: "pointer", textTransform: "capitalize", fontSize: "14px" }}>
                         {method === "cash" ? "💵" : method === "upi" ? "📱" : "💳"} {method}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Medicine Search */}
                 <div style={{ marginBottom: "16px" }}>
                   <label style={styles.fieldLabel}>Search & Add Medicines</label>
                   <div style={{ display: "flex", alignItems: "center", background: "#f9fafb", border: "1px solid #d1d5db", borderRadius: "8px", padding: "0 12px" }}>
                     <span style={{ fontSize: "16px", marginRight: "8px" }}>🔍</span>
-                    <input
-                      placeholder="Search medicine by name..."
-                      value={posSearch}
-                      onChange={(e) => setPosSearch(e.target.value)}
-                      style={{ flex: 1, border: "none", background: "transparent", padding: "10px 0", fontSize: "14px", outline: "none" }}
-                    />
+                    <input placeholder="Search medicine..." value={posSearch} onChange={(e) => setPosSearch(e.target.value)}
+                      style={{ flex: 1, border: "none", background: "transparent", padding: "10px 0", fontSize: "14px", outline: "none" }} />
                   </div>
                 </div>
 
-                {/* Medicine Grid */}
-                {safeMedicines.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "30px", color: "#888", background: "#f9fafb", borderRadius: "8px" }}>
-                    <p>No medicines in inventory.</p>
-                    <button style={styles.linkBtn} onClick={() => setActiveTab("medicines")}>
-                      Add medicines →
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: "12px", maxHeight: "400px", overflowY: "auto" }}>
-                    {posFilteredMedicines.map((m, i) => {
-                      const inCart = posCart.find((item) => item.name === m.name);
-                      return (
-                        <div
-                          key={i}
-                          onClick={() => posAddToCart(m)}
-                          style={{
-                            border: inCart ? "2px solid #166534" : "1px solid #e5e7eb",
-                            borderRadius: "10px",
-                            padding: "12px",
-                            cursor: "pointer",
-                            background: inCart ? "#f0fdf4" : "white",
-                            transition: "all 0.15s",
-                            position: "relative",
-                          }}
-                        >
-                          {inCart && (
-                            <div style={{
-                              position: "absolute", top: "6px", right: "6px",
-                              background: "#166534", color: "white",
-                              borderRadius: "50%", width: "20px", height: "20px",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: "11px", fontWeight: "700",
-                            }}>
-                              {inCart.quantity}
-                            </div>
-                          )}
-                          {m.img && <img src={m.img} alt={m.name} style={{ width: "100%", height: "70px", objectFit: "cover", borderRadius: "6px", marginBottom: "6px" }} />}
-                          <div style={{ fontSize: "13px", fontWeight: "600", color: "#111" }}>{m.name}</div>
-                          <div style={{ fontSize: "14px", fontWeight: "700", color: "#166534", marginTop: "4px" }}>Rs.{m.price}</div>
-                          {m.category && <div style={{ fontSize: "11px", color: "#888" }}>{m.category}</div>}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: "12px", maxHeight: "400px", overflowY: "auto" }}>
+                  {posFilteredMedicines.map((m) => {
+                    const inCart = posCart.find((item) => item._id === m._id);
+                    const outOfStock = m.stock <= 0;
+                    return (
+                      <div key={m._id} onClick={() => !outOfStock && posAddToCart(m)}
+                        style={{ border: inCart ? "2px solid #166534" : "1px solid #e5e7eb", borderRadius: "10px", padding: "12px", cursor: outOfStock ? "not-allowed" : "pointer", background: outOfStock ? "#f9fafb" : inCart ? "#f0fdf4" : "white", opacity: outOfStock ? 0.6 : 1, position: "relative" }}>
+                        {inCart && (
+                          <div style={{ position: "absolute", top: "6px", right: "6px", background: "#166534", color: "white", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700" }}>
+                            {inCart.quantity}
+                          </div>
+                        )}
+                        {m.img && <img src={m.img} alt={m.name} style={{ width: "100%", height: "70px", objectFit: "cover", borderRadius: "6px", marginBottom: "6px" }} />}
+                        <div style={{ fontSize: "13px", fontWeight: "600" }}>{m.name}</div>
+                        <div style={{ fontSize: "14px", fontWeight: "700", color: "#166534" }}>Rs.{m.price}</div>
+                        <div style={{ fontSize: "11px", color: outOfStock ? "#dc2626" : m.stock <= m.lowStockThreshold ? "#92400e" : "#888" }}>
+                          {outOfStock ? "Out of stock" : "Stock: " + m.stock + " " + (m.unit || "units")}
                         </div>
-                      );
-                    })}
-                  </div>
-                )}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             </div>
 
-            {/* RIGHT — Cart & Checkout */}
+            {/* POS Cart */}
             <div style={{ position: "sticky", top: "20px" }}>
               <div style={{ ...styles.card, border: "2px solid #166534" }}>
                 <h3 style={{ ...styles.cardTitle, color: "#166534" }}>🛒 Order Summary</h3>
-
                 {posCart.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "30px", color: "#888" }}>
-                    <p style={{ fontSize: "32px", margin: "0 0 8px" }}>🛒</p>
+                    <p style={{ fontSize: "32px" }}>🛒</p>
                     <p>Click medicines to add them</p>
                   </div>
                 ) : (
                   <div>
                     {posCart.map((item) => (
-                      <div key={item.name} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
+                      <div key={item._id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "10px 0", borderBottom: "1px solid #f3f4f6" }}>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: "13px", fontWeight: "600" }}>{item.name}</div>
                           <div style={{ fontSize: "12px", color: "#888" }}>Rs.{item.price} each</div>
                         </div>
                         <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
-                          <button
-                            onClick={() => posChangeQty(item.name, -1)}
-                            style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #d1d5db", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}
-                          >−</button>
+                          <button onClick={() => posChangeQty(item._id, -1)} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #d1d5db", background: "white", cursor: "pointer" }}>−</button>
                           <span style={{ fontWeight: "700", minWidth: "20px", textAlign: "center" }}>{item.quantity}</span>
-                          <button
-                            onClick={() => posChangeQty(item.name, 1)}
-                            style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #d1d5db", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}
-                          >+</button>
+                          <button onClick={() => posChangeQty(item._id, 1)} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #d1d5db", background: "white", cursor: "pointer" }}>+</button>
                         </div>
-                        <div style={{ fontWeight: "700", color: "#166534", minWidth: "60px", textAlign: "right" }}>
-                          Rs.{Number(item.price) * item.quantity}
-                        </div>
-                        <button
-                          onClick={() => posRemoveFromCart(item.name)}
-                          style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: "16px" }}
-                        >✕</button>
+                        <div style={{ fontWeight: "700", color: "#166534", minWidth: "60px", textAlign: "right" }}>Rs.{Number(item.price) * item.quantity}</div>
+                        <button onClick={() => posRemoveFromCart(item._id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: "16px" }}>✕</button>
                       </div>
                     ))}
-
-                    {/* Total */}
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "16px 0 8px", borderTop: "2px solid #166534", marginTop: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", padding: "16px 0 8px", borderTop: "2px solid #166534", marginTop: "8px" }}>
                       <span style={{ fontWeight: "700", fontSize: "16px" }}>Total</span>
                       <span style={{ fontWeight: "700", fontSize: "22px", color: "#166534" }}>Rs.{posTotal}</span>
                     </div>
-
-                    {/* Customer Summary */}
                     {posCustomerName && (
                       <div style={{ background: "#f0fdf4", borderRadius: "8px", padding: "10px 12px", marginBottom: "12px", fontSize: "13px" }}>
                         <div><strong>Customer:</strong> {posCustomerName}</div>
@@ -886,35 +836,167 @@ export default function Admin() {
                         {posMatchedUser && <div style={{ color: "#166534", marginTop: "4px" }}>✅ Linked to account</div>}
                       </div>
                     )}
-
-                    {/* Place Order Button */}
-                    <button
-                      onClick={posPlaceOrder}
-                      disabled={posPlacing}
-                      style={{
-                        width: "100%",
-                        padding: "14px",
-                        background: posPlacing ? "#888" : "#166534",
-                        color: "white",
-                        border: "none",
-                        borderRadius: "10px",
-                        fontWeight: "700",
-                        fontSize: "16px",
-                        cursor: posPlacing ? "not-allowed" : "pointer",
-                      }}
-                    >
-                      {posPlacing ? "⏳ Creating Order..." : "✅ Complete Sale & Print Receipt"}
+                    <button onClick={posPlaceOrder} disabled={posPlacing}
+                      style={{ width: "100%", padding: "14px", background: posPlacing ? "#888" : "#166534", color: "white", border: "none", borderRadius: "10px", fontWeight: "700", fontSize: "16px", cursor: posPlacing ? "not-allowed" : "pointer" }}>
+                      {posPlacing ? "⏳ Creating..." : "✅ Complete Sale & Print Receipt"}
                     </button>
-
-                    <button
-                      onClick={() => { setPosCart([]); setPosCustomerName(""); setPosCustomerPhone(""); setPosMatchedUser(null); }}
-                      style={{ width: "100%", padding: "10px", background: "none", border: "1px solid #d1d5db", borderRadius: "8px", color: "#888", cursor: "pointer", marginTop: "8px", fontSize: "14px" }}
-                    >
+                    <button onClick={() => { setPosCart([]); setPosCustomerName(""); setPosCustomerPhone(""); setPosMatchedUser(null); }}
+                      style={{ width: "100%", padding: "10px", background: "none", border: "1px solid #d1d5db", borderRadius: "8px", color: "#888", cursor: "pointer", marginTop: "8px", fontSize: "14px" }}>
                       Clear All
                     </button>
                   </div>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ══ INVENTORY TAB ══ */}
+        {activeTab === "inventory" && (
+          <div>
+            {/* ADD MEDICINE */}
+            <div style={styles.card}>
+              <h3 style={styles.cardTitle}>➕ Add New Medicine</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginTop: "16px" }}>
+                <div>
+                  <label style={styles.fieldLabel}>Name *</label>
+                  <input placeholder="Medicine name" value={medForm.name} onChange={(e) => setMedForm({ ...medForm, name: e.target.value })} style={styles.inputField} />
+                </div>
+                <div>
+                  <label style={styles.fieldLabel}>Price (Rs.) *</label>
+                  <input type="number" min="1" placeholder="0" value={medForm.price} onChange={(e) => setMedForm({ ...medForm, price: e.target.value })} style={styles.inputField} />
+                </div>
+                <div>
+                  <label style={styles.fieldLabel}>Category</label>
+                  <input placeholder="e.g. Pain Relief" value={medForm.category} onChange={(e) => setMedForm({ ...medForm, category: e.target.value })} style={styles.inputField} />
+                </div>
+                <div>
+                  <label style={styles.fieldLabel}>Initial Stock</label>
+                  <input type="number" min="0" placeholder="100" value={medForm.stock} onChange={(e) => setMedForm({ ...medForm, stock: e.target.value })} style={styles.inputField} />
+                </div>
+                <div>
+                  <label style={styles.fieldLabel}>Low Stock Alert At</label>
+                  <input type="number" min="1" placeholder="10" value={medForm.lowStockThreshold} onChange={(e) => setMedForm({ ...medForm, lowStockThreshold: e.target.value })} style={styles.inputField} />
+                </div>
+                <div>
+                  <label style={styles.fieldLabel}>Unit</label>
+                  <select value={medForm.unit} onChange={(e) => setMedForm({ ...medForm, unit: e.target.value })} style={{ ...styles.inputField, background: "white" }}>
+                    <option value="units">Units</option>
+                    <option value="bottles">Bottles</option>
+                    <option value="strips">Strips</option>
+                    <option value="boxes">Boxes</option>
+                    <option value="sachets">Sachets</option>
+                    <option value="vials">Vials</option>
+                  </select>
+                </div>
+                <div style={{ gridColumn: "span 2" }}>
+                  <label style={styles.fieldLabel}>Description</label>
+                  <input placeholder="Brief description" value={medForm.desc} onChange={(e) => setMedForm({ ...medForm, desc: e.target.value })} style={styles.inputField} />
+                </div>
+                <div>
+                  <label style={styles.fieldLabel}>Image</label>
+                  <label style={styles.fileLabel}>
+                    📷 Upload Image
+                    <input type="file" onChange={handleImageSelect} style={{ display: "none" }} />
+                  </label>
+                  {imgPreview && <img src={imgPreview} alt="preview" style={{ width: "50px", height: "50px", borderRadius: "6px", objectFit: "cover", marginLeft: "10px", verticalAlign: "middle" }} />}
+                </div>
+              </div>
+              <button style={{ ...styles.addBtn, marginTop: "16px" }} onClick={addMedicine}>Add Medicine to Inventory</button>
+            </div>
+
+            {/* LOW STOCK ALERTS */}
+            {lowStockMeds.length > 0 && (
+              <div style={{ ...styles.card, border: "1px solid #fcd34d", background: "#fffbeb" }}>
+                <h3 style={{ ...styles.cardTitle, color: "#92400e" }}>⚠️ Stock Alerts ({lowStockMeds.length})</h3>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px,1fr))", gap: "12px", marginTop: "12px" }}>
+                  {lowStockMeds.map((med) => (
+                    <div key={med._id} style={{ background: med.stock <= 0 ? "#fee2e2" : "#fef3c7", borderRadius: "8px", padding: "12px" }}>
+                      <div style={{ fontWeight: "600", fontSize: "14px" }}>{med.name}</div>
+                      <div style={{ fontSize: "20px", fontWeight: "700", color: med.stock <= 0 ? "#dc2626" : "#92400e", margin: "4px 0" }}>
+                        {med.stock} {med.unit || "units"}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "#888", marginBottom: "8px" }}>Alert at: {med.lowStockThreshold}</div>
+                      <button
+                        onClick={() => openStockUpdate(med)}
+                        style={{ padding: "6px 14px", background: "#166534", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>
+                        + Restock
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* ALL MEDICINES TABLE */}
+            <div style={styles.card}>
+              <h3 style={styles.cardTitle}>💊 All Medicines ({safeMedicines.length})</h3>
+              <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "8px", marginTop: "16px" }}>
+                <Table>
+                  <TableHead style={{ background: "#f9fafb" }}>
+                    <TableRow>
+                      <TableCell><strong>Medicine</strong></TableCell>
+                      <TableCell><strong>Category</strong></TableCell>
+                      <TableCell><strong>Price</strong></TableCell>
+                      <TableCell><strong>Stock</strong></TableCell>
+                      <TableCell><strong>Status</strong></TableCell>
+                      <TableCell><strong>Visibility</strong></TableCell>
+                      <TableCell><strong>Actions</strong></TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {safeMedicines.map((med) => {
+                      const stockStatus = getStockStatus(med);
+                      return (
+                        <TableRow key={med._id} hover style={{ opacity: med.isActive ? 1 : 0.5 }}>
+                          <TableCell>
+                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                              {med.img && <img src={med.img} alt={med.name} style={{ width: "36px", height: "36px", borderRadius: "6px", objectFit: "cover" }} />}
+                              <div>
+                                <div style={{ fontWeight: "600" }}>{med.name}</div>
+                                <div style={{ fontSize: "12px", color: "#888" }}>{med.desc?.slice(0, 40) || ""}</div>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell>{med.category || "-"}</TableCell>
+                          <TableCell><strong>Rs.{med.price}</strong></TableCell>
+                          <TableCell>
+                            <div style={{ fontWeight: "700", fontSize: "16px" }}>{med.stock}</div>
+                            <div style={{ fontSize: "11px", color: "#888" }}>{med.unit || "units"}</div>
+                          </TableCell>
+                          <TableCell>
+                            <Chip label={stockStatus.label} size="small"
+                              style={{ background: stockStatus.bg, color: stockStatus.color, fontWeight: "600", fontSize: "11px" }} />
+                          </TableCell>
+                          <TableCell>
+                            <Chip label={med.isActive ? "Visible" : "Hidden"} size="small"
+                              style={{ background: med.isActive ? "#dcfce7" : "#f3f4f6", color: med.isActive ? "#166534" : "#888", fontWeight: "600", fontSize: "11px" }} />
+                          </TableCell>
+                          <TableCell>
+                            <Tooltip title="Update Stock">
+                              <button onClick={() => openStockUpdate(med)}
+                                style={{ padding: "4px 10px", background: "#dbeafe", color: "#1e40af", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px", marginRight: "6px" }}>
+                                Stock
+                              </button>
+                            </Tooltip>
+                            <Tooltip title="Edit Medicine">
+                              <IconButton size="small" style={{ color: "#166534" }} onClick={() => openEditMedicine(med)}>
+                                <Edit fontSize="small" />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title={med.isActive ? "Hide from store" : "Show in store"}>
+                              <button onClick={() => axios.put(`${BASE_URL}/medicines/${med._id}`, { isActive: !med.isActive }, { withCredentials: true }).then(() => { setMedicines((prev) => prev.map((m) => m._id === med._id ? { ...m, isActive: !med.isActive } : m)); })}
+                                style={{ padding: "4px 10px", background: med.isActive ? "#fee2e2" : "#dcfce7", color: med.isActive ? "#991b1b" : "#166534", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px", marginLeft: "4px" }}>
+                                {med.isActive ? "Hide" : "Show"}
+                              </button>
+                            </Tooltip>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </TableContainer>
             </div>
           </div>
         )}
@@ -925,13 +1007,8 @@ export default function Admin() {
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
               <h3 style={styles.cardTitle}>👥 Registered Users</h3>
               <div style={{ display: "flex", gap: "10px" }}>
-                <TextField
-                  size="small"
-                  placeholder="Search users..."
-                  value={userSearch}
-                  onChange={(e) => setUserSearch(e.target.value)}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }}
-                />
+                <TextField size="small" placeholder="Search users..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)}
+                  InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }} />
                 <button style={styles.exportBtn} onClick={exportUsersCsv}>Export CSV</button>
               </div>
             </div>
@@ -963,58 +1040,12 @@ export default function Admin() {
                         <Chip label={user.role || "user"} size="small"
                           style={{ background: user.role === "admin" ? "#dbeafe" : "#f0fdf4", color: user.role === "admin" ? "#1e40af" : "#166534", fontWeight: "600" }} />
                       </TableCell>
-                      <TableCell style={{ fontSize: "12px", color: "#888" }}>
-                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}
-                      </TableCell>
+                      <TableCell style={{ fontSize: "12px", color: "#888" }}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
               </Table>
             </TableContainer>
-          </div>
-        )}
-
-        {/* ══ MEDICINES TAB ══ */}
-        {activeTab === "medicines" && (
-          <div>
-            <div style={styles.card}>
-              <h3 style={styles.cardTitle}>➕ Add New Medicine</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginTop: "16px" }}>
-                <input placeholder="Medicine Name *" value={newMedicine.name} onChange={(e) => setNewMedicine({ ...newMedicine, name: e.target.value })} style={styles.inputField} />
-                <input type="number" min="1" placeholder="Price (Rs.) *" value={newMedicine.price} onChange={(e) => setNewMedicine({ ...newMedicine, price: e.target.value })} style={styles.inputField} />
-                <input placeholder="Category" value={newMedicine.category} onChange={(e) => setNewMedicine({ ...newMedicine, category: e.target.value })} style={styles.inputField} />
-                <input placeholder="Description" value={newMedicine.desc} onChange={(e) => setNewMedicine({ ...newMedicine, desc: e.target.value })} style={styles.inputField} />
-              </div>
-              <div style={{ marginTop: "16px", display: "flex", alignItems: "center", gap: "16px" }}>
-                <label style={styles.fileLabel}>
-                  📷 Upload Image
-                  <input type="file" onChange={handleImageSelect} style={{ display: "none" }} />
-                </label>
-                {imgPreview && <img src={imgPreview} alt="preview" style={{ width: "60px", height: "60px", borderRadius: "8px", objectFit: "cover" }} />}
-                <button style={styles.addBtn} onClick={addMedicine}>Add Medicine</button>
-              </div>
-            </div>
-            <div style={styles.card}>
-              <h3 style={styles.cardTitle}>💊 Medicines List ({safeMedicines.length})</h3>
-              {safeMedicines.length === 0 ? (
-                <p style={{ color: "#888", textAlign: "center", padding: "20px" }}>No medicines added yet</p>
-              ) : (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(240px,1fr))", gap: "16px", marginTop: "16px" }}>
-                  {safeMedicines.map((m, i) => (
-                    <div key={i} style={styles.medCard}>
-                      {m.img && <img src={m.img} alt={m.name} style={{ width: "100%", height: "120px", objectFit: "cover", borderRadius: "8px", marginBottom: "10px" }} />}
-                      <div style={{ fontWeight: "700", color: "#166534" }}>{m.name}</div>
-                      {m.category && <div style={{ fontSize: "12px", color: "#888" }}>{m.category}</div>}
-                      <div style={{ fontSize: "18px", fontWeight: "700", color: "#166534", margin: "8px 0" }}>Rs.{m.price}</div>
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <button style={styles.editBtn} onClick={() => editMedicine(i)}>Edit</button>
-                        <button style={styles.deleteBtn} onClick={() => deleteMedicine(i)}>Delete</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
           </div>
         )}
 
@@ -1026,11 +1057,13 @@ export default function Admin() {
             <div style={{ display: "flex", flexDirection: "column", gap: "16px", maxWidth: "560px" }}>
               <div>
                 <label style={styles.fieldLabel}>Notice Message</label>
-                <textarea value={notice} onChange={(e) => setNotice(e.target.value)} placeholder="Enter notice message..." rows={4} style={{ ...styles.inputField, width: "100%", resize: "vertical" }} />
+                <textarea value={notice} onChange={(e) => setNotice(e.target.value)} placeholder="Enter notice message..." rows={4}
+                  style={{ ...styles.inputField, width: "100%", resize: "vertical" }} />
               </div>
               <div>
                 <label style={styles.fieldLabel}>Auto-delete after (hours)</label>
-                <input value={noticeHours} onChange={(e) => setNoticeHours(e.target.value)} placeholder="e.g. 24 (leave empty for permanent)" style={{ ...styles.inputField, width: "100%" }} />
+                <input value={noticeHours} onChange={(e) => setNoticeHours(e.target.value)} placeholder="e.g. 24 (leave empty for permanent)"
+                  style={{ ...styles.inputField, width: "100%" }} />
               </div>
               <div style={{ display: "flex", gap: "12px" }}>
                 <button style={styles.addBtn} onClick={updateNotice}>Publish Notice</button>
@@ -1041,7 +1074,7 @@ export default function Admin() {
         )}
       </div>
 
-      {/* ── STATUS DIALOG ── */}
+      {/* STATUS DIALOG */}
       <Dialog open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle style={{ background: "#f0fdf4", color: "#166534", fontWeight: "700" }}>Update Order Status</DialogTitle>
         <DialogContent>
@@ -1052,11 +1085,7 @@ export default function Admin() {
               </Typography>
               <FormControl fullWidth>
                 <InputLabel>New Status</InputLabel>
-                <Select
-                  value={selectedOrder.status || "Pending"}
-                  onChange={(e) => setSelectedOrder({ ...selectedOrder, status: e.target.value })}
-                  label="New Status"
-                >
+                <Select value={selectedOrder.status || "Pending"} onChange={(e) => setSelectedOrder({ ...selectedOrder, status: e.target.value })} label="New Status">
                   <MenuItem value="Pending">⏳ Pending</MenuItem>
                   <MenuItem value="Approved">✅ Approved</MenuItem>
                   <MenuItem value="Out for Delivery">🚚 Out for Delivery</MenuItem>
@@ -1070,13 +1099,86 @@ export default function Admin() {
         </DialogContent>
         <DialogActions style={{ padding: "16px" }}>
           <Button onClick={() => setStatusDialogOpen(false)} style={{ color: "#888" }}>Cancel</Button>
-          <Button onClick={() => updateOrderStatus(selectedOrder._id, selectedOrder.status)} variant="contained" style={{ background: "#166534", color: "white" }}>
-            Update Status
-          </Button>
+          <Button onClick={() => updateOrderStatus(selectedOrder._id, selectedOrder.status)} variant="contained" style={{ background: "#166534", color: "white" }}>Update</Button>
         </DialogActions>
       </Dialog>
 
-      {/* ── SNACKBAR ── */}
+      {/* EDIT MEDICINE DIALOG */}
+      <Dialog open={medEditOpen} onClose={() => setMedEditOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle style={{ background: "#f0fdf4", color: "#166534", fontWeight: "700" }}>Edit Medicine</DialogTitle>
+        <DialogContent>
+          {editingMed && (
+            <Box sx={{ pt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+              <TextField label="Name" value={editingMed.name} onChange={(e) => setEditingMed({ ...editingMed, name: e.target.value })} fullWidth size="small" />
+              <TextField label="Price (Rs.)" type="number" value={editingMed.price} onChange={(e) => setEditingMed({ ...editingMed, price: e.target.value })} fullWidth size="small" />
+              <TextField label="Category" value={editingMed.category || ""} onChange={(e) => setEditingMed({ ...editingMed, category: e.target.value })} fullWidth size="small" />
+              <TextField label="Description" value={editingMed.desc || ""} onChange={(e) => setEditingMed({ ...editingMed, desc: e.target.value })} fullWidth size="small" multiline rows={2} />
+              <TextField label="Stock" type="number" value={editingMed.stock} onChange={(e) => setEditingMed({ ...editingMed, stock: e.target.value })} fullWidth size="small" />
+              <TextField label="Low Stock Alert At" type="number" value={editingMed.lowStockThreshold} onChange={(e) => setEditingMed({ ...editingMed, lowStockThreshold: e.target.value })} fullWidth size="small" />
+              <FormControl fullWidth size="small">
+                <InputLabel>Unit</InputLabel>
+                <Select value={editingMed.unit || "units"} onChange={(e) => setEditingMed({ ...editingMed, unit: e.target.value })} label="Unit">
+                  <MenuItem value="units">Units</MenuItem>
+                  <MenuItem value="bottles">Bottles</MenuItem>
+                  <MenuItem value="strips">Strips</MenuItem>
+                  <MenuItem value="boxes">Boxes</MenuItem>
+                  <MenuItem value="sachets">Sachets</MenuItem>
+                  <MenuItem value="vials">Vials</MenuItem>
+                </Select>
+              </FormControl>
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions style={{ padding: "16px" }}>
+          <Button onClick={() => setMedEditOpen(false)} style={{ color: "#888" }}>Cancel</Button>
+          <Button onClick={saveEditMedicine} variant="contained" style={{ background: "#166534", color: "white" }}>Save Changes</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* STOCK UPDATE DIALOG */}
+      <Dialog open={stockUpdateOpen} onClose={() => setStockUpdateOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle style={{ background: "#f0fdf4", color: "#166534", fontWeight: "700" }}>
+          Update Stock — {stockMed?.name}
+        </DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+            <Typography variant="body2" color="text.secondary">
+              Current stock: <strong>{stockMed?.stock} {stockMed?.unit || "units"}</strong>
+            </Typography>
+            <FormControl fullWidth size="small">
+              <InputLabel>Operation</InputLabel>
+              <Select value={stockOperation} onChange={(e) => setStockOperation(e.target.value)} label="Operation">
+                <MenuItem value="add">➕ Add to stock</MenuItem>
+                <MenuItem value="subtract">➖ Remove from stock</MenuItem>
+                <MenuItem value="set">📝 Set exact value</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label={stockOperation === "add" ? "Quantity to Add" : stockOperation === "subtract" ? "Quantity to Remove" : "Set Stock To"}
+              type="number" value={stockValue} onChange={(e) => setStockValue(e.target.value)}
+              fullWidth size="small" placeholder="Enter quantity" />
+            {stockValue && !isNaN(stockValue) && (
+              <Typography variant="body2" style={{ color: "#166534", background: "#f0fdf4", padding: "8px", borderRadius: "6px" }}>
+                New stock will be:{" "}
+                <strong>
+                  {stockOperation === "add"
+                    ? Number(stockMed?.stock || 0) + Number(stockValue)
+                    : stockOperation === "subtract"
+                    ? Math.max(0, Number(stockMed?.stock || 0) - Number(stockValue))
+                    : Number(stockValue)}{" "}
+                  {stockMed?.unit || "units"}
+                </strong>
+              </Typography>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions style={{ padding: "16px" }}>
+          <Button onClick={() => setStockUpdateOpen(false)} style={{ color: "#888" }}>Cancel</Button>
+          <Button onClick={saveStockUpdate} variant="contained" style={{ background: "#166534", color: "white" }}>Update Stock</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* SNACKBAR */}
       <Snackbar open={notification.open} autoHideDuration={4000} onClose={() => setNotification({ ...notification, open: false })} anchorOrigin={{ vertical: "top", horizontal: "right" }}>
         <Alert onClose={() => setNotification({ ...notification, open: false })} severity={notification.severity} sx={{ width: "100%" }}>
           {notification.message}
@@ -1112,9 +1214,8 @@ const styles = {
   fileLabel: { display: "inline-block", padding: "8px 16px", border: "1px dashed #d1d5db", borderRadius: "8px", cursor: "pointer", fontSize: "13px", color: "#555" },
   addBtn: { padding: "10px 24px", background: "#166534", color: "white", border: "none", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "14px" },
   exportBtn: { padding: "8px 16px", background: "#166534", color: "white", border: "none", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "13px" },
-  editBtn: { flex: 1, padding: "6px", background: "#dbeafe", color: "#1e40af", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px" },
   deleteBtn: { flex: 1, padding: "6px", background: "#fee2e2", color: "#991b1b", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px" },
   receiptBtn: { padding: "4px 8px", background: "#f0fdf4", border: "1px solid #d1fae5", borderRadius: "6px", cursor: "pointer", fontSize: "14px", marginLeft: "4px" },
-  medCard: { border: "1px solid #e5e7eb", borderRadius: "10px", padding: "16px", background: "#fafafa" },
-  loader: { width: "40px", height: "40px", border: "4px solid #d1fae5", borderTop: "4px solid #166534", borderRadius: "50%", animation: "spin 1s linear infinite", margin: "40px auto" },
+  lowStockBanner: { background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: "10px", padding: "12px 20px", marginBottom: "20px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", fontSize: "14px", color: "#92400e" },
+  bannerBtn: { marginLeft: "auto", padding: "6px 14px", background: "#92400e", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "13px" },
 };
