@@ -14,9 +14,10 @@ import {
 } from "@mui/icons-material";
 
 // ── CHANGE A: Recharts imports ─────────────────────────────────────────────────
+// REMOVE these 3 — you imported them but never used them in JSX
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
-  ResponsiveContainer, Cell, PieChart, Pie, Legend
+  ResponsiveContainer, Cell
 } from "recharts";
 // ── END CHANGE A ───────────────────────────────────────────────────────────────
 
@@ -255,7 +256,7 @@ export default function Admin() {
       setNotification({ open: true, message: "Failed to remove medicine", severity: "error" });
     }
   };
-
+<Button onClick={() => deleteMedicine(editingMed._id)}>Delete</Button>
   const openStockUpdate = (med) => {
     setStockMed(med); setStockValue(""); setStockOperation("add"); setStockUpdateOpen(true);
   };
