@@ -17,7 +17,7 @@ import {
 // REMOVE these 3 — you imported them but never used them in JSX
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
-  ResponsiveContainer, Cell
+  ResponsiveContainer, Cell, LineChart, Line
 } from "recharts";
 // ── END CHANGE A ───────────────────────────────────────────────────────────────
 
@@ -623,219 +623,477 @@ export default function Admin() {
           </div>
         )}
 
-        {/* ══ CHANGE C: ANALYTICS TAB — NEW ══ */}
         {activeTab === "analytics" && (
-          <div>
-            {analyticsLoading ? (
-              <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>
-                <p style={{ fontSize: "32px" }}>📈</p>
-                <p>Loading analytics...</p>
+  <div>
+    {analyticsLoading ? (
+      // ── LOADING SKELETONS ──────────────────────────────────────────────────
+      <div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "16px", marginBottom: "24px" }}>
+          {[1,2,3,4,5].map((i) => (
+            <div key={i} style={{ background: "white", borderRadius: "12px", padding: "20px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", height: "96px" }}>
+              <div style={{ height: "12px", background: "#f3f4f6", borderRadius: "6px", width: "60%", marginBottom: "12px", animation: "pulse 1.5s ease-in-out infinite" }} />
+              <div style={{ height: "28px", background: "#f3f4f6", borderRadius: "6px", width: "80%", animation: "pulse 1.5s ease-in-out infinite" }} />
+            </div>
+          ))}
+        </div>
+        <div style={{ background: "white", borderRadius: "12px", padding: "24px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", height: "380px", marginBottom: "24px" }}>
+          <div style={{ height: "16px", background: "#f3f4f6", borderRadius: "6px", width: "30%", marginBottom: "20px" }} />
+          <div style={{ height: "300px", background: "#f9fafb", borderRadius: "8px" }} />
+        </div>
+        <style>{`@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}`}</style>
+      </div>
+    ) : !analytics ? (
+      // ── EMPTY STATE ───────────────────────────────────────────────────────
+      <div style={{ background: "white", borderRadius: "16px", padding: "64px 32px", textAlign: "center", boxShadow: "0 1px 4px rgba(0,0,0,0.06)" }}>
+        <div style={{ fontSize: "48px", marginBottom: "16px" }}>📊</div>
+        <h3 style={{ fontSize: "18px", fontWeight: "700", color: "#111", margin: "0 0 8px" }}>No analytics data yet</h3>
+        <p style={{ color: "#888", fontSize: "14px", maxWidth: "360px", margin: "0 auto 24px" }}>
+          Analytics will appear once your first orders are placed. Start by creating a walk-in order or wait for an online order.
+        </p>
+        <button
+          onClick={() => setActiveTab("pos")}
+          style={{ padding: "10px 24px", background: "#166534", color: "white", border: "none", borderRadius: "8px", fontWeight: "600", cursor: "pointer", fontSize: "14px" }}>
+          Create Walk-in Order →
+        </button>
+      </div>
+    ) : (() => {
+      // ── LOCAL HELPERS (run inside IIFE so we can define vars cleanly) ──────
+      const af = analytics; // shorthand
+
+      // Time filter logic — filter dailyChart for 7d/30d
+      // We always get 7-day daily from API; month uses month stats
+      const [timePeriod, setTimePeriod] = [
+        // Read from a ref-like pattern using a closure variable
+        // We'll use a small trick: store in window temporarily for this render
+        window.__analyticsPeriod || "7d",
+        (v) => { window.__analyticsPeriod = v; setAnalytics({ ...af }); } // force re-render
+      ];
+
+      const periodStats = timePeriod === "today"
+        ? { revenue: af.today.revenue, orders: af.today.orders, label: "Today" }
+        : timePeriod === "7d"
+        ? { revenue: af.week.revenue, orders: af.week.orders, label: "Last 7 days" }
+        : { revenue: af.month.revenue, orders: af.month.orders, label: "This month" };
+
+      // Revenue trend: compare this week vs prior week approximation
+      const weekRevenue = af.week.revenue;
+      const allTimeRevenue = af.allTime.revenue;
+      const priorApprox = allTimeRevenue - weekRevenue;
+      const priorWeekApprox = priorApprox / Math.max(1, (af.allTime.orders - af.week.orders)) * af.week.orders;
+      const trendPct = priorWeekApprox > 0
+        ? Math.round(((weekRevenue - priorWeekApprox) / priorWeekApprox) * 100)
+        : 0;
+      const trendUp = trendPct >= 0;
+
+      // Low stock count from parent scope
+      const lowStockCount = lowStockMeds.length;
+      const outOfStockCount = lowStockMeds.filter((m) => m.stock <= 0).length;
+
+      // Best seller
+      const bestSeller = af.topMedicines[0] || null;
+
+      // Chart bar colors
+      const BAR_COLORS = af.dailyChart.map((_, i) =>
+        i === af.dailyChart.length - 1 ? "#166534" : "#86efac"
+      );
+
+      return (
+        <div>
+
+          {/* ── DATE HEADER + TIME FILTER ───────────────────────────────── */}
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+            <div>
+              <h2 style={{ fontSize: "20px", fontWeight: "700", color: "#111", margin: "0 0 2px" }}>Sales Analytics</h2>
+              <p style={{ fontSize: "13px", color: "#888", margin: 0 }}>
+                {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+              </p>
+            </div>
+            {/* TIME FILTER PILLS */}
+            <div style={{ display: "flex", background: "#f3f4f6", borderRadius: "10px", padding: "4px", gap: "2px" }}>
+              {[["today","Today"],["7d","7 days"],["month","This month"]].map(([val, label]) => (
+                <button key={val} onClick={() => setTimePeriod(val)}
+                  style={{
+                    padding: "7px 16px", border: "none", borderRadius: "8px", cursor: "pointer",
+                    fontSize: "13px", fontWeight: "600", transition: "all 0.15s",
+                    background: timePeriod === val ? "white" : "transparent",
+                    color: timePeriod === val ? "#166534" : "#6b7280",
+                    boxShadow: timePeriod === val ? "0 1px 3px rgba(0,0,0,0.12)" : "none",
+                  }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* ── TOP METRIC CARDS ─────────────────────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: "16px", marginBottom: "24px" }}>
+
+            {/* Revenue */}
+            <div
+              onClick={() => setActiveTab("orders")}
+              style={{ background: "white", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", borderTop: "4px solid #166534", cursor: "pointer", transition: "transform 0.15s,box-shadow 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow="0 6px 16px rgba(0,0,0,0.11)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.07)"; }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "#888", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "8px" }}>
+                {periodStats.label} Revenue
               </div>
-            ) : !analytics ? (
-              <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>
-                <p>No analytics data available yet.</p>
+              <div style={{ fontSize: "26px", fontWeight: "700", color: "#166534", marginBottom: "6px" }}>
+                Rs.{periodStats.revenue.toLocaleString()}
               </div>
-            ) : (
+              <div style={{ display: "flex", alignItems: "center", gap: "4px", fontSize: "12px" }}>
+                <span style={{ color: trendUp ? "#166534" : "#dc2626", fontWeight: "600" }}>
+                  {trendUp ? "▲" : "▼"} {Math.abs(trendPct)}%
+                </span>
+                <span style={{ color: "#aaa" }}>vs prior period</span>
+              </div>
+            </div>
+
+            {/* Orders */}
+            <div
+              onClick={() => setActiveTab("orders")}
+              style={{ background: "white", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", borderTop: "4px solid #3b82f6", cursor: "pointer", transition: "transform 0.15s,box-shadow 0.15s" }}
+              onMouseEnter={e => { e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow="0 6px 16px rgba(0,0,0,0.11)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.07)"; }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "#888", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "8px" }}>
+                {periodStats.label} Orders
+              </div>
+              <div style={{ fontSize: "26px", fontWeight: "700", color: "#1e40af", marginBottom: "6px" }}>
+                {periodStats.orders}
+              </div>
+              <div style={{ fontSize: "12px", color: "#aaa" }}>
+                Avg Rs.{periodStats.orders > 0 ? Math.round(periodStats.revenue / periodStats.orders).toLocaleString() : 0} / order
+              </div>
+            </div>
+
+            {/* This month */}
+            <div
+              style={{ background: "white", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", borderTop: "4px solid #8b5cf6" }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "#888", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "8px" }}>Month total</div>
+              <div style={{ fontSize: "26px", fontWeight: "700", color: "#6d28d9", marginBottom: "6px" }}>
+                Rs.{af.month.revenue.toLocaleString()}
+              </div>
+              <div style={{ fontSize: "12px", color: "#aaa" }}>{af.month.orders} orders this month</div>
+            </div>
+
+            {/* All-time */}
+            <div
+              style={{ background: "white", borderRadius: "14px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", borderTop: "4px solid #f59e0b" }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: "#888", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "8px" }}>All-time</div>
+              <div style={{ fontSize: "26px", fontWeight: "700", color: "#b45309", marginBottom: "6px" }}>
+                Rs.{af.allTime.revenue.toLocaleString()}
+              </div>
+              <div style={{ fontSize: "12px", color: "#aaa" }}>{af.allTime.orders} total orders</div>
+            </div>
+
+            {/* Low Stock — red alert card */}
+            <div
+              onClick={() => setActiveTab("inventory")}
+              style={{
+                background: lowStockCount > 0 ? "#fff5f5" : "white",
+                borderRadius: "14px", padding: "20px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.07)",
+                borderTop: `4px solid ${lowStockCount > 0 ? "#dc2626" : "#d1d5db"}`,
+                cursor: "pointer", transition: "transform 0.15s,box-shadow 0.15s"
+              }}
+              onMouseEnter={e => { e.currentTarget.style.transform="translateY(-2px)"; e.currentTarget.style.boxShadow="0 6px 16px rgba(0,0,0,0.11)"; }}
+              onMouseLeave={e => { e.currentTarget.style.transform="translateY(0)"; e.currentTarget.style.boxShadow="0 2px 8px rgba(0,0,0,0.07)"; }}>
+              <div style={{ fontSize: "11px", fontWeight: "700", color: lowStockCount > 0 ? "#dc2626" : "#888", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: "8px" }}>
+                Stock Alerts
+              </div>
+              <div style={{ fontSize: "26px", fontWeight: "700", color: lowStockCount > 0 ? "#dc2626" : "#111", marginBottom: "6px" }}>
+                {lowStockCount}
+              </div>
+              <div style={{ fontSize: "12px", color: lowStockCount > 0 ? "#dc2626" : "#aaa", fontWeight: lowStockCount > 0 ? "600" : "400" }}>
+                {outOfStockCount > 0 ? `${outOfStockCount} out of stock` : lowStockCount > 0 ? "items running low" : "All stocked up"}
+              </div>
+            </div>
+          </div>
+
+          {/* ── INSIGHTS ROW ─────────────────────────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: "14px", marginBottom: "24px" }}>
+
+            {/* Best seller insight */}
+            {bestSeller && (
+              <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: "12px", padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px" }}>
+                <div style={{ fontSize: "28px", flexShrink: 0 }}>🥇</div>
+                <div>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#166534", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "3px" }}>Best seller (all-time)</div>
+                  <div style={{ fontSize: "15px", fontWeight: "700", color: "#111" }}>{bestSeller.name}</div>
+                  <div style={{ fontSize: "12px", color: "#166534" }}>{bestSeller.totalQty} units · Rs.{bestSeller.totalRevenue.toLocaleString()}</div>
+                </div>
+              </div>
+            )}
+
+            {/* Today's top insight */}
+            {af.today.topMedicines[0] && (
+              <div style={{ background: "#eff6ff", border: "1px solid #bfdbfe", borderRadius: "12px", padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px" }}>
+                <div style={{ fontSize: "28px", flexShrink: 0 }}>🔥</div>
+                <div>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#1e40af", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "3px" }}>Hottest today</div>
+                  <div style={{ fontSize: "15px", fontWeight: "700", color: "#111" }}>{af.today.topMedicines[0].name}</div>
+                  <div style={{ fontSize: "12px", color: "#1e40af" }}>{af.today.topMedicines[0].totalQty} units sold today</div>
+                </div>
+              </div>
+            )}
+
+            {/* Revenue trend insight */}
+            <div style={{ background: trendUp ? "#f0fdf4" : "#fff5f5", border: `1px solid ${trendUp ? "#bbf7d0" : "#fecaca"}`, borderRadius: "12px", padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px" }}>
+              <div style={{ fontSize: "28px", flexShrink: 0 }}>{trendUp ? "📈" : "📉"}</div>
               <div>
-
-                {/* ── TODAY'S STAT CARDS ── */}
-                <div style={{ marginBottom: "8px" }}>
-                  <h2 style={{ fontSize: "18px", fontWeight: "700", color: "#111", margin: "0 0 16px" }}>
-                    📅 Today — {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-                  </h2>
+                <div style={{ fontSize: "11px", fontWeight: "700", color: trendUp ? "#166534" : "#dc2626", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "3px" }}>Weekly trend</div>
+                <div style={{ fontSize: "15px", fontWeight: "700", color: "#111" }}>
+                  {trendUp ? "+" : ""}{trendPct}% vs last week
                 </div>
-
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px,1fr))", gap: "16px", marginBottom: "24px" }}>
-                  <div style={{ ...styles.statCard, borderTop: "4px solid #166534" }}>
-                    <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "6px", fontWeight: "600" }}>TODAY'S REVENUE</div>
-                    <div style={{ fontSize: "28px", fontWeight: "700", color: "#166534" }}>Rs.{analytics.today.revenue.toLocaleString()}</div>
-                    <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>from {analytics.today.orders} order{analytics.today.orders !== 1 ? "s" : ""}</div>
-                  </div>
-                  <div style={{ ...styles.statCard, borderTop: "4px solid #3b82f6" }}>
-                    <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "6px", fontWeight: "600" }}>THIS WEEK</div>
-                    <div style={{ fontSize: "28px", fontWeight: "700", color: "#1e40af" }}>Rs.{analytics.week.revenue.toLocaleString()}</div>
-                    <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>{analytics.week.orders} orders</div>
-                  </div>
-                  <div style={{ ...styles.statCard, borderTop: "4px solid #8b5cf6" }}>
-                    <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "6px", fontWeight: "600" }}>THIS MONTH</div>
-                    <div style={{ fontSize: "28px", fontWeight: "700", color: "#6d28d9" }}>Rs.{analytics.month.revenue.toLocaleString()}</div>
-                    <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>{analytics.month.orders} orders</div>
-                  </div>
-                  <div style={{ ...styles.statCard, borderTop: "4px solid #f59e0b" }}>
-                    <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "6px", fontWeight: "600" }}>ALL TIME</div>
-                    <div style={{ fontSize: "28px", fontWeight: "700", color: "#b45309" }}>Rs.{analytics.allTime.revenue.toLocaleString()}</div>
-                    <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>{analytics.allTime.orders} orders total</div>
-                  </div>
+                <div style={{ fontSize: "12px", color: trendUp ? "#166534" : "#dc2626" }}>
+                  Rs.{af.week.revenue.toLocaleString()} this week
                 </div>
+              </div>
+            </div>
 
-                {/* ── TODAY ORDER TYPE SPLIT ── */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "24px" }}>
-                  <div style={styles.card}>
-                    <h3 style={styles.cardTitle}>🏪 Today's Order Types</h3>
-                    {analytics.today.orders === 0 ? (
-                      <p style={{ color: "#888", fontSize: "14px", marginTop: "16px" }}>No orders placed today yet.</p>
-                    ) : (
-                      <div style={{ display: "flex", gap: "16px", marginTop: "20px" }}>
-                        <div style={{ flex: 1, textAlign: "center", background: "#dbeafe", borderRadius: "10px", padding: "20px" }}>
-                          <div style={{ fontSize: "32px", fontWeight: "700", color: "#1e40af" }}>{analytics.today.onlineOrders}</div>
-                          <div style={{ fontSize: "13px", color: "#1e40af", fontWeight: "600", marginTop: "4px" }}>🌐 Online</div>
-                        </div>
-                        <div style={{ flex: 1, textAlign: "center", background: "#fef3c7", borderRadius: "10px", padding: "20px" }}>
-                          <div style={{ fontSize: "32px", fontWeight: "700", color: "#92400e" }}>{analytics.today.walkinOrders}</div>
-                          <div style={{ fontSize: "13px", color: "#92400e", fontWeight: "600", marginTop: "4px" }}>🏪 Walk-in</div>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* ── TODAY'S TOP MEDICINES ── */}
-                  <div style={styles.card}>
-                    <h3 style={styles.cardTitle}>🔥 Today's Top Medicines</h3>
-                    {analytics.today.topMedicines.length === 0 ? (
-                      <p style={{ color: "#888", fontSize: "14px", marginTop: "16px" }}>No sales recorded today yet.</p>
-                    ) : (
-                      <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
-                        {analytics.today.topMedicines.map((med, i) => (
-                          <div key={med.name} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                            <div style={{
-                              width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0,
-                              background: ["#166534","#1e40af","#6d28d9","#b45309","#991b1b"][i] || "#888",
-                              color: "white", display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: "13px", fontWeight: "700"
-                            }}>
-                              {i + 1}
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <div style={{ fontSize: "14px", fontWeight: "600" }}>{med.name}</div>
-                              <div style={{ fontSize: "12px", color: "#888" }}>Rs.{med.totalRevenue.toLocaleString()}</div>
-                            </div>
-                            <div style={{ background: "#f0fdf4", color: "#166534", padding: "2px 10px", borderRadius: "12px", fontSize: "13px", fontWeight: "700" }}>
-                              {med.totalQty} sold
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+            {/* Low stock insight */}
+            {lowStockCount > 0 && (
+              <div
+                onClick={() => setActiveTab("inventory")}
+                style={{ background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: "12px", padding: "16px 20px", display: "flex", alignItems: "center", gap: "14px", cursor: "pointer" }}>
+                <div style={{ fontSize: "28px", flexShrink: 0 }}>⚠️</div>
+                <div>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#c2410c", letterSpacing: "0.05em", textTransform: "uppercase", marginBottom: "3px" }}>Stock alert</div>
+                  <div style={{ fontSize: "15px", fontWeight: "700", color: "#111" }}>{lowStockCount} medicine{lowStockCount !== 1 ? "s" : ""} low</div>
+                  <div style={{ fontSize: "12px", color: "#c2410c" }}>Tap to manage inventory →</div>
                 </div>
-
-                {/* ── LAST 7 DAYS BAR CHART ── */}
-                <div style={styles.card}>
-                  <h3 style={styles.cardTitle}>📊 Revenue — Last 7 Days</h3>
-                  <div style={{ marginTop: "20px", height: "280px" }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analytics.dailyChart} margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                        <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#6b7280" }} />
-                        <YAxis tick={{ fontSize: 12, fill: "#6b7280" }} tickFormatter={(v) => "Rs." + v.toLocaleString()} width={80} />
-                        <ReTooltip
-                          formatter={(value, name) => name === "revenue" ? ["Rs." + value.toLocaleString(), "Revenue"] : [value, "Orders"]}
-                          contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px" }}
-                        />
-                        <Bar dataKey="revenue" radius={[6, 6, 0, 0]} maxBarSize={56}>
-                          {analytics.dailyChart.map((entry, index) => {
-                            const isToday = index === analytics.dailyChart.length - 1;
-                            return <Cell key={index} fill={isToday ? "#166534" : "#86efac"} />;
-                          })}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <div style={{ display: "flex", gap: "16px", marginTop: "12px", justifyContent: "flex-end" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#6b7280" }}>
-                      <div style={{ width: "12px", height: "12px", background: "#166534", borderRadius: "2px" }} /> Today
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#6b7280" }}>
-                      <div style={{ width: "12px", height: "12px", background: "#86efac", borderRadius: "2px" }} /> Previous days
-                    </div>
-                  </div>
-                </div>
-
-                {/* ── ALL-TIME TOP MEDICINES TABLE ── */}
-                <div style={styles.card}>
-                  <h3 style={styles.cardTitle}>🏆 All-Time Best Selling Medicines</h3>
-                  <p style={{ fontSize: "13px", color: "#888", margin: "4px 0 16px" }}>Ranked by total units sold across all orders</p>
-                  <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "8px" }}>
-                    <Table size="small">
-                      <TableHead style={{ background: "#f9fafb" }}>
-                        <TableRow>
-                          <TableCell><strong>Rank</strong></TableCell>
-                          <TableCell><strong>Medicine</strong></TableCell>
-                          <TableCell align="center"><strong>Units Sold</strong></TableCell>
-                          <TableCell align="right"><strong>Revenue Generated</strong></TableCell>
-                          <TableCell><strong>Popularity</strong></TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {analytics.topMedicines.map((med, i) => {
-                          const maxQty = analytics.topMedicines[0]?.totalQty || 1;
-                          const pct = Math.round((med.totalQty / maxQty) * 100);
-                          const rankColors = ["#f59e0b","#9ca3af","#b45309"];
-                          return (
-                            <TableRow key={med.name} hover>
-                              <TableCell>
-                                <div style={{
-                                  width: "28px", height: "28px", borderRadius: "50%",
-                                  background: rankColors[i] || "#f3f4f6",
-                                  color: i < 3 ? "white" : "#374151",
-                                  display: "flex", alignItems: "center", justifyContent: "center",
-                                  fontWeight: "700", fontSize: "13px"
-                                }}>
-                                  {i + 1}
-                                </div>
-                              </TableCell>
-                              <TableCell style={{ fontWeight: "600" }}>{med.name}</TableCell>
-                              <TableCell align="center">
-                                <Chip label={med.totalQty + " units"} size="small"
-                                  style={{ background: "#f0fdf4", color: "#166534", fontWeight: "700", fontSize: "12px" }} />
-                              </TableCell>
-                              <TableCell align="right" style={{ fontWeight: "600", color: "#166534" }}>
-                                Rs.{med.totalRevenue.toLocaleString()}
-                              </TableCell>
-                              <TableCell style={{ minWidth: "120px" }}>
-                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                                  <div style={{ flex: 1, height: "6px", background: "#f3f4f6", borderRadius: "3px" }}>
-                                    <div style={{ width: pct + "%", height: "100%", background: "#166534", borderRadius: "3px" }} />
-                                  </div>
-                                  <span style={{ fontSize: "11px", color: "#888", minWidth: "30px" }}>{pct}%</span>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </div>
-
-                {/* ── ORDERS COUNT BAR CHART ── */}
-                <div style={styles.card}>
-                  <h3 style={styles.cardTitle}>📦 Orders Count — Last 7 Days</h3>
-                  <div style={{ marginTop: "20px", height: "220px" }}>
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={analytics.dailyChart} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                        <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#6b7280" }} />
-                        <YAxis tick={{ fontSize: 12, fill: "#6b7280" }} allowDecimals={false} />
-                        <ReTooltip
-                          formatter={(value) => [value, "Orders"]}
-                          contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px" }}
-                        />
-                        <Bar dataKey="orders" radius={[6, 6, 0, 0]} maxBarSize={56}>
-                          {analytics.dailyChart.map((entry, index) => {
-                            const isToday = index === analytics.dailyChart.length - 1;
-                            return <Cell key={index} fill={isToday ? "#2563eb" : "#bfdbfe"} />;
-                          })}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
-                </div>
-
               </div>
             )}
           </div>
-        )}
+
+          {/* ── REVENUE CHART (dominant, tall) ──────────────────────────── */}
+          <div style={{ background: "white", borderRadius: "14px", padding: "24px 28px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", marginBottom: "24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "20px" }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: "700", color: "#111" }}>Revenue — last 7 days</h3>
+                <p style={{ margin: 0, fontSize: "13px", color: "#888" }}>Daily revenue excluding cancelled orders</p>
+              </div>
+              <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#6b7280" }}>
+                  <div style={{ width: "10px", height: "10px", background: "#166534", borderRadius: "2px" }} /> Today
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "5px", fontSize: "12px", color: "#6b7280" }}>
+                  <div style={{ width: "10px", height: "10px", background: "#86efac", borderRadius: "2px" }} /> Previous
+                </div>
+              </div>
+            </div>
+            <div style={{ height: "340px" }}>
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={af.dailyChart} margin={{ top: 8, right: 20, left: 10, bottom: 8 }} barCategoryGap="35%">
+                  <CartesianGrid strokeDasharray="4 4" stroke="#f0f0f0" vertical={false} />
+                  <XAxis
+                    dataKey="date"
+                    tick={{ fontSize: 12, fill: "#6b7280" }}
+                    axisLine={{ stroke: "#e5e7eb" }}
+                    tickLine={false} />
+                  <YAxis
+                    tick={{ fontSize: 12, fill: "#6b7280" }}
+                    tickFormatter={(v) => v >= 1000 ? `Rs.${Math.round(v/1000)}k` : `Rs.${v}`}
+                    axisLine={false}
+                    tickLine={false}
+                    width={72} />
+                  <ReTooltip
+                    formatter={(value) => [`Rs.${Number(value).toLocaleString()}`, "Revenue"]}
+                    labelStyle={{ fontWeight: "700", marginBottom: "4px", color: "#111" }}
+                    contentStyle={{ borderRadius: "10px", border: "1px solid #e5e7eb", fontSize: "13px", padding: "10px 14px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                    cursor={{ fill: "rgba(22,101,52,0.04)" }} />
+                  <Bar dataKey="revenue" radius={[6, 6, 0, 0]} maxBarSize={64}>
+                    {af.dailyChart.map((_, i) => (
+                      <Cell key={i} fill={BAR_COLORS[i]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* ── ORDERS COUNT + TODAY SPLIT ───────────────────────────────── */}
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 1fr", gap: "20px", marginBottom: "24px" }}>
+
+            {/* Orders count chart */}
+            <div style={{ background: "white", borderRadius: "14px", padding: "24px 28px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}>
+              <div style={{ marginBottom: "16px" }}>
+                <h3 style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: "700", color: "#111" }}>Orders — last 7 days</h3>
+                <p style={{ margin: 0, fontSize: "13px", color: "#888" }}>Daily order count</p>
+              </div>
+              <div style={{ height: "240px" }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={af.dailyChart} margin={{ top: 4, right: 12, left: 0, bottom: 4 }} barCategoryGap="40%">
+                    <CartesianGrid strokeDasharray="4 4" stroke="#f0f0f0" vertical={false} />
+                    <XAxis dataKey="date" tick={{ fontSize: 11, fill: "#6b7280" }} axisLine={{ stroke: "#e5e7eb" }} tickLine={false} />
+                    <YAxis tick={{ fontSize: 11, fill: "#6b7280" }} allowDecimals={false} axisLine={false} tickLine={false} width={28} />
+                    <ReTooltip
+                      formatter={(v) => [v, "Orders"]}
+                      contentStyle={{ borderRadius: "10px", border: "1px solid #e5e7eb", fontSize: "13px", padding: "10px 14px", boxShadow: "0 4px 12px rgba(0,0,0,0.1)" }}
+                      cursor={{ fill: "rgba(37,99,235,0.04)" }} />
+                    <Bar dataKey="orders" radius={[6, 6, 0, 0]} maxBarSize={56}>
+                      {af.dailyChart.map((_, i) => (
+                        <Cell key={i} fill={i === af.dailyChart.length - 1 ? "#2563eb" : "#bfdbfe"} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Today order type split */}
+            <div style={{ background: "white", borderRadius: "14px", padding: "24px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", display: "flex", flexDirection: "column" }}>
+              <h3 style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: "700", color: "#111" }}>Today's orders</h3>
+              <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#888" }}>Online vs walk-in split</p>
+              {af.today.orders === 0 ? (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", color: "#aaa" }}>
+                  <div style={{ fontSize: "32px", marginBottom: "8px" }}>🛒</div>
+                  <div style={{ fontSize: "13px" }}>No orders today yet</div>
+                </div>
+              ) : (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "12px", justifyContent: "center" }}>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                      <span style={{ fontSize: "13px", fontWeight: "600", color: "#1e40af" }}>🌐 Online</span>
+                      <span style={{ fontSize: "13px", fontWeight: "700", color: "#1e40af" }}>{af.today.onlineOrders}</span>
+                    </div>
+                    <div style={{ height: "10px", background: "#eff6ff", borderRadius: "5px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", borderRadius: "5px", background: "#3b82f6", width: `${Math.round((af.today.onlineOrders / af.today.orders) * 100)}%`, transition: "width 0.6s ease" }} />
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#aaa", marginTop: "3px" }}>{Math.round((af.today.onlineOrders / af.today.orders) * 100)}%</div>
+                  </div>
+                  <div>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                      <span style={{ fontSize: "13px", fontWeight: "600", color: "#92400e" }}>🏪 Walk-in</span>
+                      <span style={{ fontSize: "13px", fontWeight: "700", color: "#92400e" }}>{af.today.walkinOrders}</span>
+                    </div>
+                    <div style={{ height: "10px", background: "#fef3c7", borderRadius: "5px", overflow: "hidden" }}>
+                      <div style={{ height: "100%", borderRadius: "5px", background: "#f59e0b", width: `${Math.round((af.today.walkinOrders / af.today.orders) * 100)}%`, transition: "width 0.6s ease" }} />
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#aaa", marginTop: "3px" }}>{Math.round((af.today.walkinOrders / af.today.orders) * 100)}%</div>
+                  </div>
+                  <div style={{ marginTop: "8px", paddingTop: "12px", borderTop: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between" }}>
+                    <span style={{ fontSize: "13px", color: "#555" }}>Total today</span>
+                    <span style={{ fontSize: "15px", fontWeight: "700", color: "#111" }}>{af.today.orders}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── TOP MEDICINES TABLE ───────────────────────────────────────── */}
+          <div style={{ background: "white", borderRadius: "14px", padding: "24px 28px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", marginBottom: "24px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "10px" }}>
+              <div>
+                <h3 style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: "700", color: "#111" }}>Best selling medicines</h3>
+                <p style={{ margin: 0, fontSize: "13px", color: "#888" }}>All-time ranking by units sold</p>
+              </div>
+              <button
+                onClick={() => setActiveTab("inventory")}
+                style={{ padding: "7px 16px", background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                Manage Inventory →
+              </button>
+            </div>
+
+            {af.topMedicines.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px", color: "#aaa" }}>
+                <div style={{ fontSize: "32px", marginBottom: "8px" }}>💊</div>
+                <div style={{ fontSize: "14px" }}>No sales data yet — place an order to see rankings</div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                {/* Table header */}
+                <div style={{ display: "grid", gridTemplateColumns: "40px 1fr 120px 140px 160px", gap: "8px", padding: "8px 12px", background: "#f9fafb", borderRadius: "8px", marginBottom: "4px" }}>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#888", textTransform: "uppercase" }}>#</div>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#888", textTransform: "uppercase" }}>Medicine</div>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#888", textTransform: "uppercase", textAlign: "center" }}>Units sold</div>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#888", textTransform: "uppercase", textAlign: "right" }}>Revenue</div>
+                  <div style={{ fontSize: "11px", fontWeight: "700", color: "#888", textTransform: "uppercase" }}>Share</div>
+                </div>
+
+                {af.topMedicines.map((med, i) => {
+                  const maxQty = af.topMedicines[0]?.totalQty || 1;
+                  const pct = Math.round((med.totalQty / maxQty) * 100);
+                  const rankBg = i === 0 ? "#fef3c7" : i === 1 ? "#f3f4f6" : i === 2 ? "#fef3c7" : "#f9fafb";
+                  const rankColor = i === 0 ? "#92400e" : i === 1 ? "#374151" : i === 2 ? "#78350f" : "#6b7280";
+                  const rankLabel = i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}`;
+                  return (
+                    <div key={med.name}
+                      style={{ display: "grid", gridTemplateColumns: "40px 1fr 120px 140px 160px", gap: "8px", padding: "12px 12px", borderRadius: "8px", background: i === 0 ? "#fafff5" : "transparent", transition: "background 0.1s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = i === 0 ? "#f0fdf4" : "#f9fafb"}
+                      onMouseLeave={e => e.currentTarget.style.background = i === 0 ? "#fafff5" : "transparent"}>
+
+                      {/* Rank badge */}
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: rankBg, color: rankColor, display: "flex", alignItems: "center", justifyContent: "center", fontSize: i < 3 ? "14px" : "12px", fontWeight: "700" }}>
+                          {rankLabel}
+                        </div>
+                      </div>
+
+                      {/* Name */}
+                      <div style={{ display: "flex", alignItems: "center" }}>
+                        <span style={{ fontSize: "14px", fontWeight: i === 0 ? "700" : "500", color: "#111" }}>{med.name}</span>
+                        {i === 0 && <span style={{ marginLeft: "8px", background: "#dcfce7", color: "#166534", fontSize: "10px", fontWeight: "700", padding: "2px 7px", borderRadius: "4px", textTransform: "uppercase" }}>Top</span>}
+                      </div>
+
+                      {/* Units */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+                        <span style={{ background: "#f0fdf4", color: "#166534", padding: "3px 10px", borderRadius: "12px", fontSize: "13px", fontWeight: "700" }}>
+                          {med.totalQty}
+                        </span>
+                      </div>
+
+                      {/* Revenue */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end" }}>
+                        <span style={{ fontSize: "14px", fontWeight: "600", color: "#166534" }}>Rs.{med.totalRevenue.toLocaleString()}</span>
+                      </div>
+
+                      {/* Progress bar */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <div style={{ flex: 1, height: "6px", background: "#f3f4f6", borderRadius: "3px", overflow: "hidden" }}>
+                          <div style={{ height: "100%", borderRadius: "3px", background: i === 0 ? "#166534" : "#86efac", width: `${pct}%`, transition: "width 0.6s ease" }} />
+                        </div>
+                        <span style={{ fontSize: "11px", color: "#888", minWidth: "32px" }}>{pct}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* ── TODAY'S TOP 5 ─────────────────────────────────────────────── */}
+          {af.today.topMedicines.length > 0 && (
+            <div style={{ background: "white", borderRadius: "14px", padding: "24px 28px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)" }}>
+              <h3 style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: "700", color: "#111" }}>Today's top sellers</h3>
+              <p style={{ margin: "0 0 20px", fontSize: "13px", color: "#888" }}>Medicines sold most today</p>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(160px,1fr))", gap: "12px" }}>
+                {af.today.topMedicines.map((med, i) => {
+                  const colors = [
+                    { bg: "#f0fdf4", border: "#bbf7d0", color: "#166534" },
+                    { bg: "#eff6ff", border: "#bfdbfe", color: "#1e40af" },
+                    { bg: "#faf5ff", border: "#e9d5ff", color: "#7c3aed" },
+                    { bg: "#fff7ed", border: "#fed7aa", color: "#c2410c" },
+                    { bg: "#fdf2f8", border: "#fbcfe8", color: "#be185d" },
+                  ];
+                  const c = colors[i] || colors[4];
+                  return (
+                    <div key={med.name} style={{ background: c.bg, border: `1px solid ${c.border}`, borderRadius: "12px", padding: "16px", textAlign: "center" }}>
+                      <div style={{ fontSize: "22px", fontWeight: "700", color: c.color, marginBottom: "4px" }}>{med.totalQty}</div>
+                      <div style={{ fontSize: "12px", color: c.color, fontWeight: "600", marginBottom: "2px" }}>units</div>
+                      <div style={{ fontSize: "13px", fontWeight: "600", color: "#111", marginTop: "6px", lineHeight: "1.3" }}>{med.name}</div>
+                      <div style={{ fontSize: "11px", color: "#888", marginTop: "3px" }}>Rs.{med.totalRevenue.toLocaleString()}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+        </div>
+      );
+    })()}
+  </div>
+)}
         {/* ══ END CHANGE C ══ */}
 
         {/* ══ ORDERS TAB — unchanged ══ */}
