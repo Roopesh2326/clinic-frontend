@@ -17,7 +17,7 @@ import {
 // REMOVE these 3 — you imported them but never used them in JSX
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
-  ResponsiveContainer, Cell, LineChart, Line
+  ResponsiveContainer, Cell
 } from "recharts";
 // ── END CHANGE A ───────────────────────────────────────────────────────────────
 
