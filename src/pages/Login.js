@@ -31,6 +31,7 @@ export default function Login() {
       localStorage.setItem("email", res.data?.email || email);
       localStorage.setItem("name", res.data?.name || "");
       localStorage.setItem("phone", res.data?.phone || "");
+      localStorage.setItem("userId", res.data?.userId || "");
       localStorage.setItem("user", JSON.stringify({
         role: res.data.role,
         name: res.data?.name || "",
