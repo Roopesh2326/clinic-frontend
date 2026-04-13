@@ -13,6 +13,13 @@ import {
   ShoppingCart, AttachMoney, Inventory
 } from "@mui/icons-material";
 
+// ── CHANGE A: Recharts imports ─────────────────────────────────────────────────
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
+  ResponsiveContainer, Cell, PieChart, Pie, Legend
+} from "recharts";
+// ── END CHANGE A ───────────────────────────────────────────────────────────────
+
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
 const sanitizeObjectArray = (items) => {
@@ -22,19 +29,19 @@ const sanitizeObjectArray = (items) => {
 
 export default function Admin() {
   const navigate = useNavigate();
-  const [authChecked, setAuthChecked] = useState(false);
+  const [authChecked, setAuthChecked]   = useState(false);
   const [appointments, setAppointments] = useState([]);
-  const [notice, setNotice] = useState("");
-  const [noticeHours, setNoticeHours] = useState("");
-  const [users, setUsers] = useState([]);
-  const [medicines, setMedicines] = useState([]);
-  const [orders, setOrders] = useState([]);
-  const [userSearch, setUserSearch] = useState("");
-  const [orderSearch, setOrderSearch] = useState("");
+  const [notice, setNotice]             = useState("");
+  const [noticeHours, setNoticeHours]   = useState("");
+  const [users, setUsers]               = useState([]);
+  const [medicines, setMedicines]       = useState([]);
+  const [orders, setOrders]             = useState([]);
+  const [userSearch, setUserSearch]     = useState("");
+  const [orderSearch, setOrderSearch]   = useState("");
   const [notification, setNotification] = useState({ open: false, message: "", severity: "info" });
-  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [selectedOrder, setSelectedOrder]   = useState(null);
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("dashboard");
+  const [activeTab, setActiveTab]       = useState("dashboard");
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const prevOrdersRef = useRef([]);
 
@@ -43,24 +50,29 @@ export default function Admin() {
     name: "", desc: "", price: "", category: "",
     img: "", stock: "100", lowStockThreshold: "10", unit: "units"
   });
-  const [imgPreview, setImgPreview] = useState("");
-  const [editingMed, setEditingMed] = useState(null); // medicine being edited
-  const [medEditOpen, setMedEditOpen] = useState(false);
+  const [imgPreview, setImgPreview]         = useState("");
+  const [editingMed, setEditingMed]         = useState(null);
+  const [medEditOpen, setMedEditOpen]       = useState(false);
   const [stockUpdateOpen, setStockUpdateOpen] = useState(false);
-  const [stockMed, setStockMed] = useState(null);
-  const [stockValue, setStockValue] = useState("");
+  const [stockMed, setStockMed]             = useState(null);
+  const [stockValue, setStockValue]         = useState("");
   const [stockOperation, setStockOperation] = useState("set");
-  const [lowStockMeds, setLowStockMeds] = useState([]);
+  const [lowStockMeds, setLowStockMeds]     = useState([]);
 
   // POS state
-  const [posCart, setPosCart] = useState([]);
-  const [posCustomerName, setPosCustomerName] = useState("");
+  const [posCart, setPosCart]                   = useState([]);
+  const [posCustomerName, setPosCustomerName]   = useState("");
   const [posCustomerPhone, setPosCustomerPhone] = useState("");
   const [posPaymentMethod, setPosPaymentMethod] = useState("cash");
-  const [posSearch, setPosSearch] = useState("");
-  const [posPlacing, setPosPlacing] = useState(false);
-  const [posMatchedUser, setPosMatchedUser] = useState(null);
+  const [posSearch, setPosSearch]               = useState("");
+  const [posPlacing, setPosPlacing]             = useState(false);
+  const [posMatchedUser, setPosMatchedUser]     = useState(null);
   const [posSearchingUser, setPosSearchingUser] = useState(false);
+
+  // ── CHANGE B: Analytics state ──────────────────────────────────────────────
+  const [analytics, setAnalytics]         = useState(null);
+  const [analyticsLoading, setAnalyticsLoading] = useState(false);
+  // ── END CHANGE B ───────────────────────────────────────────────────────────
 
   // 🔐 PROTECT ADMIN
   useEffect(() => {
@@ -82,19 +94,16 @@ export default function Admin() {
     if (!authChecked) return;
 
     const fetchData = () => {
-      // Appointments
       fetch(`${BASE_URL}/appointments`, { credentials: "include" })
         .then((res) => (res.ok ? res.json() : []))
         .then((payload) => setAppointments(sanitizeObjectArray(payload)))
         .catch(() => setAppointments([]));
 
-      // Users
       fetch(`${BASE_URL}/users`, { credentials: "include" })
         .then((res) => (res.ok ? res.json() : []))
         .then((payload) => setUsers(sanitizeObjectArray(payload)))
         .catch(() => setUsers([]));
 
-      // Orders
       axios.get(`${BASE_URL}/orders`, { withCredentials: true })
         .then((res) => {
           const fetched = sanitizeObjectArray(res.data);
@@ -108,12 +117,10 @@ export default function Admin() {
         })
         .catch(() => setOrders([]));
 
-      // ✅ Medicines from backend
       axios.get(`${BASE_URL}/medicines/all`, { withCredentials: true })
         .then((res) => setMedicines(sanitizeObjectArray(res.data)))
         .catch(() => setMedicines([]));
 
-      // Low stock alerts
       axios.get(`${BASE_URL}/medicines/low-stock`, { withCredentials: true })
         .then((res) => setLowStockMeds(sanitizeObjectArray(res.data)))
         .catch(() => setLowStockMeds([]));
@@ -124,23 +131,33 @@ export default function Admin() {
     return () => clearInterval(interval);
   }, [authChecked]);
 
-  // 📊 COMPUTED DATA
-  const safeOrders = sanitizeObjectArray(orders);
-  const safeUsers = sanitizeObjectArray(users);
-  const safeAppointments = sanitizeObjectArray(appointments);
-  const safeMedicines = sanitizeObjectArray(medicines);
+  // ── CHANGE B (continued): Fetch analytics when tab opens ──────────────────
+  useEffect(() => {
+    if (activeTab !== "analytics" || !authChecked) return;
+    setAnalyticsLoading(true);
+    axios
+      .get(`${BASE_URL}/analytics/sales`, { withCredentials: true })
+      .then((res) => setAnalytics(res.data))
+      .catch(() => setNotification({ open: true, message: "Failed to load analytics", severity: "error" }))
+      .finally(() => setAnalyticsLoading(false));
+  }, [activeTab, authChecked]);
+  // ── END CHANGE B ───────────────────────────────────────────────────────────
 
-  const totalOrders = safeOrders.length;
+  // 📊 COMPUTED DATA
+  const safeOrders       = sanitizeObjectArray(orders);
+  const safeUsers        = sanitizeObjectArray(users);
+  const safeAppointments = sanitizeObjectArray(appointments);
+  const safeMedicines    = sanitizeObjectArray(medicines);
+
+  const totalOrders  = safeOrders.length;
   const totalRevenue = safeOrders.reduce((sum, o) => sum + Number(o?.total || 0), 0);
-  const totalAdmins = safeUsers.filter((u) => u.role === "admin").length;
-  <Typography>Total Admins: {totalAdmins}</Typography>
 
   const ordersByStatus = {
-    Pending: safeOrders.filter((o) => o.status === "Pending").length,
-    Approved: safeOrders.filter((o) => o.status === "Approved").length,
-    "Out for Delivery": safeOrders.filter((o) => o.status === "Out for Delivery").length,
-    Delivered: safeOrders.filter((o) => o.status === "Delivered").length,
-    Cancelled: safeOrders.filter((o) => o.status === "Cancelled").length,
+    Pending:           safeOrders.filter((o) => o.status === "Pending").length,
+    Approved:          safeOrders.filter((o) => o.status === "Approved").length,
+    "Out for Delivery":safeOrders.filter((o) => o.status === "Out for Delivery").length,
+    Delivered:         safeOrders.filter((o) => o.status === "Delivered").length,
+    Cancelled:         safeOrders.filter((o) => o.status === "Cancelled").length,
   };
 
   const recentOrders = [...safeOrders].slice(0, 5);
@@ -149,7 +166,7 @@ export default function Admin() {
     const q = userSearch.toLowerCase().trim();
     if (!q) return true;
     return (
-      String(user?.name || "").toLowerCase().includes(q) ||
+      String(user?.name  || "").toLowerCase().includes(q) ||
       String(user?.email || "").toLowerCase().includes(q) ||
       String(user?.phone || "").toLowerCase().includes(q)
     );
@@ -159,24 +176,23 @@ export default function Admin() {
     const q = orderSearch.toLowerCase().trim();
     if (!q) return true;
     return (
-      String(order?.userId?.name || "").toLowerCase().includes(q) ||
+      String(order?.userId?.name  || "").toLowerCase().includes(q) ||
       String(order?.userId?.email || "").toLowerCase().includes(q) ||
       String(order?.status || "").toLowerCase().includes(q) ||
-      String(order?._id || "").toLowerCase().includes(q)
+      String(order?._id   || "").toLowerCase().includes(q)
     );
   });
 
   const statusColors = {
-    Delivered: { bg: "#dcfce7", color: "#166534" },
-    Approved: { bg: "#dbeafe", color: "#1e40af" },
-    "Out for Delivery": { bg: "#fef9c3", color: "#854d0e" },
-    Cancelled: { bg: "#fee2e2", color: "#991b1b" },
-    Pending: { bg: "#fef3c7", color: "#92400e" },
-    Completed: { bg: "#dcfce7", color: "#166534" },
+    Delivered:         { bg: "#dcfce7", color: "#166534" },
+    Approved:          { bg: "#dbeafe", color: "#1e40af" },
+    "Out for Delivery":{ bg: "#fef9c3", color: "#854d0e" },
+    Cancelled:         { bg: "#fee2e2", color: "#991b1b" },
+    Pending:           { bg: "#fef3c7", color: "#92400e" },
+    Completed:         { bg: "#dcfce7", color: "#166534" },
   };
 
-  // ── MEDICINE FUNCTIONS ──
-
+  // ── MEDICINE FUNCTIONS (unchanged) ────────────────────────────────────────
   const handleImageSelect = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -200,45 +216,30 @@ export default function Admin() {
         stock: Number(medForm.stock),
         lowStockThreshold: Number(medForm.lowStockThreshold),
       }, { withCredentials: true });
-
       setNotification({ open: true, message: "Medicine added successfully!", severity: "success" });
       setMedForm({ name: "", desc: "", price: "", category: "", img: "", stock: "100", lowStockThreshold: "10", unit: "units" });
       setImgPreview("");
-
-      // Refresh medicines
       axios.get(`${BASE_URL}/medicines/all`, { withCredentials: true })
-        .then((res) => setMedicines(sanitizeObjectArray(res.data)))
-        .catch(() => {});
+        .then((res) => setMedicines(sanitizeObjectArray(res.data))).catch(() => {});
     } catch (err) {
       setNotification({ open: true, message: err?.response?.data?.message || "Failed to add medicine", severity: "error" });
     }
   };
 
-  const openEditMedicine = (med) => {
-    setEditingMed({ ...med });
-    setMedEditOpen(true);
-  };
+  const openEditMedicine = (med) => { setEditingMed({ ...med }); setMedEditOpen(true); };
 
   const saveEditMedicine = async () => {
     try {
       await axios.put(`${BASE_URL}/medicines/${editingMed._id}`, {
-        name: editingMed.name,
-        desc: editingMed.desc,
-        price: Number(editingMed.price),
-        category: editingMed.category,
-        stock: Number(editingMed.stock),
+        name: editingMed.name, desc: editingMed.desc, price: Number(editingMed.price),
+        category: editingMed.category, stock: Number(editingMed.stock),
         lowStockThreshold: Number(editingMed.lowStockThreshold),
-        unit: editingMed.unit,
-        isActive: editingMed.isActive,
+        unit: editingMed.unit, isActive: editingMed.isActive,
       }, { withCredentials: true });
-
       setNotification({ open: true, message: "Medicine updated!", severity: "success" });
-      setMedEditOpen(false);
-      setEditingMed(null);
-
+      setMedEditOpen(false); setEditingMed(null);
       axios.get(`${BASE_URL}/medicines/all`, { withCredentials: true })
-        .then((res) => setMedicines(sanitizeObjectArray(res.data)))
-        .catch(() => {});
+        .then((res) => setMedicines(sanitizeObjectArray(res.data))).catch(() => {});
     } catch {
       setNotification({ open: true, message: "Failed to update medicine", severity: "error" });
     }
@@ -254,13 +255,9 @@ export default function Admin() {
       setNotification({ open: true, message: "Failed to remove medicine", severity: "error" });
     }
   };
-  <Button onClick={() => deleteMedicine(editingMed._id)}>Delete</Button>
 
   const openStockUpdate = (med) => {
-    setStockMed(med);
-    setStockValue("");
-    setStockOperation("add");
-    setStockUpdateOpen(true);
+    setStockMed(med); setStockValue(""); setStockOperation("add"); setStockUpdateOpen(true);
   };
 
   const saveStockUpdate = async () => {
@@ -277,11 +274,8 @@ export default function Admin() {
       setNotification({ open: true, message: "Stock updated!", severity: "success" });
       setStockUpdateOpen(false);
       setMedicines((prev) => prev.map((m) => m._id === stockMed._id ? res.data.medicine : m));
-
-      // Refresh low stock
       axios.get(`${BASE_URL}/medicines/low-stock`, { withCredentials: true })
-        .then((r) => setLowStockMeds(sanitizeObjectArray(r.data)))
-        .catch(() => {});
+        .then((r) => setLowStockMeds(sanitizeObjectArray(r.data))).catch(() => {});
     } catch {
       setNotification({ open: true, message: "Failed to update stock", severity: "error" });
     }
@@ -293,8 +287,7 @@ export default function Admin() {
     return { label: "In Stock", bg: "#dcfce7", color: "#166534" };
   };
 
-  // ── ORDER FUNCTIONS ──
-
+  // ── ORDER FUNCTIONS (unchanged) ───────────────────────────────────────────
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       await axios.patch(`${BASE_URL}/orders/${orderId}/status`, { status: newStatus }, { withCredentials: true });
@@ -315,7 +308,7 @@ export default function Admin() {
       "</td><td style='padding:8px;border-bottom:1px solid #eee;'>Rs." + (item.price || 0) +
       "</td><td style='padding:8px;border-bottom:1px solid #eee;'>" + (item.quantity || 1) + "</td></tr>"
     ).join("");
-    const orderId = order._id ? order._id.toString().slice(-6).toUpperCase() : "N/A";
+    const orderId  = order._id ? order._id.toString().slice(-6).toUpperCase() : "N/A";
     const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleString() : new Date().toLocaleString();
     const customerName = isWalkIn
       ? (order.guestInfo?.name || "Walk-in Customer")
@@ -345,8 +338,7 @@ export default function Admin() {
     receiptWin.document.close();
   };
 
-  // ── NOTICE FUNCTIONS ──
-
+  // ── NOTICE FUNCTIONS (unchanged) ─────────────────────────────────────────
   const updateNotice = async () => {
     try {
       await fetch(`${BASE_URL}/notice`, {
@@ -370,8 +362,7 @@ export default function Admin() {
     }
   };
 
-  // ── POS FUNCTIONS ──
-
+  // ── POS FUNCTIONS (unchanged) ─────────────────────────────────────────────
   const searchUserByPhone = async (phone) => {
     if (!phone || phone.length < 5) { setPosMatchedUser(null); return; }
     setPosSearchingUser(true);
@@ -380,14 +371,9 @@ export default function Admin() {
       if (res.data && res.data.length > 0) {
         setPosMatchedUser(res.data[0]);
         setPosCustomerName(res.data[0].name || "");
-      } else {
-        setPosMatchedUser(null);
-      }
-    } catch {
-      setPosMatchedUser(null);
-    } finally {
-      setPosSearchingUser(false);
-    }
+      } else { setPosMatchedUser(null); }
+    } catch { setPosMatchedUser(null); }
+    finally { setPosSearchingUser(false); }
   };
 
   const posAddToCart = (medicine) => {
@@ -432,27 +418,19 @@ export default function Admin() {
     try {
       const res = await axios.post(`${BASE_URL}/orders/walk-in`, {
         items: posCart.map((item) => ({ name: item.name, price: item.price, quantity: item.quantity || 1, img: item.img || "" })),
-        total: posTotal,
-        paymentMethod: posPaymentMethod,
-        guestName: posCustomerName,
-        guestPhone: posCustomerPhone,
+        total: posTotal, paymentMethod: posPaymentMethod,
+        guestName: posCustomerName, guestPhone: posCustomerPhone,
         existingUserId: posMatchedUser ? posMatchedUser._id : null,
       }, { withCredentials: true });
-
       setNotification({ open: true, message: "Walk-in order created!", severity: "success" });
       generateReceipt(res.data.order, true);
-
       setPosCart([]); setPosCustomerName(""); setPosCustomerPhone("");
       setPosPaymentMethod("cash"); setPosMatchedUser(null); setPosSearch("");
-
-      // Refresh medicines and orders
       axios.get(`${BASE_URL}/medicines/all`, { withCredentials: true }).then((r) => setMedicines(sanitizeObjectArray(r.data))).catch(() => {});
       axios.get(`${BASE_URL}/orders`, { withCredentials: true }).then((r) => setOrders(sanitizeObjectArray(r.data))).catch(() => {});
     } catch (err) {
       setNotification({ open: true, message: err?.response?.data?.message || "Failed to create order", severity: "error" });
-    } finally {
-      setPosPlacing(false);
-    }
+    } finally { setPosPlacing(false); }
   };
 
   const exportUsersCsv = () => {
@@ -471,19 +449,22 @@ export default function Admin() {
     return <div style={{ padding: "30px", textAlign: "center" }}><p style={{ color: "#166534" }}>Loading admin panel...</p></div>;
   }
 
+  // ── CHANGE C: Add analytics tab to tab list ────────────────────────────────
   const tabs = [
-    { id: "dashboard", label: "📊 Dashboard" },
-    { id: "orders", label: "📦 Orders" },
-    { id: "pos", label: "🏪 Walk-in POS" },
-    { id: "inventory", label: "📦 Inventory" },
-    { id: "users", label: "👥 Users" },
-    { id: "notices", label: "🔔 Notices" },
+    { id: "dashboard",  label: "📊 Dashboard"   },
+    { id: "analytics",  label: "📈 Analytics"   },  // ← NEW
+    { id: "orders",     label: "📦 Orders"      },
+    { id: "pos",        label: "🏪 Walk-in POS" },
+    { id: "inventory",  label: "📦 Inventory"   },
+    { id: "users",      label: "👥 Users"       },
+    { id: "notices",    label: "🔔 Notices"     },
   ];
+  // ── END CHANGE C (tab list) ────────────────────────────────────────────────
 
   return (
     <div style={styles.page}>
 
-      {/* HEADER */}
+      {/* HEADER — unchanged */}
       <div style={styles.header}>
         <div>
           <h1 style={styles.headerTitle}>🏥 Admin Panel</h1>
@@ -492,10 +473,7 @@ export default function Admin() {
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           {lowStockMeds.length > 0 && (
             <Tooltip title={lowStockMeds.length + " low stock alert(s)"}>
-              <IconButton
-                onClick={() => setActiveTab("inventory")}
-                style={{ background: "#fef3c7" }}
-              >
+              <IconButton onClick={() => setActiveTab("inventory")} style={{ background: "#fef3c7" }}>
                 <Badge badgeContent={lowStockMeds.length} color="warning">
                   <Inventory style={{ color: "#92400e" }} />
                 </Badge>
@@ -505,10 +483,9 @@ export default function Admin() {
           <Tooltip title="New orders">
             <IconButton
               onClick={() => { setNewOrdersCount(0); setActiveTab("orders"); }}
-              style={{ background: newOrdersCount > 0 ? "#fee2e2" : "#f0fdf4" }}
-            >
+              style={{ background: newOrdersCount > 0 ? "#fee2e2" : "#f0fdf4" }}>
               <Badge badgeContent={newOrdersCount} color="error">
-                <NotificationsActive style={{ color: newOrdersCount > 0 ? "#dc2626" : "#166534" }} />
+                <NotificationsActive style={{ color: newOrdersCount > 0 ? "#dc2626" : "#166634" }} />
               </Badge>
             </IconButton>
           </Tooltip>
@@ -528,10 +505,9 @@ export default function Admin() {
 
       <div style={styles.content}>
 
-        {/* ══ DASHBOARD ══ */}
+        {/* ══ DASHBOARD TAB — completely unchanged ══ */}
         {activeTab === "dashboard" && (
           <div>
-            {/* LOW STOCK BANNER */}
             {lowStockMeds.length > 0 && (
               <div style={styles.lowStockBanner}>
                 <span>⚠️ <strong>{lowStockMeds.length} medicine{lowStockMeds.length > 1 ? "s" : ""}</strong> running low or out of stock:</span>
@@ -541,8 +517,6 @@ export default function Admin() {
                 <button style={styles.bannerBtn} onClick={() => setActiveTab("inventory")}>Manage Stock →</button>
               </div>
             )}
-
-            {/* STAT CARDS */}
             <div style={styles.statsGrid}>
               <div style={{ ...styles.statCard, borderTop: "4px solid #166534" }}>
                 <div style={styles.statIcon}><TrendingUp style={{ color: "#166534" }} /></div>
@@ -570,8 +544,6 @@ export default function Admin() {
                 <div style={styles.statLabel}>Appointments</div>
               </div>
             </div>
-
-            {/* ORDER STATUS */}
             <div style={styles.card}>
               <h3 style={styles.cardTitle}>📊 Orders by Status</h3>
               <div style={styles.statusGrid}>
@@ -591,8 +563,6 @@ export default function Admin() {
                 })}
               </div>
             </div>
-
-            {/* RECENT ORDERS */}
             <div style={styles.card}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                 <h3 style={styles.cardTitle}>🕐 Recent Orders</h3>
@@ -629,8 +599,6 @@ export default function Admin() {
                 </Table>
               </TableContainer>
             </div>
-
-            {/* SUMMARIES */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px" }}>
               <div style={styles.card}>
                 <h3 style={styles.cardTitle}>💰 Revenue Summary</h3>
@@ -654,7 +622,222 @@ export default function Admin() {
           </div>
         )}
 
-        {/* ══ ORDERS TAB ══ */}
+        {/* ══ CHANGE C: ANALYTICS TAB — NEW ══ */}
+        {activeTab === "analytics" && (
+          <div>
+            {analyticsLoading ? (
+              <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>
+                <p style={{ fontSize: "32px" }}>📈</p>
+                <p>Loading analytics...</p>
+              </div>
+            ) : !analytics ? (
+              <div style={{ textAlign: "center", padding: "60px", color: "#888" }}>
+                <p>No analytics data available yet.</p>
+              </div>
+            ) : (
+              <div>
+
+                {/* ── TODAY'S STAT CARDS ── */}
+                <div style={{ marginBottom: "8px" }}>
+                  <h2 style={{ fontSize: "18px", fontWeight: "700", color: "#111", margin: "0 0 16px" }}>
+                    📅 Today — {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+                  </h2>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px,1fr))", gap: "16px", marginBottom: "24px" }}>
+                  <div style={{ ...styles.statCard, borderTop: "4px solid #166534" }}>
+                    <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "6px", fontWeight: "600" }}>TODAY'S REVENUE</div>
+                    <div style={{ fontSize: "28px", fontWeight: "700", color: "#166534" }}>Rs.{analytics.today.revenue.toLocaleString()}</div>
+                    <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>from {analytics.today.orders} order{analytics.today.orders !== 1 ? "s" : ""}</div>
+                  </div>
+                  <div style={{ ...styles.statCard, borderTop: "4px solid #3b82f6" }}>
+                    <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "6px", fontWeight: "600" }}>THIS WEEK</div>
+                    <div style={{ fontSize: "28px", fontWeight: "700", color: "#1e40af" }}>Rs.{analytics.week.revenue.toLocaleString()}</div>
+                    <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>{analytics.week.orders} orders</div>
+                  </div>
+                  <div style={{ ...styles.statCard, borderTop: "4px solid #8b5cf6" }}>
+                    <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "6px", fontWeight: "600" }}>THIS MONTH</div>
+                    <div style={{ fontSize: "28px", fontWeight: "700", color: "#6d28d9" }}>Rs.{analytics.month.revenue.toLocaleString()}</div>
+                    <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>{analytics.month.orders} orders</div>
+                  </div>
+                  <div style={{ ...styles.statCard, borderTop: "4px solid #f59e0b" }}>
+                    <div style={{ fontSize: "13px", color: "#6b7280", marginBottom: "6px", fontWeight: "600" }}>ALL TIME</div>
+                    <div style={{ fontSize: "28px", fontWeight: "700", color: "#b45309" }}>Rs.{analytics.allTime.revenue.toLocaleString()}</div>
+                    <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>{analytics.allTime.orders} orders total</div>
+                  </div>
+                </div>
+
+                {/* ── TODAY ORDER TYPE SPLIT ── */}
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "24px" }}>
+                  <div style={styles.card}>
+                    <h3 style={styles.cardTitle}>🏪 Today's Order Types</h3>
+                    {analytics.today.orders === 0 ? (
+                      <p style={{ color: "#888", fontSize: "14px", marginTop: "16px" }}>No orders placed today yet.</p>
+                    ) : (
+                      <div style={{ display: "flex", gap: "16px", marginTop: "20px" }}>
+                        <div style={{ flex: 1, textAlign: "center", background: "#dbeafe", borderRadius: "10px", padding: "20px" }}>
+                          <div style={{ fontSize: "32px", fontWeight: "700", color: "#1e40af" }}>{analytics.today.onlineOrders}</div>
+                          <div style={{ fontSize: "13px", color: "#1e40af", fontWeight: "600", marginTop: "4px" }}>🌐 Online</div>
+                        </div>
+                        <div style={{ flex: 1, textAlign: "center", background: "#fef3c7", borderRadius: "10px", padding: "20px" }}>
+                          <div style={{ fontSize: "32px", fontWeight: "700", color: "#92400e" }}>{analytics.today.walkinOrders}</div>
+                          <div style={{ fontSize: "13px", color: "#92400e", fontWeight: "600", marginTop: "4px" }}>🏪 Walk-in</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* ── TODAY'S TOP MEDICINES ── */}
+                  <div style={styles.card}>
+                    <h3 style={styles.cardTitle}>🔥 Today's Top Medicines</h3>
+                    {analytics.today.topMedicines.length === 0 ? (
+                      <p style={{ color: "#888", fontSize: "14px", marginTop: "16px" }}>No sales recorded today yet.</p>
+                    ) : (
+                      <div style={{ marginTop: "16px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                        {analytics.today.topMedicines.map((med, i) => (
+                          <div key={med.name} style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                            <div style={{
+                              width: "28px", height: "28px", borderRadius: "50%", flexShrink: 0,
+                              background: ["#166534","#1e40af","#6d28d9","#b45309","#991b1b"][i] || "#888",
+                              color: "white", display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: "13px", fontWeight: "700"
+                            }}>
+                              {i + 1}
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: "14px", fontWeight: "600" }}>{med.name}</div>
+                              <div style={{ fontSize: "12px", color: "#888" }}>Rs.{med.totalRevenue.toLocaleString()}</div>
+                            </div>
+                            <div style={{ background: "#f0fdf4", color: "#166534", padding: "2px 10px", borderRadius: "12px", fontSize: "13px", fontWeight: "700" }}>
+                              {med.totalQty} sold
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* ── LAST 7 DAYS BAR CHART ── */}
+                <div style={styles.card}>
+                  <h3 style={styles.cardTitle}>📊 Revenue — Last 7 Days</h3>
+                  <div style={{ marginTop: "20px", height: "280px" }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={analytics.dailyChart} margin={{ top: 4, right: 16, left: 8, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                        <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#6b7280" }} />
+                        <YAxis tick={{ fontSize: 12, fill: "#6b7280" }} tickFormatter={(v) => "Rs." + v.toLocaleString()} width={80} />
+                        <ReTooltip
+                          formatter={(value, name) => name === "revenue" ? ["Rs." + value.toLocaleString(), "Revenue"] : [value, "Orders"]}
+                          contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px" }}
+                        />
+                        <Bar dataKey="revenue" radius={[6, 6, 0, 0]} maxBarSize={56}>
+                          {analytics.dailyChart.map((entry, index) => {
+                            const isToday = index === analytics.dailyChart.length - 1;
+                            return <Cell key={index} fill={isToday ? "#166534" : "#86efac"} />;
+                          })}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <div style={{ display: "flex", gap: "16px", marginTop: "12px", justifyContent: "flex-end" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#6b7280" }}>
+                      <div style={{ width: "12px", height: "12px", background: "#166534", borderRadius: "2px" }} /> Today
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: "#6b7280" }}>
+                      <div style={{ width: "12px", height: "12px", background: "#86efac", borderRadius: "2px" }} /> Previous days
+                    </div>
+                  </div>
+                </div>
+
+                {/* ── ALL-TIME TOP MEDICINES TABLE ── */}
+                <div style={styles.card}>
+                  <h3 style={styles.cardTitle}>🏆 All-Time Best Selling Medicines</h3>
+                  <p style={{ fontSize: "13px", color: "#888", margin: "4px 0 16px" }}>Ranked by total units sold across all orders</p>
+                  <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "8px" }}>
+                    <Table size="small">
+                      <TableHead style={{ background: "#f9fafb" }}>
+                        <TableRow>
+                          <TableCell><strong>Rank</strong></TableCell>
+                          <TableCell><strong>Medicine</strong></TableCell>
+                          <TableCell align="center"><strong>Units Sold</strong></TableCell>
+                          <TableCell align="right"><strong>Revenue Generated</strong></TableCell>
+                          <TableCell><strong>Popularity</strong></TableCell>
+                        </TableRow>
+                      </TableHead>
+                      <TableBody>
+                        {analytics.topMedicines.map((med, i) => {
+                          const maxQty = analytics.topMedicines[0]?.totalQty || 1;
+                          const pct = Math.round((med.totalQty / maxQty) * 100);
+                          const rankColors = ["#f59e0b","#9ca3af","#b45309"];
+                          return (
+                            <TableRow key={med.name} hover>
+                              <TableCell>
+                                <div style={{
+                                  width: "28px", height: "28px", borderRadius: "50%",
+                                  background: rankColors[i] || "#f3f4f6",
+                                  color: i < 3 ? "white" : "#374151",
+                                  display: "flex", alignItems: "center", justifyContent: "center",
+                                  fontWeight: "700", fontSize: "13px"
+                                }}>
+                                  {i + 1}
+                                </div>
+                              </TableCell>
+                              <TableCell style={{ fontWeight: "600" }}>{med.name}</TableCell>
+                              <TableCell align="center">
+                                <Chip label={med.totalQty + " units"} size="small"
+                                  style={{ background: "#f0fdf4", color: "#166534", fontWeight: "700", fontSize: "12px" }} />
+                              </TableCell>
+                              <TableCell align="right" style={{ fontWeight: "600", color: "#166534" }}>
+                                Rs.{med.totalRevenue.toLocaleString()}
+                              </TableCell>
+                              <TableCell style={{ minWidth: "120px" }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                  <div style={{ flex: 1, height: "6px", background: "#f3f4f6", borderRadius: "3px" }}>
+                                    <div style={{ width: pct + "%", height: "100%", background: "#166534", borderRadius: "3px" }} />
+                                  </div>
+                                  <span style={{ fontSize: "11px", color: "#888", minWidth: "30px" }}>{pct}%</span>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </TableContainer>
+                </div>
+
+                {/* ── ORDERS COUNT BAR CHART ── */}
+                <div style={styles.card}>
+                  <h3 style={styles.cardTitle}>📦 Orders Count — Last 7 Days</h3>
+                  <div style={{ marginTop: "20px", height: "220px" }}>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={analytics.dailyChart} margin={{ top: 4, right: 16, left: 0, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                        <XAxis dataKey="date" tick={{ fontSize: 12, fill: "#6b7280" }} />
+                        <YAxis tick={{ fontSize: 12, fill: "#6b7280" }} allowDecimals={false} />
+                        <ReTooltip
+                          formatter={(value) => [value, "Orders"]}
+                          contentStyle={{ borderRadius: "8px", border: "1px solid #e5e7eb", fontSize: "13px" }}
+                        />
+                        <Bar dataKey="orders" radius={[6, 6, 0, 0]} maxBarSize={56}>
+                          {analytics.dailyChart.map((entry, index) => {
+                            const isToday = index === analytics.dailyChart.length - 1;
+                            return <Cell key={index} fill={isToday ? "#2563eb" : "#bfdbfe"} />;
+                          })}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+        )}
+        {/* ══ END CHANGE C ══ */}
+
+        {/* ══ ORDERS TAB — unchanged ══ */}
         {activeTab === "orders" && (
           <div style={styles.card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
@@ -683,7 +866,7 @@ export default function Admin() {
                   {filteredOrders.map((order) => {
                     const sc = statusColors[order.status] || statusColors.Pending;
                     const customerName = order.orderType === "walk-in" ? (order.guestInfo?.name || "Walk-in") : (order.userId?.name || "Unknown");
-                    const customerSub = order.orderType === "walk-in" ? (order.guestInfo?.phone || "") : (order.userId?.email || "");
+                    const customerSub  = order.orderType === "walk-in" ? (order.guestInfo?.phone || "") : (order.userId?.email || "");
                     return (
                       <TableRow key={order._id} hover>
                         <TableCell style={{ fontWeight: "600", color: "#166534" }}>#{order._id?.toString().slice(-6).toUpperCase()}</TableCell>
@@ -722,14 +905,13 @@ export default function Admin() {
           </div>
         )}
 
-        {/* ══ WALK-IN POS ══ */}
+        {/* ══ POS, INVENTORY, USERS, NOTICES TABS — all completely unchanged ══ */}
         {activeTab === "pos" && (
           <div style={{ display: "grid", gridTemplateColumns: "1fr 380px", gap: "24px", alignItems: "start" }}>
             <div>
               <div style={styles.card}>
                 <h3 style={styles.cardTitle}>🏪 Walk-in Point of Sale</h3>
                 <p style={{ color: "#888", fontSize: "14px", marginBottom: "16px" }}>Create an order for a customer buying medicines in person.</p>
-
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "20px" }}>
                   <div>
                     <label style={styles.fieldLabel}>Customer Name *</label>
@@ -743,7 +925,7 @@ export default function Admin() {
                     {posSearchingUser && <p style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>Checking...</p>}
                     {posMatchedUser && (
                       <div style={{ marginTop: "6px", padding: "8px 12px", background: "#dcfce7", borderRadius: "8px", fontSize: "13px", color: "#166534" }}>
-                        ✅ Matched: <strong>{posMatchedUser.name}</strong> — order will link to their account
+                        ✅ Matched: <strong>{posMatchedUser.name}</strong>
                       </div>
                     )}
                     {!posMatchedUser && posCustomerPhone.length >= 5 && !posSearchingUser && (
@@ -753,7 +935,6 @@ export default function Admin() {
                     )}
                   </div>
                 </div>
-
                 <div style={{ marginBottom: "20px" }}>
                   <label style={styles.fieldLabel}>Payment Method</label>
                   <div style={{ display: "flex", gap: "10px" }}>
@@ -765,7 +946,6 @@ export default function Admin() {
                     ))}
                   </div>
                 </div>
-
                 <div style={{ marginBottom: "16px" }}>
                   <label style={styles.fieldLabel}>Search & Add Medicines</label>
                   <div style={{ display: "flex", alignItems: "center", background: "#f9fafb", border: "1px solid #d1d5db", borderRadius: "8px", padding: "0 12px" }}>
@@ -774,7 +954,6 @@ export default function Admin() {
                       style={{ flex: 1, border: "none", background: "transparent", padding: "10px 0", fontSize: "14px", outline: "none" }} />
                   </div>
                 </div>
-
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px,1fr))", gap: "12px", maxHeight: "400px", overflowY: "auto" }}>
                   {posFilteredMedicines.map((m) => {
                     const inCart = posCart.find((item) => item._id === m._id);
@@ -799,8 +978,6 @@ export default function Admin() {
                 </div>
               </div>
             </div>
-
-            {/* POS Cart */}
             <div style={{ position: "sticky", top: "20px" }}>
               <div style={{ ...styles.card, border: "2px solid #166534" }}>
                 <h3 style={{ ...styles.cardTitle, color: "#166534" }}>🛒 Order Summary</h3>
@@ -853,61 +1030,33 @@ export default function Admin() {
           </div>
         )}
 
-        {/* ══ INVENTORY TAB ══ */}
         {activeTab === "inventory" && (
           <div>
-            {/* ADD MEDICINE */}
             <div style={styles.card}>
               <h3 style={styles.cardTitle}>➕ Add New Medicine</h3>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginTop: "16px" }}>
-                <div>
-                  <label style={styles.fieldLabel}>Name *</label>
-                  <input placeholder="Medicine name" value={medForm.name} onChange={(e) => setMedForm({ ...medForm, name: e.target.value })} style={styles.inputField} />
-                </div>
-                <div>
-                  <label style={styles.fieldLabel}>Price (Rs.) *</label>
-                  <input type="number" min="1" placeholder="0" value={medForm.price} onChange={(e) => setMedForm({ ...medForm, price: e.target.value })} style={styles.inputField} />
-                </div>
-                <div>
-                  <label style={styles.fieldLabel}>Category</label>
-                  <input placeholder="e.g. Pain Relief" value={medForm.category} onChange={(e) => setMedForm({ ...medForm, category: e.target.value })} style={styles.inputField} />
-                </div>
-                <div>
-                  <label style={styles.fieldLabel}>Initial Stock</label>
-                  <input type="number" min="0" placeholder="100" value={medForm.stock} onChange={(e) => setMedForm({ ...medForm, stock: e.target.value })} style={styles.inputField} />
-                </div>
-                <div>
-                  <label style={styles.fieldLabel}>Low Stock Alert At</label>
-                  <input type="number" min="1" placeholder="10" value={medForm.lowStockThreshold} onChange={(e) => setMedForm({ ...medForm, lowStockThreshold: e.target.value })} style={styles.inputField} />
-                </div>
+                <div><label style={styles.fieldLabel}>Name *</label><input placeholder="Medicine name" value={medForm.name} onChange={(e) => setMedForm({ ...medForm, name: e.target.value })} style={styles.inputField} /></div>
+                <div><label style={styles.fieldLabel}>Price (Rs.) *</label><input type="number" min="1" placeholder="0" value={medForm.price} onChange={(e) => setMedForm({ ...medForm, price: e.target.value })} style={styles.inputField} /></div>
+                <div><label style={styles.fieldLabel}>Category</label><input placeholder="e.g. Pain Relief" value={medForm.category} onChange={(e) => setMedForm({ ...medForm, category: e.target.value })} style={styles.inputField} /></div>
+                <div><label style={styles.fieldLabel}>Initial Stock</label><input type="number" min="0" placeholder="100" value={medForm.stock} onChange={(e) => setMedForm({ ...medForm, stock: e.target.value })} style={styles.inputField} /></div>
+                <div><label style={styles.fieldLabel}>Low Stock Alert At</label><input type="number" min="1" placeholder="10" value={medForm.lowStockThreshold} onChange={(e) => setMedForm({ ...medForm, lowStockThreshold: e.target.value })} style={styles.inputField} /></div>
                 <div>
                   <label style={styles.fieldLabel}>Unit</label>
                   <select value={medForm.unit} onChange={(e) => setMedForm({ ...medForm, unit: e.target.value })} style={{ ...styles.inputField, background: "white" }}>
-                    <option value="units">Units</option>
-                    <option value="bottles">Bottles</option>
-                    <option value="strips">Strips</option>
-                    <option value="boxes">Boxes</option>
-                    <option value="sachets">Sachets</option>
-                    <option value="vials">Vials</option>
+                    <option value="units">Units</option><option value="bottles">Bottles</option>
+                    <option value="strips">Strips</option><option value="boxes">Boxes</option>
+                    <option value="sachets">Sachets</option><option value="vials">Vials</option>
                   </select>
                 </div>
-                <div style={{ gridColumn: "span 2" }}>
-                  <label style={styles.fieldLabel}>Description</label>
-                  <input placeholder="Brief description" value={medForm.desc} onChange={(e) => setMedForm({ ...medForm, desc: e.target.value })} style={styles.inputField} />
-                </div>
+                <div style={{ gridColumn: "span 2" }}><label style={styles.fieldLabel}>Description</label><input placeholder="Brief description" value={medForm.desc} onChange={(e) => setMedForm({ ...medForm, desc: e.target.value })} style={styles.inputField} /></div>
                 <div>
                   <label style={styles.fieldLabel}>Image</label>
-                  <label style={styles.fileLabel}>
-                    📷 Upload Image
-                    <input type="file" onChange={handleImageSelect} style={{ display: "none" }} />
-                  </label>
+                  <label style={styles.fileLabel}>📷 Upload Image<input type="file" onChange={handleImageSelect} style={{ display: "none" }} /></label>
                   {imgPreview && <img src={imgPreview} alt="preview" style={{ width: "50px", height: "50px", borderRadius: "6px", objectFit: "cover", marginLeft: "10px", verticalAlign: "middle" }} />}
                 </div>
               </div>
               <button style={{ ...styles.addBtn, marginTop: "16px" }} onClick={addMedicine}>Add Medicine to Inventory</button>
             </div>
-
-            {/* LOW STOCK ALERTS */}
             {lowStockMeds.length > 0 && (
               <div style={{ ...styles.card, border: "1px solid #fcd34d", background: "#fffbeb" }}>
                 <h3 style={{ ...styles.cardTitle, color: "#92400e" }}>⚠️ Stock Alerts ({lowStockMeds.length})</h3>
@@ -915,22 +1064,14 @@ export default function Admin() {
                   {lowStockMeds.map((med) => (
                     <div key={med._id} style={{ background: med.stock <= 0 ? "#fee2e2" : "#fef3c7", borderRadius: "8px", padding: "12px" }}>
                       <div style={{ fontWeight: "600", fontSize: "14px" }}>{med.name}</div>
-                      <div style={{ fontSize: "20px", fontWeight: "700", color: med.stock <= 0 ? "#dc2626" : "#92400e", margin: "4px 0" }}>
-                        {med.stock} {med.unit || "units"}
-                      </div>
+                      <div style={{ fontSize: "20px", fontWeight: "700", color: med.stock <= 0 ? "#dc2626" : "#92400e", margin: "4px 0" }}>{med.stock} {med.unit || "units"}</div>
                       <div style={{ fontSize: "12px", color: "#888", marginBottom: "8px" }}>Alert at: {med.lowStockThreshold}</div>
-                      <button
-                        onClick={() => openStockUpdate(med)}
-                        style={{ padding: "6px 14px", background: "#166534", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>
-                        + Restock
-                      </button>
+                      <button onClick={() => openStockUpdate(med)} style={{ padding: "6px 14px", background: "#166534", color: "white", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>+ Restock</button>
                     </div>
                   ))}
                 </div>
               </div>
             )}
-
-            {/* ALL MEDICINES TABLE */}
             <div style={styles.card}>
               <h3 style={styles.cardTitle}>💊 All Medicines ({safeMedicines.length})</h3>
               <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "8px", marginTop: "16px" }}>
@@ -954,40 +1095,23 @@ export default function Admin() {
                           <TableCell>
                             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                               {med.img && <img src={med.img} alt={med.name} style={{ width: "36px", height: "36px", borderRadius: "6px", objectFit: "cover" }} />}
-                              <div>
-                                <div style={{ fontWeight: "600" }}>{med.name}</div>
-                                <div style={{ fontSize: "12px", color: "#888" }}>{med.desc?.slice(0, 40) || ""}</div>
-                              </div>
+                              <div><div style={{ fontWeight: "600" }}>{med.name}</div><div style={{ fontSize: "12px", color: "#888" }}>{med.desc?.slice(0, 40) || ""}</div></div>
                             </div>
                           </TableCell>
                           <TableCell>{med.category || "-"}</TableCell>
                           <TableCell><strong>Rs.{med.price}</strong></TableCell>
-                          <TableCell>
-                            <div style={{ fontWeight: "700", fontSize: "16px" }}>{med.stock}</div>
-                            <div style={{ fontSize: "11px", color: "#888" }}>{med.unit || "units"}</div>
-                          </TableCell>
-                          <TableCell>
-                            <Chip label={stockStatus.label} size="small"
-                              style={{ background: stockStatus.bg, color: stockStatus.color, fontWeight: "600", fontSize: "11px" }} />
-                          </TableCell>
-                          <TableCell>
-                            <Chip label={med.isActive ? "Visible" : "Hidden"} size="small"
-                              style={{ background: med.isActive ? "#dcfce7" : "#f3f4f6", color: med.isActive ? "#166534" : "#888", fontWeight: "600", fontSize: "11px" }} />
-                          </TableCell>
+                          <TableCell><div style={{ fontWeight: "700", fontSize: "16px" }}>{med.stock}</div><div style={{ fontSize: "11px", color: "#888" }}>{med.unit || "units"}</div></TableCell>
+                          <TableCell><Chip label={stockStatus.label} size="small" style={{ background: stockStatus.bg, color: stockStatus.color, fontWeight: "600", fontSize: "11px" }} /></TableCell>
+                          <TableCell><Chip label={med.isActive ? "Visible" : "Hidden"} size="small" style={{ background: med.isActive ? "#dcfce7" : "#f3f4f6", color: med.isActive ? "#166534" : "#888", fontWeight: "600", fontSize: "11px" }} /></TableCell>
                           <TableCell>
                             <Tooltip title="Update Stock">
-                              <button onClick={() => openStockUpdate(med)}
-                                style={{ padding: "4px 10px", background: "#dbeafe", color: "#1e40af", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px", marginRight: "6px" }}>
-                                Stock
-                              </button>
+                              <button onClick={() => openStockUpdate(med)} style={{ padding: "4px 10px", background: "#dbeafe", color: "#1e40af", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px", marginRight: "6px" }}>Stock</button>
                             </Tooltip>
                             <Tooltip title="Edit Medicine">
-                              <IconButton size="small" style={{ color: "#166534" }} onClick={() => openEditMedicine(med)}>
-                                <Edit fontSize="small" />
-                              </IconButton>
+                              <IconButton size="small" style={{ color: "#166534" }} onClick={() => openEditMedicine(med)}><Edit fontSize="small" /></IconButton>
                             </Tooltip>
                             <Tooltip title={med.isActive ? "Hide from store" : "Show in store"}>
-                              <button onClick={() => axios.put(`${BASE_URL}/medicines/${med._id}`, { isActive: !med.isActive }, { withCredentials: true }).then(() => { setMedicines((prev) => prev.map((m) => m._id === med._id ? { ...m, isActive: !med.isActive } : m)); })}
+                              <button onClick={() => axios.put(`${BASE_URL}/medicines/${med._id}`, { isActive: !med.isActive }, { withCredentials: true }).then(() => setMedicines((prev) => prev.map((m) => m._id === med._id ? { ...m, isActive: !med.isActive } : m)))}
                                 style={{ padding: "4px 10px", background: med.isActive ? "#fee2e2" : "#dcfce7", color: med.isActive ? "#991b1b" : "#166534", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px", marginLeft: "4px" }}>
                                 {med.isActive ? "Hide" : "Show"}
                               </button>
@@ -1003,7 +1127,6 @@ export default function Admin() {
           </div>
         )}
 
-        {/* ══ USERS TAB ══ */}
         {activeTab === "users" && (
           <div style={styles.card}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
@@ -1038,10 +1161,7 @@ export default function Admin() {
                       </TableCell>
                       <TableCell style={{ color: "#555" }}>{user.email || "-"}</TableCell>
                       <TableCell style={{ color: "#555" }}>{user.phone || "-"}</TableCell>
-                      <TableCell>
-                        <Chip label={user.role || "user"} size="small"
-                          style={{ background: user.role === "admin" ? "#dbeafe" : "#f0fdf4", color: user.role === "admin" ? "#1e40af" : "#166534", fontWeight: "600" }} />
-                      </TableCell>
+                      <TableCell><Chip label={user.role || "user"} size="small" style={{ background: user.role === "admin" ? "#dbeafe" : "#f0fdf4", color: user.role === "admin" ? "#1e40af" : "#166534", fontWeight: "600" }} /></TableCell>
                       <TableCell style={{ fontSize: "12px", color: "#888" }}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}</TableCell>
                     </TableRow>
                   ))}
@@ -1051,7 +1171,6 @@ export default function Admin() {
           </div>
         )}
 
-        {/* ══ NOTICES TAB ══ */}
         {activeTab === "notices" && (
           <div style={styles.card}>
             <h3 style={styles.cardTitle}>🔔 Manage Notices</h3>
@@ -1064,8 +1183,7 @@ export default function Admin() {
               </div>
               <div>
                 <label style={styles.fieldLabel}>Auto-delete after (hours)</label>
-                <input value={noticeHours} onChange={(e) => setNoticeHours(e.target.value)} placeholder="e.g. 24 (leave empty for permanent)"
-                  style={{ ...styles.inputField, width: "100%" }} />
+                <input value={noticeHours} onChange={(e) => setNoticeHours(e.target.value)} placeholder="e.g. 24 (leave empty for permanent)" style={{ ...styles.inputField, width: "100%" }} />
               </div>
               <div style={{ display: "flex", gap: "12px" }}>
                 <button style={styles.addBtn} onClick={updateNotice}>Publish Notice</button>
@@ -1076,15 +1194,13 @@ export default function Admin() {
         )}
       </div>
 
-      {/* STATUS DIALOG */}
+      {/* ALL DIALOGS — completely unchanged */}
       <Dialog open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle style={{ background: "#f0fdf4", color: "#166534", fontWeight: "700" }}>Update Order Status</DialogTitle>
         <DialogContent>
           {selectedOrder && (
             <Box sx={{ pt: 2 }}>
-              <Typography variant="body2" sx={{ mb: 2, color: "#555" }}>
-                Order <strong>#{selectedOrder._id?.toString().slice(-6).toUpperCase()}</strong>
-              </Typography>
+              <Typography variant="body2" sx={{ mb: 2, color: "#555" }}>Order <strong>#{selectedOrder._id?.toString().slice(-6).toUpperCase()}</strong></Typography>
               <FormControl fullWidth>
                 <InputLabel>New Status</InputLabel>
                 <Select value={selectedOrder.status || "Pending"} onChange={(e) => setSelectedOrder({ ...selectedOrder, status: e.target.value })} label="New Status">
@@ -1105,7 +1221,6 @@ export default function Admin() {
         </DialogActions>
       </Dialog>
 
-      {/* EDIT MEDICINE DIALOG */}
       <Dialog open={medEditOpen} onClose={() => setMedEditOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle style={{ background: "#f0fdf4", color: "#166534", fontWeight: "700" }}>Edit Medicine</DialogTitle>
         <DialogContent>
@@ -1120,12 +1235,9 @@ export default function Admin() {
               <FormControl fullWidth size="small">
                 <InputLabel>Unit</InputLabel>
                 <Select value={editingMed.unit || "units"} onChange={(e) => setEditingMed({ ...editingMed, unit: e.target.value })} label="Unit">
-                  <MenuItem value="units">Units</MenuItem>
-                  <MenuItem value="bottles">Bottles</MenuItem>
-                  <MenuItem value="strips">Strips</MenuItem>
-                  <MenuItem value="boxes">Boxes</MenuItem>
-                  <MenuItem value="sachets">Sachets</MenuItem>
-                  <MenuItem value="vials">Vials</MenuItem>
+                  <MenuItem value="units">Units</MenuItem><MenuItem value="bottles">Bottles</MenuItem>
+                  <MenuItem value="strips">Strips</MenuItem><MenuItem value="boxes">Boxes</MenuItem>
+                  <MenuItem value="sachets">Sachets</MenuItem><MenuItem value="vials">Vials</MenuItem>
                 </Select>
               </FormControl>
             </Box>
@@ -1137,16 +1249,11 @@ export default function Admin() {
         </DialogActions>
       </Dialog>
 
-      {/* STOCK UPDATE DIALOG */}
       <Dialog open={stockUpdateOpen} onClose={() => setStockUpdateOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle style={{ background: "#f0fdf4", color: "#166534", fontWeight: "700" }}>
-          Update Stock — {stockMed?.name}
-        </DialogTitle>
+        <DialogTitle style={{ background: "#f0fdf4", color: "#166534", fontWeight: "700" }}>Update Stock — {stockMed?.name}</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Current stock: <strong>{stockMed?.stock} {stockMed?.unit || "units"}</strong>
-            </Typography>
+            <Typography variant="body2" color="text.secondary">Current stock: <strong>{stockMed?.stock} {stockMed?.unit || "units"}</strong></Typography>
             <FormControl fullWidth size="small">
               <InputLabel>Operation</InputLabel>
               <Select value={stockOperation} onChange={(e) => setStockOperation(e.target.value)} label="Operation">
@@ -1157,18 +1264,13 @@ export default function Admin() {
             </FormControl>
             <TextField
               label={stockOperation === "add" ? "Quantity to Add" : stockOperation === "subtract" ? "Quantity to Remove" : "Set Stock To"}
-              type="number" value={stockValue} onChange={(e) => setStockValue(e.target.value)}
-              fullWidth size="small" placeholder="Enter quantity" />
+              type="number" value={stockValue} onChange={(e) => setStockValue(e.target.value)} fullWidth size="small" placeholder="Enter quantity" />
             {stockValue && !isNaN(stockValue) && (
               <Typography variant="body2" style={{ color: "#166534", background: "#f0fdf4", padding: "8px", borderRadius: "6px" }}>
-                New stock will be:{" "}
-                <strong>
-                  {stockOperation === "add"
-                    ? Number(stockMed?.stock || 0) + Number(stockValue)
-                    : stockOperation === "subtract"
-                    ? Math.max(0, Number(stockMed?.stock || 0) - Number(stockValue))
-                    : Number(stockValue)}{" "}
-                  {stockMed?.unit || "units"}
+                New stock will be: <strong>
+                  {stockOperation === "add" ? Number(stockMed?.stock || 0) + Number(stockValue)
+                    : stockOperation === "subtract" ? Math.max(0, Number(stockMed?.stock || 0) - Number(stockValue))
+                    : Number(stockValue)} {stockMed?.unit || "units"}
                 </strong>
               </Typography>
             )}
@@ -1180,7 +1282,6 @@ export default function Admin() {
         </DialogActions>
       </Dialog>
 
-      {/* SNACKBAR */}
       <Snackbar open={notification.open} autoHideDuration={4000} onClose={() => setNotification({ ...notification, open: false })} anchorOrigin={{ vertical: "top", horizontal: "right" }}>
         <Alert onClose={() => setNotification({ ...notification, open: false })} severity={notification.severity} sx={{ width: "100%" }}>
           {notification.message}
