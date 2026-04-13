@@ -289,6 +289,7 @@ export default function Admin() {
       setNotification({ open: true, message: "Failed to remove medicine", severity: "error" });
     }
   };
+  <Button onClick={() => deleteMedicine(editingMed._id)}>Delete</Button>
 
   const openStockUpdate = (med) => {
     setStockMed(med); setStockValue(""); setStockOperation("add"); setStockUpdateOpen(true);
