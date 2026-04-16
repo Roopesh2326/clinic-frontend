@@ -154,7 +154,7 @@ export default function UserDashboard() {
       `</tr></thead><tbody>${itemsHtml}</tbody></table>` +
       `<h3 style='text-align:right;margin-top:15px;'>Total: Rs.${order.total}</h3><hr/>` +
       `<p style='text-align:center;color:#888;font-size:12px;'>Thank you for choosing Digital Clinic!</p>` +
-      `<script>window.onload=function(){window.print();}<\/script></body></html>`
+      `<script>window.onload=function(){window.print();}</script></body></html>`
     );
     w.document.close();
   };
