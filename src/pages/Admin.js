@@ -44,6 +44,8 @@ export default function Admin() {
   const [activeTab, setActiveTab]       = useState("dashboard");
   const [newOrdersCount, setNewOrdersCount] = useState(0);
   const prevOrdersRef = useRef([]);
+  const [queueStatus, setQueueStatus] = useState({});
+  const [queueLoading, setQueueLoading] = useState({});
 
   const [medForm, setMedForm] = useState({
     name: "", desc: "", price: "", category: "",
@@ -135,6 +137,40 @@ export default function Admin() {
       .finally(() => setAnalyticsLoading(false));
   };
 
+  // ─── QUEUE FUNCTIONS ──────────────────────────────────────────────────────
+const fetchQueueStatus = async (type) => {
+  try {
+    const res = await axios.get(`${BASE_URL}/queue/status?type=${type}`, { withCredentials: true });
+    setQueueStatus((prev) => ({ ...prev, [type]: res.data }));
+  } catch {
+    // silent fail
+  }
+};
+
+const callNextPatient = async (type) => {
+  setQueueLoading((prev) => ({ ...prev, [type]: true }));
+  try {
+    const res = await axios.post(`${BASE_URL}/queue/next`, { type }, { withCredentials: true });
+    setQueueStatus((prev) => ({ ...prev, [type]: res.data }));
+    setNotification({ open: true, message: `Now serving ${type} #${res.data.currentServing}`, severity: "success" });
+  } catch {
+    setNotification({ open: true, message: "Failed to advance queue", severity: "error" });
+  } finally {
+    setQueueLoading((prev) => ({ ...prev, [type]: false }));
+  }
+};
+
+const resetQueue = async (type) => {
+  if (!window.confirm(`Reset ${type} queue to 0? This cannot be undone.`)) return;
+  try {
+    await axios.post(`${BASE_URL}/queue/reset`, { type }, { withCredentials: true });
+    setQueueStatus((prev) => ({ ...prev, [type]: { ...prev[type], currentServing: 0 } }));
+    setNotification({ open: true, message: `${type} queue reset`, severity: "info" });
+  } catch {
+    setNotification({ open: true, message: "Failed to reset queue", severity: "error" });
+  }
+};
+
   useEffect(() => {
     if (activeTab !== "analytics" || !authChecked) return;
     fetchAnalytics();
@@ -156,6 +192,33 @@ export default function Admin() {
     Delivered:          safeOrders.filter((o) => o.status === "Delivered").length,
     Cancelled:          safeOrders.filter((o) => o.status === "Cancelled").length,
   };
+
+  // ─── SOCKET.IO — real-time queue updates ──────────────────────────────────
+useEffect(() => {
+  if (!authChecked) return;
+
+  // Dynamically load socket.io-client
+  // Run: npm install socket.io-client  in your frontend project
+  import("socket.io-client").then(({ io }) => {
+    const socket = io(BASE_URL, { withCredentials: true });
+
+    socket.on("queue:update", (data) => {
+      setQueueStatus((prev) => ({ ...prev, [data.type]: data }));
+    });
+
+    // Fetch initial queue status for all types
+    fetchQueueStatus("appointment");
+    fetchQueueStatus("order");
+    fetchQueueStatus("walkin");
+
+    return () => socket.disconnect();
+  }).catch(() => {
+    // socket.io-client not installed — fall back to polling
+    fetchQueueStatus("appointment");
+    fetchQueueStatus("order");
+    fetchQueueStatus("walkin");
+  });
+}, [authChecked]);
 
   const recentOrders = [...safeOrders].slice(0, 5);
 
@@ -473,6 +536,7 @@ export default function Admin() {
     { id: "analytics",    label: "📈 Analytics"    },
     { id: "orders",       label: "📦 Orders"       },
     { id: "appointments", label: "📅 Appointments" },
+    { id: "queue",        label: "🎫 Queue"        },
     { id: "pos",          label: "🏪 Walk-in POS"  },
     { id: "inventory",    label: "💊 Inventory"    },
     { id: "users",        label: "👥 Users"        },
@@ -995,7 +1059,136 @@ export default function Admin() {
             )}
           </div>
         )}
+        {/* ══════════════════════════════════════════════════════════════
+        QUEUE TAB
+══════════════════════════════════════════════════════════════ */}
+        {activeTab === "queue" && (
+          <div style={{ animation: "slideIn 0.3s ease" }}>
+            <div style={{ marginBottom: "24px" }}>
+              <h2 style={{ fontSize: "22px", fontWeight: "700", color: "#111", margin: "0 0 4px" }}>
+                🎫 Queue Management
+              </h2>
+              <p style={{ fontSize: "13px", color: "#9ca3af", margin: 0 }}>
+                Real-time queue control. Click "Next" to serve the next patient.
+              </p>
+            </div>
 
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: "20px" }}>
+              {[
+                { type: "appointment", label: "Appointments", icon: "📅", color: "#166534", bg: "#f0fdf4", border: "#bbf7d0" },
+                { type: "order",       label: "Online Orders", icon: "🌐", color: "#1e40af", bg: "#eff6ff", border: "#bfdbfe" },
+                { type: "walkin",      label: "Walk-in Orders", icon: "🏪", color: "#92400e", bg: "#fffbeb", border: "#fde68a" },
+              ].map(({ type, label, icon, color, bg, border }) => {
+                const q = queueStatus[type] || {};
+                const total    = q.totalIssued    || 0;
+                const serving  = q.currentServing || 0;
+                const waiting  = Math.max(0, total - serving);
+                const isLoading = queueLoading[type];
+
+                return (
+                  <div key={type} style={{ background: "white", borderRadius: "16px", boxShadow: "0 2px 8px rgba(0,0,0,0.07)", overflow: "hidden" }}>
+
+                    {/* Card header */}
+                    <div style={{ background: color, padding: "18px 24px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div>
+                        <div style={{ color: "white", fontSize: "16px", fontWeight: "700" }}>{icon} {label}</div>
+                        <div style={{ color: "rgba(255,255,255,0.75)", fontSize: "12px", marginTop: "2px" }}>
+                          {total} token{total !== 1 ? "s" : ""} issued today
+                        </div>
+                      </div>
+                      {q.lastUpdated && (
+                        <div style={{ color: "rgba(255,255,255,0.6)", fontSize: "11px", textAlign: "right" }}>
+                          Updated<br/>{new Date(q.lastUpdated).toLocaleTimeString()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Stats */}
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "1px", background: "#f3f4f6" }}>
+                      {[
+                        { label: "Now Serving", value: serving || "—", highlight: true },
+                        { label: "Waiting",     value: waiting },
+                        { label: "Total Today", value: total },
+                      ].map(({ label: statLabel, value, highlight }) => (
+                        <div key={statLabel} style={{ background: "white", padding: "16px 12px", textAlign: "center" }}>
+                          <div style={{ fontSize: highlight ? "32px" : "22px", fontWeight: "700", color: highlight ? color : "#374151", lineHeight: 1 }}>
+                            {value}
+                          </div>
+                          <div style={{ fontSize: "11px", color: "#9ca3af", marginTop: "4px", fontWeight: "600", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                            {statLabel}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Progress bar */}
+                    {total > 0 && (
+                      <div style={{ padding: "12px 20px 0", background: "white" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "11px", color: "#9ca3af", marginBottom: "5px" }}>
+                          <span>Progress</span>
+                          <span>{total > 0 ? Math.round((serving / total) * 100) : 0}% served</span>
+                        </div>
+                        <div style={{ height: "6px", background: "#f3f4f6", borderRadius: "3px", overflow: "hidden" }}>
+                          <div style={{
+                            height: "100%", borderRadius: "3px", background: color,
+                            width: `${total > 0 ? Math.min(100, (serving / total) * 100) : 0}%`,
+                            transition: "width 0.5s ease"
+                          }} />
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Action buttons */}
+                    <div style={{ padding: "16px 20px 20px", background: "white", display: "flex", gap: "10px" }}>
+                      <button
+                        onClick={() => callNextPatient(type)}
+                        disabled={isLoading || (total > 0 && serving >= total)}
+                        style={{
+                          flex: 1, padding: "12px",
+                          background: (isLoading || (total > 0 && serving >= total)) ? "#e5e7eb" : color,
+                          color: (isLoading || (total > 0 && serving >= total)) ? "#9ca3af" : "white",
+                          border: "none", borderRadius: "10px",
+                          fontWeight: "700", fontSize: "14px",
+                          cursor: (isLoading || (total > 0 && serving >= total)) ? "not-allowed" : "pointer",
+                          transition: "all 0.15s"
+                        }}>
+                        {isLoading ? "⏳ Calling..." : serving >= total && total > 0 ? "✅ All Served" : "➡ Next Patient"}
+                      </button>
+                      <button
+                        onClick={() => resetQueue(type)}
+                        style={{ padding: "12px 14px", background: "#fee2e2", color: "#991b1b", border: "none", borderRadius: "10px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
+                        Reset
+                      </button>
+                    </div>
+
+                    {/* Current token being served */}
+                    {serving > 0 && (
+                      <div style={{ margin: "0 20px 20px", background: bg, border: `1px solid ${border}`, borderRadius: "10px", padding: "12px 16px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                        <span style={{ fontSize: "13px", color, fontWeight: "600" }}>
+                          Now calling:
+                        </span>
+                        <span style={{ fontSize: "20px", fontWeight: "700", color, letterSpacing: "0.05em" }}>
+                          {type === "appointment" ? "APT" : type === "walkin" ? "WLK" : "ORD"}-{String(serving).padStart(3, "0")}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Info box */}
+            <div style={{ marginTop: "24px", background: "#f8fafc", borderRadius: "12px", padding: "16px 20px", border: "1px solid #e5e7eb" }}>
+              <h4 style={{ margin: "0 0 8px", fontSize: "14px", fontWeight: "700", color: "#374151" }}>ℹ️ How it works</h4>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: "8px", fontSize: "13px", color: "#6b7280" }}>
+                <div>• Each booking gets a unique daily token (APT-001, ORD-001, WLK-001)</div>
+                <div>• Click "Next Patient" to increment the serving counter</div>
+                <div>• Patients see their position in real-time on their dashboard</div>
+                <div>• Tokens reset automatically every day at midnight IST</div>
+              </div>
+            </div>
+          </div>
+)}
         {/* ══════════════════════════════════════════════════════════════
             ORDERS TAB
         ══════════════════════════════════════════════════════════════ */}

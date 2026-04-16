@@ -17,6 +17,7 @@ export default function Appointment() {
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [bookedToken, setBookedToken] = useState(null);
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -50,13 +51,15 @@ export default function Appointment() {
       try { data = await res.json(); } catch { data = {}; }
 
       if (!res.ok) {
-        alert(data?.message || data?.error || "Could not book appointment");
-        return;
-      }
+      alert(data?.message || data?.error || "Could not book appointment");
+  return;
+}
 
+// NEW: save token from response
+      setBookedToken(data.tokenStr || null);
       setSuccess(true);
       setForm({ name: savedName, age: "", problem: "", contact: savedPhone, date: "", time: "", email: savedEmail });
-      setTimeout(() => setSuccess(false), 4000);
+      setTimeout(() => { setSuccess(false); setBookedToken(null); }, 6000);
 
     } catch (error) {
       console.error(error);
@@ -91,10 +94,17 @@ export default function Appointment() {
         {/* SUCCESS MESSAGE */}
         {success && (
           <div style={styles.successBox}>
-            ✅ Appointment booked successfully! We'll contact you to confirm.
+            <div style={{ fontSize: "16px", marginBottom: "8px" }}>✅ Appointment booked successfully!</div>
+            {bookedToken && (
+              <div style={{ marginTop: "10px", display: "inline-block", background: "white", border: "2px solid #166534", borderRadius: "10px", padding: "10px 24px" }}>
+                <div style={{ fontSize: "11px", color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>Your Queue Token</div>
+                <div style={{ fontSize: "32px", fontWeight: "700", color: "#166534", letterSpacing: "0.05em" }}>{bookedToken}</div>
+                <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>Show this token at the clinic</div>
+              </div>
+            )}
+            <div style={{ fontSize: "13px", color: "#555", marginTop: "10px" }}>We'll contact you to confirm your appointment.</div>
           </div>
-        )}
-
+)}
         {/* FORM */}
         <form onSubmit={handleSubmit} style={styles.form}>
 
