@@ -1,219 +1,149 @@
-import React, { useState } from "react";
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
-import { Link, useNavigate } from "react-router-dom";
+
+const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
 export default function Login() {
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [form, setForm]       = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState("");
 
-  const handleLogin = async () => {
-    if (!email || !password) {
-      alert("Please fill all fields");
-      return;
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (!form.email.trim() || !form.password) { setError("Email and password are required"); return; }
     setLoading(true);
+
     try {
-      const res = await axios.post(
-        "https://clinic-backend-mxto.onrender.com/login",
-        { email, password },
-        { withCredentials: true }
-      );
+      const res = await axios.post(`${BASE_URL}/login`, form, { withCredentials: true });
+      const { role, name, email, phone, userId } = res.data;
+      const normalizedRole = (role || "user").toLowerCase().trim();
 
-      alert(res.data.message);
-
-      const normalizedRole = String(res.data?.role || "").toLowerCase().trim();
-
-      // ✅ Save name, email, phone so UserDashboard can display them
+      // ✅ Save user info to localStorage
       localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("role", normalizedRole);
-      localStorage.setItem("email", res.data?.email || email);
-      localStorage.setItem("name", res.data?.name || "");
-      localStorage.setItem("phone", res.data?.phone || "");
-      localStorage.setItem("userId", res.data?.userId || "");
-      localStorage.setItem("user", JSON.stringify({
-        role: res.data.role,
-        name: res.data?.name || "",
-        email: res.data?.email || email,
-        phone: res.data?.phone || "",
-      }));
+      localStorage.setItem("role",   normalizedRole);
+      localStorage.setItem("email",  email || form.email);
+      localStorage.setItem("name",   name  || "");
+      localStorage.setItem("phone",  phone || "");
+      localStorage.setItem("userId", userId || "");
 
-      if (normalizedRole === "admin") {
-        navigate("/admin", { replace: true });
-      } else {
-        navigate("/dashboard", { replace: true });
-      }
+      // ✅ Role-based redirect
+      if (normalizedRole === "admin")      navigate("/admin",      { replace: true });
+      else if (normalizedRole === "staff") navigate("/staff",      { replace: true });
+      else if (normalizedRole === "reception") navigate("/reception", { replace: true });
+      else                                 navigate("/dashboard",  { replace: true });
 
     } catch (err) {
-      alert(err.response?.data?.message || "Login failed");
+      setError(err?.response?.data?.message || "Invalid email or password");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div style={styles.page}>
-      <div style={styles.card}>
-
-        {/* LOGO / HEADER */}
-        <div style={styles.logoBox}>
-          <span style={styles.logoIcon}>🏥</span>
-          <h1 style={styles.logoText}>Digital Clinic</h1>
-          <p style={styles.subText}>Welcome back! Please login</p>
+    <div style={s.page}>
+      <div style={s.card}>
+        {/* HEADER */}
+        <div style={s.header}>
+          <div style={s.logo}>🏥</div>
+          <h1 style={s.title}>Digital Clinic</h1>
+          <p style={s.sub}>Sign in to your account</p>
         </div>
 
-        {/* EMAIL */}
-        <div style={styles.field}>
-          <label style={styles.label}>Email Address</label>
-          <div style={styles.inputWrapper}>
-            <span style={styles.icon}>📧</span>
+        {/* FORM */}
+        <form onSubmit={handleSubmit} style={s.form}>
+          {error && (
+            <div style={s.errorBox}>
+              ⚠️ {error}
+            </div>
+          )}
+
+          <div style={s.field}>
+            <label style={s.label}>Email address</label>
             <input
               type="email"
               placeholder="Enter your email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={styles.input}
+              value={form.email}
+              onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+              required
+              autoFocus
+              style={s.input}
             />
           </div>
-        </div>
 
-        {/* PASSWORD */}
-        <div style={styles.field}>
-          <label style={styles.label}>Password</label>
-          <div style={styles.inputWrapper}>
-            <span style={styles.icon}>🔒</span>
+          <div style={s.field}>
+            <label style={s.label}>Password</label>
             <input
               type="password"
               placeholder="Enter your password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              style={styles.input}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              value={form.password}
+              onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+              required
+              style={s.input}
             />
           </div>
-        </div>
 
-        {/* FORGOT PASSWORD */}
-        <div style={{ textAlign: "right", marginBottom: "20px" }}>
-          <Link to="/forgot-password" style={styles.forgotLink}>
-            Forgot Password?
+          <button
+            type="submit"
+            disabled={loading}
+            style={{ ...s.btn, opacity: loading ? 0.7 : 1, cursor: loading ? "not-allowed" : "pointer" }}>
+            {loading ? (
+              <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
+                <span style={s.spinner} /> Signing in...
+              </span>
+            ) : "Sign In"}
+          </button>
+        </form>
+
+        {/* FORGOT PASSWORD LINK */}
+        <div style={{ textAlign: "center", marginTop: "16px" }}>
+          <Link to="/forgot-password" style={{ color: "#166534", fontSize: "14px", textDecoration: "none", fontWeight: "600" }}>
+            Forgot password?
           </Link>
         </div>
 
-        {/* LOGIN BUTTON */}
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          style={{ ...styles.btn, opacity: loading ? 0.7 : 1 }}
-        >
-          {loading ? "Logging in..." : "Login"}
-        </button>
-
-        <p style={styles.bottomText}>
-          Don't have an account?{" "}
-          <Link to="/signup" style={styles.link}>Sign up here</Link>
-        </p>
+        {/* ROLE HINT */}
+        <div style={s.hint}>
+          <div style={s.hintTitle}>Access levels</div>
+          <div style={{ display: "flex", justifyContent: "center", gap: "16px", flexWrap: "wrap" }}>
+            {[["🔑","Admin","Full access"],["🏥","Staff","Orders & queue"],["🖥️","Reception","Token desk"]].map(([icon, role, desc]) => (
+              <div key={role} style={s.hintItem}>
+                <span>{icon}</span>
+                <div>
+                  <div style={{ fontWeight: "700", fontSize: "12px", color: "#374151" }}>{role}</div>
+                  <div style={{ fontSize: "11px", color: "#9ca3af" }}>{desc}</div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
+
+      <style>{`
+        input:focus { outline: none; border-color: #166534 !important; box-shadow: 0 0 0 3px rgba(22,101,52,0.12); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
 
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background: "linear-gradient(135deg, #e8f5e9 0%, #e3f2fd 100%)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    padding: "20px",
-  },
-  card: {
-    background: "#fff",
-    borderRadius: "20px",
-    padding: "40px 36px",
-    width: "100%",
-    maxWidth: "420px",
-    boxShadow: "0 10px 40px rgba(22,101,52,0.12)",
-  },
-  logoBox: {
-    textAlign: "center",
-    marginBottom: "28px",
-  },
-  logoIcon: {
-    fontSize: "48px",
-    display: "block",
-    marginBottom: "8px",
-  },
-  logoText: {
-    color: "#166534",
-    fontSize: "24px",
-    fontWeight: "700",
-    margin: "0 0 4px",
-  },
-  subText: {
-    color: "#6b7280",
-    fontSize: "14px",
-    margin: 0,
-  },
-  field: {
-    marginBottom: "16px",
-  },
-  label: {
-    display: "block",
-    fontSize: "13px",
-    fontWeight: "600",
-    color: "#374151",
-    marginBottom: "6px",
-  },
-  inputWrapper: {
-    display: "flex",
-    alignItems: "center",
-    border: "1.5px solid #d1fae5",
-    borderRadius: "10px",
-    padding: "0 12px",
-    background: "#f0fdf4",
-  },
-  icon: {
-    fontSize: "16px",
-    marginRight: "8px",
-  },
-  input: {
-    flex: 1,
-    border: "none",
-    background: "transparent",
-    padding: "12px 0",
-    fontSize: "14px",
-    color: "#111827",
-    outline: "none",
-  },
-  forgotLink: {
-    fontSize: "13px",
-    color: "#166534",
-    textDecoration: "none",
-    fontWeight: "500",
-  },
-  btn: {
-    width: "100%",
-    padding: "14px",
-    background: "linear-gradient(135deg, #166534, #16a34a)",
-    color: "#fff",
-    border: "none",
-    borderRadius: "10px",
-    fontSize: "15px",
-    fontWeight: "600",
-    cursor: "pointer",
-    marginBottom: "20px",
-  },
-  bottomText: {
-    textAlign: "center",
-    fontSize: "13px",
-    color: "#6b7280",
-    margin: 0,
-  },
-  link: {
-    color: "#166534",
-    fontWeight: "600",
-    textDecoration: "none",
-  },
+const s = {
+  page:     { minHeight: "100vh", background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #f0fdf4 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Segoe UI', system-ui, sans-serif", padding: "20px" },
+  card:     { background: "white", borderRadius: "20px", padding: "40px 36px", width: "100%", maxWidth: "420px", boxShadow: "0 8px 40px rgba(22,101,52,0.15)" },
+  header:   { textAlign: "center", marginBottom: "32px" },
+  logo:     { width: "60px", height: "60px", background: "linear-gradient(135deg,#14532d,#16a34a)", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", margin: "0 auto 14px" },
+  title:    { fontSize: "24px", fontWeight: "800", color: "#111", margin: "0 0 6px" },
+  sub:      { fontSize: "14px", color: "#6b7280", margin: 0 },
+  form:     { display: "flex", flexDirection: "column", gap: "18px" },
+  field:    { display: "flex", flexDirection: "column", gap: "6px" },
+  label:    { fontSize: "14px", fontWeight: "600", color: "#374151" },
+  input:    { padding: "12px 16px", border: "1.5px solid #e5e7eb", borderRadius: "10px", fontSize: "15px", outline: "none", transition: "border-color 0.15s, box-shadow 0.15s", fontFamily: "inherit" },
+  btn:      { padding: "14px", background: "#166534", color: "white", border: "none", borderRadius: "12px", fontSize: "16px", fontWeight: "700", transition: "background 0.15s" },
+  spinner:  { width: "18px", height: "18px", border: "2px solid rgba(255,255,255,0.4)", borderTop: "2px solid white", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" },
+  errorBox: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "12px 16px", color: "#dc2626", fontSize: "14px", fontWeight: "500" },
+  hint:     { marginTop: "28px", paddingTop: "20px", borderTop: "1px solid #f3f4f6" },
+  hintTitle:{ fontSize: "11px", fontWeight: "700", color: "#d1d5db", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" },
+  hintItem: { display: "flex", alignItems: "center", gap: "6px", fontSize: "12px" },
 };

@@ -73,6 +73,11 @@ export default function Admin() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [timePeriod, setTimePeriod]             = useState("7d");
 
+  const [useForm, setuserForm] = useState({ name: "", email: "", phone: "", password: "", role: "user" });
+  const [useFormOpen, setUserFormOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [userFormLoading, setUserFormLoading] = useState(false);
+
   // ─── AUTH CHECK ──────────────────────────────────────────────────────────
   useEffect(() => {
     try {
@@ -431,6 +436,76 @@ useEffect(() => {
       `<script>window.onload=function(){window.print();}</script></body></html>`
     );
     w.document.close();
+  };
+
+  const createUser = async () => {
+    if (!userForm.name || !userForm.email || !userForm.password) {
+      setNotification({ open: true, message: "Name, email and password are required", severity: "error" });
+      return;
+    }
+    setUserFormLoading(true);
+    try {
+      await axios.post(`${BASE_URL}/users/create`, userForm, { withCredentials: true });
+      setNotification({ open: true, message: "User created successfully!", severity: "success" });
+      setUserForm({ name: "", email: "", phone: "", password: "", role: "user" });
+      setUserFormOpen(false);
+      // Refresh users
+      fetch(`${BASE_URL}/users`, { credentials: "include" }).then(r => r.ok ? r.json() : []).then(p => setUsers(sanitizeObjectArray(p))).catch(() => {});
+    } catch (err) {
+      setNotification({ open: true, message: err?.response?.data?.message || "Failed to create user", severity: "error" });
+    } finally { setUserFormLoading(false); }
+  };
+ 
+  const updateUser = async () => {
+    if (!editingUser) return;
+    setUserFormLoading(true);
+    try {
+      const payload = {};
+      if (editingUser.name)  payload.name  = editingUser.name;
+      if (editingUser.email) payload.email = editingUser.email;
+      if (editingUser.phone) payload.phone = editingUser.phone;
+      if (editingUser.role)  payload.role  = editingUser.role;
+      if (editingUser.newPassword) payload.password = editingUser.newPassword;
+      await axios.patch(`${BASE_URL}/users/${editingUser._id}`, payload, { withCredentials: true });
+      setNotification({ open: true, message: "User updated!", severity: "success" });
+      setEditingUser(null);
+      fetch(`${BASE_URL}/users`, { credentials: "include" }).then(r => r.ok ? r.json() : []).then(p => setUsers(sanitizeObjectArray(p))).catch(() => {});
+    } catch (err) {
+      setNotification({ open: true, message: err?.response?.data?.message || "Failed to update user", severity: "error" });
+    } finally { setUserFormLoading(false); }
+  };
+ 
+  const deleteUser = async (userId, userName) => {
+    if (!window.confirm(`Permanently delete ${userName}? This cannot be undone.`)) return;
+    try {
+      await axios.delete(`${BASE_URL}/users/${userId}`, { withCredentials: true });
+      setNotification({ open: true, message: "User deleted", severity: "success" });
+      setUsers(prev => prev.filter(u => u._id !== userId));
+    } catch (err) {
+      setNotification({ open: true, message: err?.response?.data?.message || "Failed to delete user", severity: "error" });
+    }
+  };
+ 
+  const toggleDisableUser = async (userId, isCurrentlyDisabled, userName) => {
+    try {
+      await axios.patch(`${BASE_URL}/users/${userId}/disable`, {}, { withCredentials: true });
+      setNotification({ open: true, message: isCurrentlyDisabled ? `${userName} enabled` : `${userName} disabled`, severity: "success" });
+      setUsers(prev => prev.map(u => u._id === userId ? { ...u, isDisabled: !u.isDisabled } : u));
+    } catch (err) {
+      setNotification({ open: true, message: err?.response?.data?.message || "Failed to toggle user status", severity: "error" });
+    }
+  };
+ 
+  const permanentDeleteMedicine = async (id, name) => {
+    if (!window.confirm(`Permanently delete "${name}"? This removes it from the database entirely.`)) return;
+    try {
+      await axios.delete(`${BASE_URL}/medicines/${id}/permanent`, { withCredentials: true });
+      setNotification({ open: true, message: "Medicine permanently deleted", severity: "success" });
+      setMedicines(prev => prev.filter(m => m._id !== id));
+      setMedEditOpen(false);
+    } catch (err) {
+      setNotification({ open: true, message: "Failed to delete medicine", severity: "error" });
+    }
   };
 
   // ─── NOTICE FUNCTIONS ─────────────────────────────────────────────────────
@@ -1449,146 +1524,358 @@ useEffect(() => {
             INVENTORY TAB
         ══════════════════════════════════════════════════════════════ */}
         {activeTab === "inventory" && (
-          <div style={{ animation: "slideIn 0.3s ease" }}>
-            <div style={styles.card}>
-              <h3 style={styles.cardTitle}>➕ Add New Medicine</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginTop: "16px" }}>
-                <div><label style={styles.fieldLabel}>Name *</label><input placeholder="Medicine name" value={medForm.name} onChange={(e) => setMedForm({ ...medForm, name: e.target.value })} style={styles.inputField} /></div>
-                <div><label style={styles.fieldLabel}>Price (Rs.) *</label><input type="number" min="1" value={medForm.price} onChange={(e) => setMedForm({ ...medForm, price: e.target.value })} style={styles.inputField} /></div>
-                <div><label style={styles.fieldLabel}>Category</label><input placeholder="e.g. Pain Relief" value={medForm.category} onChange={(e) => setMedForm({ ...medForm, category: e.target.value })} style={styles.inputField} /></div>
-                <div><label style={styles.fieldLabel}>Initial Stock</label><input type="number" min="0" value={medForm.stock} onChange={(e) => setMedForm({ ...medForm, stock: e.target.value })} style={styles.inputField} /></div>
-                <div><label style={styles.fieldLabel}>Low Stock Alert At</label><input type="number" min="1" value={medForm.lowStockThreshold} onChange={(e) => setMedForm({ ...medForm, lowStockThreshold: e.target.value })} style={styles.inputField} /></div>
-                <div>
-                  <label style={styles.fieldLabel}>Unit</label>
-                  <select value={medForm.unit} onChange={(e) => setMedForm({ ...medForm, unit: e.target.value })} style={{ ...styles.inputField, background: "white" }}>
-                    {["units","bottles","strips","boxes","sachets","vials"].map((u) => <option key={u} value={u}>{u.charAt(0).toUpperCase() + u.slice(1)}</option>)}
-                  </select>
-                </div>
-                <div style={{ gridColumn: "span 2" }}><label style={styles.fieldLabel}>Description</label><input placeholder="Brief description" value={medForm.desc} onChange={(e) => setMedForm({ ...medForm, desc: e.target.value })} style={styles.inputField} /></div>
-                <div>
-                  <label style={styles.fieldLabel}>Image</label>
-                  <label style={styles.fileLabel}>📷 Upload Image<input type="file" accept="image/*" onChange={handleImageSelect} style={{ display: "none" }} /></label>
-                  {imgPreview && <img src={imgPreview} alt="preview" style={{ width: "48px", height: "48px", borderRadius: "7px", objectFit: "cover", marginLeft: "10px", verticalAlign: "middle" }} />}
-                </div>
-              </div>
-              <button style={{ ...styles.addBtn, marginTop: "20px" }} onClick={addMedicine}>Add Medicine to Inventory</button>
-            </div>
-
-            {lowStockMeds.length > 0 && (
-              <div style={{ ...styles.card, border: "1px solid #fcd34d", background: "#fffbeb" }}>
-                <h3 style={{ ...styles.cardTitle, color: "#92400e" }}>⚠️ Stock Alerts ({lowStockMeds.length})</h3>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px,1fr))", gap: "12px", marginTop: "14px" }}>
-                  {lowStockMeds.map((med) => (
-                    <div key={med._id} style={{ background: med.stock <= 0 ? "#fee2e2" : "#fef3c7", borderRadius: "10px", padding: "14px" }}>
-                      <div style={{ fontWeight: "700", fontSize: "14px", marginBottom: "6px" }}>{med.name}</div>
-                      <div style={{ fontSize: "22px", fontWeight: "700", color: med.stock <= 0 ? "#dc2626" : "#92400e", margin: "4px 0 6px" }}>{med.stock} <span style={{ fontSize: "13px", fontWeight: "400" }}>{med.unit || "units"}</span></div>
-                      <div style={{ fontSize: "12px", color: "#888", marginBottom: "10px" }}>Alert at: {med.lowStockThreshold}</div>
-                      <button onClick={() => openStockUpdate(med)} style={{ padding: "6px 16px", background: "#166534", color: "white", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>+ Restock</button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div style={styles.card}>
-              <h3 style={styles.cardTitle}>💊 All Medicines ({safeMedicines.length})</h3>
-              <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "10px", marginTop: "16px" }}>
-                <Table>
-                  <TableHead style={{ background: "#f9fafb" }}>
-                    <TableRow>
-                      {["Medicine","Category","Price","Stock","Status","Visibility","Actions"].map((h) => (
-                        <TableCell key={h}><strong style={{ fontSize: "12px", color: "#374151" }}>{h}</strong></TableCell>
-                      ))}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {safeMedicines.map((med) => {
-                      const ss = getStockStatus(med);
-                      return (
-                        <TableRow key={med._id} hover style={{ opacity: med.isActive ? 1 : 0.5 }}>
-                          <TableCell>
-                            <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                              {med.img && <img src={med.img} alt={med.name} style={{ width: "38px", height: "38px", borderRadius: "8px", objectFit: "cover", flexShrink: 0 }} />}
-                              <div>
-                                <div style={{ fontWeight: "600", fontSize: "13px" }}>{med.name}</div>
-                                <div style={{ fontSize: "11px", color: "#9ca3af" }}>{med.desc?.slice(0, 38) || ""}</div>
-                              </div>
-                            </div>
-                          </TableCell>
-                          <TableCell style={{ fontSize: "13px", color: "#555" }}>{med.category || "-"}</TableCell>
-                          <TableCell><strong style={{ color: "#166534" }}>Rs.{med.price}</strong></TableCell>
-                          <TableCell>
-                            <div style={{ fontWeight: "700", fontSize: "15px" }}>{med.stock}</div>
-                            <div style={{ fontSize: "11px", color: "#9ca3af" }}>{med.unit || "units"}</div>
-                          </TableCell>
-                          <TableCell><Chip label={ss.label} size="small" style={{ background: ss.bg, color: ss.color, fontWeight: "600", fontSize: "11px" }} /></TableCell>
-                          <TableCell><Chip label={med.isActive ? "Visible" : "Hidden"} size="small" style={{ background: med.isActive ? "#dcfce7" : "#f3f4f6", color: med.isActive ? "#166534" : "#888", fontWeight: "600", fontSize: "11px" }} /></TableCell>
-                          <TableCell>
-                            <button onClick={() => openStockUpdate(med)} style={{ padding: "4px 10px", background: "#dbeafe", color: "#1e40af", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px", marginRight: "6px" }}>Stock</button>
-                            <IconButton size="small" style={{ color: "#166534" }} onClick={() => openEditMedicine(med)}><Edit fontSize="small" /></IconButton>
-                            <button
-                              onClick={() => axios.put(`${BASE_URL}/medicines/${med._id}`, { isActive: !med.isActive }, { withCredentials: true }).then(() => setMedicines((prev) => prev.map((m) => m._id === med._id ? { ...m, isActive: !med.isActive } : m)))}
-                              style={{ padding: "4px 10px", background: med.isActive ? "#fee2e2" : "#dcfce7", color: med.isActive ? "#991b1b" : "#166534", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px", marginLeft: "4px" }}>
-                              {med.isActive ? "Hide" : "Show"}
-                            </button>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(160px,1fr))", gap: "14px", marginBottom: "24px" }}>
+      {[
+        {
+          label: "Total Medicines",
+          value: safeMedicines.length,
+          icon: "💊", color: "#166534", bg: "#f0fdf4",
+        },
+        {
+          label: "Active in Store",
+          value: safeMedicines.filter(m => m.isActive).length,
+          icon: "✅", color: "#1e40af", bg: "#eff6ff",
+        },
+        {
+          label: "Low Stock",
+          value: lowStockMeds.filter(m => m.stock > 0).length,
+          icon: "⚠️", color: "#92400e", bg: "#fffbeb",
+        },
+        {
+          label: "Out of Stock",
+          value: lowStockMeds.filter(m => m.stock <= 0).length,
+          icon: "🚫", color: "#991b1b", bg: "#fef2f2",
+        },
+        {
+          label: "Hidden",
+          value: safeMedicines.filter(m => !m.isActive).length,
+          icon: "👁️", color: "#6b7280", bg: "#f9fafb",
+        },
+      ].map(({ label, value, icon, color, bg }) => (
+        <div key={label} style={{ background: "white", borderRadius: "12px", padding: "16px 18px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", borderLeft: `4px solid ${color}`, display: "flex", alignItems: "center", gap: "12px" }}>
+          <span style={{ fontSize: "22px" }}>{icon}</span>
+          <div>
+            <div style={{ fontSize: "22px", fontWeight: "700", color }}>{value}</div>
+            <div style={{ fontSize: "12px", color: "#6b7280" }}>{label}</div>
           </div>
+        </div>
+      ))}
+    </div>
+   )}
+ 
+    {/* ── TOP 5 FAST MOVERS (from analytics) ── */}
+    {analytics && analytics.topMedicines && analytics.topMedicines.length > 0 && (
+      <div style={{ ...styles.card, marginBottom: "20px" }}>
+        <h3 style={styles.cardTitle}>🔥 Fast Moving Medicines (Top 5 by units sold)</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(180px,1fr))", gap: "10px", marginTop: "14px" }}>
+          {analytics.topMedicines.slice(0,5).map((med, i) => {
+            const colors = ["#166534","#1e40af","#6d28d9","#92400e","#be185d"];
+            const bgs    = ["#f0fdf4","#eff6ff","#faf5ff","#fffbeb","#fdf2f8"];
+            return (
+              <div key={med.name} style={{ background: bgs[i], borderRadius: "10px", padding: "14px 16px", border: `1px solid ${bgs[i]}` }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+                  <span style={{ background: colors[i], color: "white", borderRadius: "50%", width: "22px", height: "22px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", fontWeight: "700" }}>{i+1}</span>
+                  <span style={{ fontSize: "11px", fontWeight: "700", color: colors[i] }}>{med.totalQty} units</span>
+                </div>
+                <div style={{ fontSize: "13px", fontWeight: "700", color: "#111", marginBottom: "2px" }}>{med.name}</div>
+                <div style={{ fontSize: "11px", color: "#888" }}>Rs.{med.totalRevenue.toLocaleString()}</div>
+              </div>
+            );
+          })}
+        </div>
+        {!analytics && (
+          <p style={{ color: "#888", fontSize: "13px", marginTop: "10px" }}>
+            Go to Analytics tab first to load fast-moving data.
+          </p>
         )}
+      </div>
+    )}
+ 
+    {/* ── LOW STOCK ALERTS ── */}
+    {lowStockMeds.length > 0 && (
+      <div style={{ ...styles.card, border: "1px solid #fcd34d", background: "#fffbeb", marginBottom: "20px" }}>
+        <h3 style={{ ...styles.cardTitle, color: "#92400e" }}>⚠️ Stock Alerts ({lowStockMeds.length})</h3>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px,1fr))", gap: "12px", marginTop: "14px" }}>
+          {lowStockMeds.map((med) => (
+            <div key={med._id} style={{ background: med.stock <= 0 ? "#fee2e2" : "#fef3c7", borderRadius: "10px", padding: "14px" }}>
+              <div style={{ fontWeight: "700", fontSize: "14px", marginBottom: "6px" }}>{med.name}</div>
+              <div style={{ fontSize: "22px", fontWeight: "700", color: med.stock <= 0 ? "#dc2626" : "#92400e", margin: "4px 0 6px" }}>
+                {med.stock} <span style={{ fontSize: "13px", fontWeight: "400" }}>{med.unit || "units"}</span>
+              </div>
+              <div style={{ fontSize: "12px", color: "#888", marginBottom: "10px" }}>Alert at: {med.lowStockThreshold}</div>
+              <button onClick={() => openStockUpdate(med)} style={{ padding: "6px 16px", background: "#166534", color: "white", border: "none", borderRadius: "7px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>
+                + Restock
+              </button>
+            </div>
+          ))}
+        </div>
+      </div>
+    )}
+ 
+    {/* ── ADD MEDICINE ── */}
+    <div style={styles.card}>
+      <h3 style={styles.cardTitle}>➕ Add New Medicine</h3>
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "16px", marginTop: "16px" }}>
+        <div><label style={styles.fieldLabel}>Name *</label><input placeholder="Medicine name" value={medForm.name} onChange={(e) => setMedForm({ ...medForm, name: e.target.value })} style={styles.inputField} /></div>
+        <div><label style={styles.fieldLabel}>Price (Rs.) *</label><input type="number" min="1" value={medForm.price} onChange={(e) => setMedForm({ ...medForm, price: e.target.value })} style={styles.inputField} /></div>
+        <div><label style={styles.fieldLabel}>Category</label><input placeholder="e.g. Pain Relief" value={medForm.category} onChange={(e) => setMedForm({ ...medForm, category: e.target.value })} style={styles.inputField} /></div>
+        <div><label style={styles.fieldLabel}>Initial Stock</label><input type="number" min="0" value={medForm.stock} onChange={(e) => setMedForm({ ...medForm, stock: e.target.value })} style={styles.inputField} /></div>
+        <div><label style={styles.fieldLabel}>Low Stock Alert At</label><input type="number" min="1" value={medForm.lowStockThreshold} onChange={(e) => setMedForm({ ...medForm, lowStockThreshold: e.target.value })} style={styles.inputField} /></div>
+        <div>
+          <label style={styles.fieldLabel}>Unit</label>
+          <select value={medForm.unit} onChange={(e) => setMedForm({ ...medForm, unit: e.target.value })} style={{ ...styles.inputField, background: "white" }}>
+            {["units","bottles","strips","boxes","sachets","vials"].map((u) => <option key={u} value={u}>{u.charAt(0).toUpperCase()+u.slice(1)}</option>)}
+          </select>
+        </div>
+        <div style={{ gridColumn: "span 2" }}><label style={styles.fieldLabel}>Description</label><input placeholder="Brief description" value={medForm.desc} onChange={(e) => setMedForm({ ...medForm, desc: e.target.value })} style={styles.inputField} /></div>
+        <div>
+          <label style={styles.fieldLabel}>Image</label>
+          <label style={styles.fileLabel}>📷 Upload Image<input type="file" accept="image/*" onChange={handleImageSelect} style={{ display: "none" }} /></label>
+          {imgPreview && <img src={imgPreview} alt="preview" style={{ width: "48px", height: "48px", borderRadius: "7px", objectFit: "cover", marginLeft: "10px", verticalAlign: "middle" }} />}
+        </div>
+      </div>
+      <button style={{ ...styles.addBtn, marginTop: "20px" }} onClick={addMedicine}>Add Medicine to Inventory</button>
+    </div>
+ 
+    {/* ── ALL MEDICINES TABLE ── */}
+    <div style={styles.card}>
+      <h3 style={styles.cardTitle}>💊 All Medicines ({safeMedicines.length})</h3>
+      <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "10px", marginTop: "16px" }}>
+        <Table>
+          <TableHead style={{ background: "#f9fafb" }}>
+            <TableRow>
+              {["Medicine","Category","Price","Stock","Status","Visibility","Actions"].map((h) => (
+                <TableCell key={h}><strong style={{ fontSize: "12px", color: "#374151" }}>{h}</strong></TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {safeMedicines.map((med) => {
+              const ss = getStockStatus(med);
+              return (
+                <TableRow key={med._id} hover style={{ opacity: med.isActive ? 1 : 0.5 }}>
+                  <TableCell>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      {med.img && <img src={med.img} alt={med.name} style={{ width: "38px", height: "38px", borderRadius: "8px", objectFit: "cover", flexShrink: 0 }} />}
+                      <div>
+                        <div style={{ fontWeight: "600", fontSize: "13px" }}>{med.name}</div>
+                        <div style={{ fontSize: "11px", color: "#9ca3af" }}>{med.desc?.slice(0, 38) || ""}</div>
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell style={{ fontSize: "13px", color: "#555" }}>{med.category || "-"}</TableCell>
+                  <TableCell><strong style={{ color: "#166534" }}>Rs.{med.price}</strong></TableCell>
+                  <TableCell>
+                    <div style={{ fontWeight: "700", fontSize: "15px", color: ss.color }}>{med.stock}</div>
+                    <div style={{ fontSize: "11px", color: "#9ca3af" }}>{med.unit || "units"}</div>
+                  </TableCell>
+                  <TableCell><Chip label={ss.label} size="small" style={{ background: ss.bg, color: ss.color, fontWeight: "600", fontSize: "11px" }} /></TableCell>
+                  <TableCell><Chip label={med.isActive ? "Visible" : "Hidden"} size="small" style={{ background: med.isActive ? "#dcfce7" : "#f3f4f6", color: med.isActive ? "#166534" : "#888", fontWeight: "600", fontSize: "11px" }} /></TableCell>
+                  <TableCell>
+                    <button onClick={() => openStockUpdate(med)} style={{ padding: "4px 10px", background: "#dbeafe", color: "#1e40af", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px", marginRight: "4px" }}>Stock</button>
+                    <IconButton size="small" style={{ color: "#166534" }} onClick={() => openEditMedicine(med)}><Edit fontSize="small" /></IconButton>
+                    <button
+                      onClick={() => axios.put(`${BASE_URL}/medicines/${med._id}`, { isActive: !med.isActive }, { withCredentials: true }).then(() => setMedicines((prev) => prev.map((m) => m._id === med._id ? { ...m, isActive: !med.isActive } : m)))}
+                      style={{ padding: "4px 10px", background: med.isActive ? "#fee2e2" : "#dcfce7", color: med.isActive ? "#991b1b" : "#166534", border: "none", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px", margin: "0 4px" }}>
+                      {med.isActive ? "Hide" : "Show"}
+                    </button>
+                    {/* ✅ PERMANENT DELETE */}
+                    <Tooltip title="Permanently delete from database">
+                      <button
+                        onClick={() => permanentDeleteMedicine(med._id, med.name)}
+                        style={{ padding: "4px 10px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "6px", cursor: "pointer", fontWeight: "600", fontSize: "12px" }}>
+                        🗑️ Delete
+                      </button>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </div>
+  </div>
+
 
         {/* ══════════════════════════════════════════════════════════════
             USERS TAB
         ══════════════════════════════════════════════════════════════ */}
         {activeTab === "users" && (
-          <div style={{ ...styles.card, animation: "slideIn 0.3s ease" }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
-              <div>
-                <h3 style={styles.cardTitle}>👥 Registered Users</h3>
-                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#9ca3af" }}>{safeUsers.length} total users</p>
-              </div>
-              <div style={{ display: "flex", gap: "10px" }}>
-                <TextField size="small" placeholder="Search users..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)}
-                  InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }} />
-                <button style={styles.exportBtn} onClick={exportUsersCsv}>Export CSV</button>
-              </div>
-            </div>
-            <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "10px" }}>
-              <Table>
-                <TableHead style={{ background: "#f9fafb" }}>
-                  <TableRow>
-                    {["Name","Email","Phone","Role","Joined"].map((h) => (
-                      <TableCell key={h}><strong style={{ fontSize: "12px", color: "#374151" }}>{h}</strong></TableCell>
-                    ))}
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {filteredUsers.map((user, idx) => (
-                    <TableRow key={idx} hover>
-                      <TableCell>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "linear-gradient(135deg,#166534,#4ade80)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "700", fontSize: "14px", flexShrink: 0 }}>
-                            {(user.name || "U").charAt(0).toUpperCase()}
-                          </div>
-                          <span style={{ fontWeight: "600", fontSize: "13px" }}>{user.name || "-"}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell style={{ color: "#555", fontSize: "13px" }}>{user.email || "-"}</TableCell>
-                      <TableCell style={{ color: "#555", fontSize: "13px" }}>{user.phone || "-"}</TableCell>
-                      <TableCell><Chip label={user.role || "user"} size="small" style={{ background: user.role === "admin" ? "#dbeafe" : "#f0fdf4", color: user.role === "admin" ? "#1e40af" : "#166534", fontWeight: "600", fontSize: "11px" }} /></TableCell>
-                      <TableCell style={{ fontSize: "12px", color: "#9ca3af" }}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
+           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+      <div>
+        <h3 style={styles.cardTitle}>👥 User Management</h3>
+        <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#9ca3af" }}>{safeUsers.length} total users · Admin-managed accounts only</p>
+      </div>
+      <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+        <TextField size="small" placeholder="Search users..." value={userSearch} onChange={(e) => setUserSearch(e.target.value)}
+          InputProps={{ startAdornment: <InputAdornment position="start"><Search fontSize="small" /></InputAdornment> }} />
+        <button style={{ ...styles.addBtn, display: "flex", alignItems: "center", gap: "6px" }} onClick={() => setUserFormOpen(true)}>
+          + Create User
+        </button>
+        <button style={styles.exportBtn} onClick={exportUsersCsv}>Export CSV</button>
+      </div>
+    </div>
+  )}
+ 
+    {/* ROLE SUMMARY */}
+    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(120px,1fr))", gap: "12px", marginBottom: "20px" }}>
+      {[
+        { role: "admin",     label: "Admins",     icon: "🔑", color: "#1e40af", bg: "#eff6ff" },
+        { role: "staff",     label: "Staff",      icon: "🏥", color: "#166534", bg: "#f0fdf4" },
+        { role: "reception", label: "Reception",  icon: "🖥️", color: "#6d28d9", bg: "#faf5ff" },
+        { role: "user",      label: "Patients",   icon: "👤", color: "#92400e", bg: "#fffbeb" },
+      ].map(({ role, label, icon, color, bg }) => (
+        <div key={role} style={{ background: "white", borderRadius: "10px", padding: "14px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", borderLeft: `4px solid ${color}`, display: "flex", alignItems: "center", gap: "10px" }}>
+          <span style={{ fontSize: "18px" }}>{icon}</span>
+          <div>
+            <div style={{ fontSize: "18px", fontWeight: "700", color }}>{safeUsers.filter(u => u.role === role).length}</div>
+            <div style={{ fontSize: "11px", color: "#9ca3af" }}>{label}</div>
           </div>
+        </div>
+      ))}
+    </div>
+ 
+    {/* USERS TABLE */}
+    <div style={styles.card}>
+      <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "10px" }}>
+        <Table>
+          <TableHead style={{ background: "#f9fafb" }}>
+            <TableRow>
+              {["Name","Email","Phone","Role","Status","Joined","Actions"].map((h) => (
+                <TableCell key={h}><strong style={{ fontSize: "12px", color: "#374151" }}>{h}</strong></TableCell>
+              ))}
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredUsers.map((user, idx) => (
+              <TableRow key={idx} hover style={{ opacity: user.isDisabled ? 0.5 : 1 }}>
+                <TableCell>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: user.isDisabled ? "#e5e7eb" : "linear-gradient(135deg,#166534,#4ade80)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "700", fontSize: "14px", flexShrink: 0 }}>
+                      {(user.name || "U").charAt(0).toUpperCase()}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight: "600", fontSize: "13px" }}>{user.name || "-"}</div>
+                      {user.isDisabled && <div style={{ fontSize: "10px", color: "#dc2626", fontWeight: "600" }}>DISABLED</div>}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell style={{ color: "#555", fontSize: "13px" }}>{user.email || "-"}</TableCell>
+                <TableCell style={{ color: "#555", fontSize: "13px" }}>{user.phone || "-"}</TableCell>
+                <TableCell>
+                  <Chip label={user.role || "user"} size="small" style={{
+                    background: user.role === "admin" ? "#dbeafe" : user.role === "staff" ? "#dcfce7" : user.role === "reception" ? "#faf5ff" : "#f9fafb",
+                    color: user.role === "admin" ? "#1e40af" : user.role === "staff" ? "#166534" : user.role === "reception" ? "#6d28d9" : "#374151",
+                    fontWeight: "600", fontSize: "11px"
+                  }} />
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={user.isDisabled ? "Disabled" : "Active"}
+                    size="small"
+                    style={{ background: user.isDisabled ? "#fee2e2" : "#dcfce7", color: user.isDisabled ? "#991b1b" : "#166534", fontWeight: "600", fontSize: "11px" }}
+                  />
+                </TableCell>
+                <TableCell style={{ fontSize: "12px", color: "#9ca3af" }}>{user.createdAt ? new Date(user.createdAt).toLocaleDateString() : "-"}</TableCell>
+                <TableCell>
+                  <div style={{ display: "flex", gap: "4px", flexWrap: "wrap" }}>
+                    {/* Edit */}
+                    <Tooltip title="Edit user">
+                      <IconButton size="small" style={{ color: "#166534" }} onClick={() => setEditingUser({ ...user, newPassword: "" })}>
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    {/* Disable/Enable */}
+                    <Tooltip title={user.isDisabled ? "Enable account" : "Disable account"}>
+                      <button
+                        onClick={() => toggleDisableUser(user._id, user.isDisabled, user.name)}
+                        style={{ padding: "3px 8px", background: user.isDisabled ? "#dcfce7" : "#fef3c7", color: user.isDisabled ? "#166534" : "#92400e", border: "none", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontWeight: "600" }}>
+                        {user.isDisabled ? "Enable" : "Disable"}
+                      </button>
+                    </Tooltip>
+                    {/* Delete */}
+                    <Tooltip title="Permanently delete user">
+                      <button
+                        onClick={() => deleteUser(user._id, user.name)}
+                        style={{ padding: "3px 8px", background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", borderRadius: "6px", cursor: "pointer", fontSize: "11px", fontWeight: "600" }}>
+                        🗑️
+                      </button>
+                    </Tooltip>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </div>
+ 
+    {/* CREATE USER DIALOG */}
+    <Dialog open={userFormOpen} onClose={() => setUserFormOpen(false)} maxWidth="sm" fullWidth>
+      <DialogTitle style={{ background: "#f0fdf4", color: "#166534", fontWeight: "700" }}>➕ Create New User</DialogTitle>
+      <DialogContent>
+        <Box sx={{ pt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+          <TextField label="Full Name *" value={userForm.name} onChange={e => setUserForm(f => ({ ...f, name: e.target.value }))} fullWidth size="small" />
+          <TextField label="Email *" type="email" value={userForm.email} onChange={e => setUserForm(f => ({ ...f, email: e.target.value }))} fullWidth size="small" />
+          <TextField label="Phone" value={userForm.phone} onChange={e => setUserForm(f => ({ ...f, phone: e.target.value }))} fullWidth size="small" />
+          <TextField label="Password *" type="password" value={userForm.password} onChange={e => setUserForm(f => ({ ...f, password: e.target.value }))} fullWidth size="small" helperText="Minimum 6 characters" />
+          <FormControl fullWidth size="small">
+            <InputLabel>Role</InputLabel>
+            <Select value={userForm.role} onChange={e => setUserForm(f => ({ ...f, role: e.target.value }))} label="Role">
+              <MenuItem value="admin">🔑 Admin — Full access</MenuItem>
+              <MenuItem value="staff">🏥 Staff — Orders & queue</MenuItem>
+              <MenuItem value="reception">🖥️ Reception — Token desk</MenuItem>
+              <MenuItem value="user">👤 Patient — Store & appointments</MenuItem>
+            </Select>
+          </FormControl>
+        </Box>
+      </DialogContent>
+      <DialogActions style={{ padding: "16px" }}>
+        <Button onClick={() => setUserFormOpen(false)} style={{ color: "#888" }}>Cancel</Button>
+        <Button onClick={createUser} disabled={userFormLoading} variant="contained" style={{ background: "#166534", color: "white" }}>
+          {userFormLoading ? "Creating..." : "Create User"}
+        </Button>
+      </DialogActions>
+    </Dialog>
+ 
+    {/* EDIT USER DIALOG */}
+    <Dialog open={!!editingUser} onClose={() => setEditingUser(null)} maxWidth="sm" fullWidth>
+      <DialogTitle style={{ background: "#f0fdf4", color: "#166534", fontWeight: "700" }}>Edit User — {editingUser?.name}</DialogTitle>
+      <DialogContent>
+        {editingUser && (
+          <Box sx={{ pt: 2, display: "flex", flexDirection: "column", gap: 2 }}>
+            <TextField label="Full Name" value={editingUser.name || ""} onChange={e => setEditingUser(u => ({ ...u, name: e.target.value }))} fullWidth size="small" />
+            <TextField label="Email" value={editingUser.email || ""} onChange={e => setEditingUser(u => ({ ...u, email: e.target.value }))} fullWidth size="small" />
+            <TextField label="Phone" value={editingUser.phone || ""} onChange={e => setEditingUser(u => ({ ...u, phone: e.target.value }))} fullWidth size="small" />
+            <TextField label="New Password" type="password" value={editingUser.newPassword || ""} onChange={e => setEditingUser(u => ({ ...u, newPassword: e.target.value }))} fullWidth size="small" helperText="Leave blank to keep current password" />
+            <FormControl fullWidth size="small">
+              <InputLabel>Role</InputLabel>
+              <Select value={editingUser.role || "user"} onChange={e => setEditingUser(u => ({ ...u, role: e.target.value }))} label="Role">
+                <MenuItem value="admin">🔑 Admin</MenuItem>
+                <MenuItem value="staff">🏥 Staff</MenuItem>
+                <MenuItem value="reception">🖥️ Reception</MenuItem>
+                <MenuItem value="user">👤 Patient</MenuItem>
+              </Select>
+            </FormControl>
+          </Box>
         )}
+      </DialogContent>
+      <DialogActions style={{ padding: "16px", display: "flex", justifyContent: "space-between" }}>
+        <Button onClick={() => { deleteUser(editingUser._id, editingUser.name); setEditingUser(null); }} style={{ color: "#dc2626", border: "1px solid #fecaca" }}>
+          🗑️ Delete User
+        </Button>
+        <div style={{ display: "flex", gap: "8px" }}>
+          <Button onClick={() => setEditingUser(null)} style={{ color: "#888" }}>Cancel</Button>
+          <Button onClick={updateUser} disabled={userFormLoading} variant="contained" style={{ background: "#166534", color: "white" }}>
+            {userFormLoading ? "Saving..." : "Save Changes"}
+          </Button>
+        </div>
+      </DialogActions>
+    </Dialog>
+  </div>
+)}
+
 
         {/* ══════════════════════════════════════════════════════════════
             NOTICES TAB
@@ -1618,7 +1905,6 @@ useEffect(() => {
             </div>
           </div>
         )}
-      </div>
 
       {/* ══════════════════════════════════════════════════════════════
           DIALOGS
@@ -1754,10 +2040,7 @@ useEffect(() => {
           {notification.message}
         </Alert>
       </Snackbar>
-    </div>
-  );
-}
-
+  
 const styles = {
   page:       { minHeight: "100vh", background: "#f1f5f9", fontFamily: "'Segoe UI', system-ui, sans-serif" },
   header:     { background: "linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%)", color: "white", padding: "20px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.15)" },
