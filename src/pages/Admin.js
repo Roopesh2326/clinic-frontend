@@ -73,8 +73,8 @@ export default function Admin() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [timePeriod, setTimePeriod]             = useState("7d");
 
-  const [useForm, setuserForm] = useState({ name: "", email: "", phone: "", password: "", role: "staff" });
-  const [useFormOpen, setUserFormOpen] = useState(false);
+  const [userForm, setUserForm] = useState({ name: "", email: "", phone: "", password: "", role: "staff" });
+  const [userFormOpen, setUserFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [userFormLoading, setUserFormLoading] = useState(false);
 
@@ -2071,6 +2071,7 @@ useEffect(() => {
           {notification.message}
         </Alert>
       </Snackbar>
+    
 const styles = {
   page:       { minHeight: "100vh", background: "#f1f5f9", fontFamily: "'Segoe UI', system-ui, sans-serif" },
   header:     { background: "linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%)", color: "white", padding: "20px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.15)" },
