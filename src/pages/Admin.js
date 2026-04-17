@@ -624,6 +624,37 @@ useEffect(() => {
     { name: "Walk-in", value: analytics.today.walkinOrders, fill: "#f59e0b" },
   ] : [];
 
+  const styles = {
+    page:       { minHeight: "100vh", background: "#f1f5f9", fontFamily: "'Segoe UI', system-ui, sans-serif" },
+    header:     { background: "linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%)", color: "white", padding: "20px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.15)" },
+    headerTitle:{ margin: 0, fontSize: "24px", fontWeight: "700", letterSpacing: "-0.02em" },
+    headerSub:  { margin: "3px 0 0", fontSize: "13px", opacity: 0.75 },
+    adminBadge: { background: "rgba(255,255,255,0.18)", color: "white", padding: "6px 16px", borderRadius: "20px", fontSize: "13px", fontWeight: "600", backdropFilter: "blur(4px)" },
+    tabBar:     { background: "white", borderBottom: "1px solid #e5e7eb", display: "flex", padding: "0 28px", overflowX: "auto", boxShadow: "0 1px 3px rgba(0,0,0,0.04)" },
+    tab:        { padding: "15px 20px", border: "none", background: "transparent", cursor: "pointer", fontSize: "13px", fontWeight: "500", color: "#6b7280", borderBottom: "2px solid transparent", whiteSpace: "nowrap", transition: "all 0.15s", borderRadius: "0" },
+    tabActive:  { color: "#166534", borderBottom: "2px solid #166534", fontWeight: "700", background: "transparent" },
+    content:    { padding: "28px 32px", maxWidth: "1440px", margin: "0 auto" },
+    statsGrid:  { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "16px", marginBottom: "24px" },
+    statCard:   { background: "white", borderRadius: "14px", padding: "20px", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", transition: "all 0.2s ease" },
+    statIcon:   { marginBottom: "10px" },
+    statValue:  { fontSize: "28px", fontWeight: "700", marginBottom: "5px" },
+    statLabel:  { fontSize: "13px", color: "#6b7280" },
+    card:       { background: "white", borderRadius: "14px", padding: "24px", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", marginBottom: "24px" },
+    cardTitle:  { margin: "0 0 4px", fontSize: "17px", fontWeight: "700", color: "#111" },
+    statusGrid: { display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: "12px", marginTop: "16px" },
+    statusBox:  { borderRadius: "12px", padding: "18px", textAlign: "center", transition: "transform 0.15s", cursor: "pointer" },
+    summaryRow: { display: "flex", justifyContent: "space-between", alignItems: "center", padding: "12px 0", borderBottom: "1px solid #f3f4f6" },
+    linkBtn:    { background: "none", border: "none", color: "#166534", cursor: "pointer", fontWeight: "600", fontSize: "14px" },
+    inputField: { padding: "10px 14px", border: "1px solid #e5e7eb", borderRadius: "9px", fontSize: "14px", outline: "none", width: "100%", boxSizing: "border-box", transition: "border-color 0.15s" },
+    fieldLabel: { display: "block", fontSize: "13px", fontWeight: "600", color: "#374151", marginBottom: "6px" },
+    fileLabel:  { display: "inline-block", padding: "9px 16px", border: "1px dashed #d1d5db", borderRadius: "9px", cursor: "pointer", fontSize: "13px", color: "#6b7280" },
+    addBtn:     { padding: "10px 26px", background: "#166534", color: "white", border: "none", borderRadius: "9px", fontWeight: "600", cursor: "pointer", fontSize: "14px", transition: "background 0.15s" },
+    exportBtn:  { padding: "8px 18px", background: "#166534", color: "white", border: "none", borderRadius: "9px", fontWeight: "600", cursor: "pointer", fontSize: "13px" },
+    receiptBtn: { padding: "5px 9px", background: "#f0fdf4", border: "1px solid #d1fae5", borderRadius: "7px", cursor: "pointer", fontSize: "14px", marginLeft: "4px" },
+    lowStockBanner: { background: "#fef3c7", border: "1px solid #fcd34d", borderRadius: "12px", padding: "13px 20px", marginBottom: "20px", display: "flex", alignItems: "center", flexWrap: "wrap", gap: "8px", fontSize: "14px", color: "#92400e" },
+    bannerBtn:  { marginLeft: "auto", padding: "6px 16px", background: "#92400e", color: "white", border: "none", borderRadius: "7px", cursor: "pointer", fontWeight: "600", fontSize: "13px" },
+  };
+
   return (
     <div style={styles.page}>
       <style>{`
@@ -2040,7 +2071,6 @@ useEffect(() => {
           {notification.message}
         </Alert>
       </Snackbar>
-  
 const styles = {
   page:       { minHeight: "100vh", background: "#f1f5f9", fontFamily: "'Segoe UI', system-ui, sans-serif" },
   header:     { background: "linear-gradient(135deg, #14532d 0%, #166534 50%, #15803d 100%)", color: "white", padding: "20px 32px", display: "flex", justifyContent: "space-between", alignItems: "center", boxShadow: "0 2px 12px rgba(0,0,0,0.15)" },
