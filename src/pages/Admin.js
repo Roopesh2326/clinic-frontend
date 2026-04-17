@@ -73,10 +73,19 @@ export default function Admin() {
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [timePeriod, setTimePeriod]             = useState("7d");
 
-  const [useForm, setuserForm] = useState({ name: "", email: "", phone: "", password: "", role: "user" });
+  const [useForm, setuserForm] = useState({ name: "", email: "", phone: "", password: "", role: "staff" });
   const [useFormOpen, setUserFormOpen] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [userFormLoading, setUserFormLoading] = useState(false);
+
+  const [activeTab, setActiveTab] = useState("dashboard");
+
+  const [notice, setNotice] = useState("");
+  const [noticeHours, setNoticeHours] = useState("");
+
+  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  
 
   // ─── AUTH CHECK ──────────────────────────────────────────────────────────
   useEffect(() => {
