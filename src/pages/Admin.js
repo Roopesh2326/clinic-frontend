@@ -113,7 +113,15 @@ export default function Admin() {
   const [userFormOpen, setUserFormOpen]     = useState(false);
   const [editingUser, setEditingUser]       = useState(null);
   const [userFormLoading, setUserFormLoading] = useState(false);
+  const [queueLoading, setQueueLoading]     = useState({});
 
+   // ─── KEEP-ALIVE: prevents Render 30s cold start ──────────────────────────
+  useEffect(() => {
+    const ping = () => fetch(`${BASE_URL}/ping`, { cache: "no-store" }).catch(() => {});
+    ping(); // ping immediately on admin load
+    const t = setInterval(ping, 8 * 60 * 1000); // every 8 min
+    return () => clearInterval(t);
+  }, []);
   // ─── AUTH CHECK ──────────────────────────────────────────────────────────
   useEffect(() => {
     try {
