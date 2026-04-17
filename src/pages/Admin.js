@@ -78,8 +78,6 @@ export default function Admin() {
   const [editingUser, setEditingUser] = useState(null);
   const [userFormLoading, setUserFormLoading] = useState(false);
 
-  const [activeTab, setActiveTab] = useState("dashboard");
-
   const [notice, setNotice] = useState("");
   const [noticeHours, setNoticeHours] = useState("");
 
