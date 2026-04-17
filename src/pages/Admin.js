@@ -78,13 +78,6 @@ export default function Admin() {
   const [editingUser, setEditingUser] = useState(null);
   const [userFormLoading, setUserFormLoading] = useState(false);
 
-  const [notice, setNotice] = useState("");
-  const [noticeHours, setNoticeHours] = useState("");
-
-  const [statusDialogOpen, setStatusDialogOpen] = useState(false);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  
-
   // ─── AUTH CHECK ──────────────────────────────────────────────────────────
   useEffect(() => {
     try {
