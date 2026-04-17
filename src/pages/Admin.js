@@ -113,7 +113,7 @@ export default function Admin() {
   const [userFormOpen, setUserFormOpen]     = useState(false);
   const [editingUser, setEditingUser]       = useState(null);
   const [userFormLoading, setUserFormLoading] = useState(false);
-  const [queueLoading, setQueueLoading]     = useState({});
+
 
    // ─── KEEP-ALIVE: prevents Render 30s cold start ──────────────────────────
   useEffect(() => {
