@@ -30,10 +30,10 @@ export default function Login() {
       localStorage.setItem("userId", userId || "");
 
       // ✅ Role-based redirect
-      if (normalizedRole === "admin")      navigate("/admin",      { replace: true });
-      else if (normalizedRole === "staff") navigate("/staff",      { replace: true });
-      else if (normalizedRole === "reception") navigate("/reception", { replace: true });
-      else                                 navigate("/dashboard",  { replace: true });
+      if (role === "admin")     navigate("/admin");
+      else if (role === "staff")     navigate("/staff");
+      else if (role === "reception") navigate("/reception");
+      else                           navigate("/dashboard");
 
     } catch (err) {
       setError(err?.response?.data?.message || "Invalid email or password");

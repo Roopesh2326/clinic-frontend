@@ -11,6 +11,9 @@ import Home from "./pages/Home";
 import Admin from "./pages/Admin";
 import UserDashboard from "./pages/UserDashboard";
 import Cart from "./pages/Cart";
+import StaffDashboard from "./pages/StaffDashboard";
+import ReceptionDesk from "./pages/ReceptionDesk";
+import QueueDisplay from "./pages/QueueDisplay";
 import Store from "./pages/Store";
 import MyOrders from "./pages/MyOrders";
 import NoticeBar from "./components/NoticeBar";
@@ -42,6 +45,9 @@ function App() {
           <Route path="/store" element={<Store />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/staff" element={<StaffDashboard />} />
+          <Route path="/reception" element={<ReceptionDesk />} />
+          <Route path="/queue-display" element={<QueueDisplayPage />} />
           <Route path="/my-orders" element={<MyOrders />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/appointment" element={<Appointment />} />

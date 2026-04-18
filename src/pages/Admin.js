@@ -114,14 +114,6 @@ export default function Admin() {
   const [editingUser, setEditingUser]       = useState(null);
   const [userFormLoading, setUserFormLoading] = useState(false);
 
-
-   // ─── KEEP-ALIVE: prevents Render 30s cold start ──────────────────────────
-  useEffect(() => {
-    const ping = () => fetch(`${BASE_URL}/ping`, { cache: "no-store" }).catch(() => {});
-    ping(); // ping immediately on admin load
-    const t = setInterval(ping, 8 * 60 * 1000); // every 8 min
-    return () => clearInterval(t);
-  }, []);
   // ─── AUTH CHECK ──────────────────────────────────────────────────────────
   useEffect(() => {
     try {
@@ -137,45 +129,95 @@ export default function Admin() {
     }
   }, [navigate]);
 
-  // ─── FETCH ALL DATA (polling every 15s) ──────────────────────────────────
+  // ─── KEEP-ALIVE: prevents Render 30s cold start ──────────────────────────
+  useEffect(() => {
+    const ping = () => fetch(`${BASE_URL}/ping`, { cache: "no-store" }).catch(() => {});
+    ping();
+    const t = setInterval(ping, 8 * 60 * 1000); // every 8 min
+    return () => clearInterval(t);
+  }, []);
+
+  // ─── FETCH ALL DATA — cache-first for instant paint, then parallel fetch ──
   useEffect(() => {
     if (!authChecked) return;
-    const fetchData = () => {
-      fetch(`${BASE_URL}/appointments`, { credentials: "include" })
-        .then((r) => (r.ok ? r.json() : []))
-        .then((p) => setAppointments(sanitizeObjectArray(p)))
-        .catch(() => setAppointments([]));
 
-      fetch(`${BASE_URL}/users`, { credentials: "include" })
-        .then((r) => (r.ok ? r.json() : []))
-        .then((p) => setUsers(sanitizeObjectArray(p)))
-        .catch(() => setUsers([]));
+    // Step 1: Paint immediately from localStorage cache (< 2 min old)
+    try {
+      const raw = localStorage.getItem("admin_cache");
+      if (raw) {
+        const { appointments: a, users: u, orders: o, medicines: m, lowStock: l, ts } = JSON.parse(raw);
+        if (Date.now() - ts < 120000) {
+          if (a) setAppointments(sanitizeObjectArray(a));
+          if (u) setUsers(sanitizeObjectArray(u));
+          if (o) { prevOrdersRef.current = sanitizeObjectArray(o); setOrders(sanitizeObjectArray(o)); }
+          if (m) setMedicines(sanitizeObjectArray(m));
+          if (l) setLowStockMeds(sanitizeObjectArray(l));
+        }
+      }
+    } catch { /* ignore cache errors */ }
 
-      axios.get(`${BASE_URL}/orders`, { withCredentials: true })
-        .then((res) => {
-          const fetched = sanitizeObjectArray(res.data);
+    // Step 2: All 5 requests fire simultaneously with Promise.allSettled
+    const fetchAll = async () => {
+      try {
+        const [aptsR, usersR, ordersR, medsR, lowR] = await Promise.allSettled([
+          fetch(`${BASE_URL}/appointments`,        { credentials: "include" }),
+          fetch(`${BASE_URL}/users`,               { credentials: "include" }),
+          fetch(`${BASE_URL}/orders`,              { credentials: "include" }),
+          fetch(`${BASE_URL}/medicines/all`,       { credentials: "include" }),
+          fetch(`${BASE_URL}/medicines/low-stock`, { credentials: "include" }),
+        ]);
+
+        let newApts, newUsers, newOrders, newMeds, newLow;
+
+        if (aptsR.status === "fulfilled" && aptsR.value.ok) {
+          newApts = sanitizeObjectArray(await aptsR.value.json());
+          setAppointments(newApts);
+        }
+        if (usersR.status === "fulfilled" && usersR.value.ok) {
+          newUsers = sanitizeObjectArray(await usersR.value.json());
+          setUsers(newUsers);
+        }
+        if (ordersR.status === "fulfilled" && ordersR.value.ok) {
+          const fetched = sanitizeObjectArray(await ordersR.value.json());
           if (prevOrdersRef.current.length > 0 && fetched.length > prevOrdersRef.current.length) {
             const diff = fetched.length - prevOrdersRef.current.length;
             setNewOrdersCount((prev) => prev + diff);
             setNotification({ open: true, message: `${diff} new order${diff > 1 ? "s" : ""} received!`, severity: "info" });
           }
           prevOrdersRef.current = fetched;
+          newOrders = fetched;
           setOrders(fetched);
-        })
-        .catch(() => setOrders([]));
+        }
+        if (medsR.status === "fulfilled" && medsR.value.ok) {
+          newMeds = sanitizeObjectArray(await medsR.value.json());
+          setMedicines(newMeds);
+        }
+        if (lowR.status === "fulfilled" && lowR.value.ok) {
+          newLow = sanitizeObjectArray(await lowR.value.json());
+          setLowStockMeds(newLow);
+        }
 
-      axios.get(`${BASE_URL}/medicines/all`, { withCredentials: true })
-        .then((res) => setMedicines(sanitizeObjectArray(res.data)))
-        .catch(() => setMedicines([]));
+        // Step 3: Update cache with fresh data
+        try {
+          localStorage.setItem("admin_cache", JSON.stringify({
+            appointments: newApts   || [],
+            users:        newUsers  || [],
+            orders:       newOrders || [],
+            medicines:    newMeds   || [],
+            lowStock:     newLow    || [],
+            ts: Date.now(),
+          }));
+        } catch { /* storage full — skip */ }
 
-      axios.get(`${BASE_URL}/medicines/low-stock`, { withCredentials: true })
-        .then((res) => setLowStockMeds(sanitizeObjectArray(res.data)))
-        .catch(() => setLowStockMeds([]));
+      } catch (err) {
+        console.error("[Admin] fetchAll error:", err);
+      }
     };
-    fetchData();
-    const interval = setInterval(fetchData, 15000);
+
+    fetchAll();
+    const interval = setInterval(fetchAll, 15000);
     return () => clearInterval(interval);
-  }, [authChecked]);
+  }, [authChecked]); // eslint-disable-line
 
   // ─── ANALYTICS ───────────────────────────────────────────────────────────
   const fetchAnalytics = () => {
@@ -484,7 +526,7 @@ export default function Admin() {
       `<tbody>${rows}</tbody></table>` +
       `<h3 style='text-align:right;'>Total: Rs.${order.total}</h3><hr/>` +
       `<p style='text-align:center;color:#888;font-size:12px;'>Thank you for choosing Digital Clinic!</p>` +
-      `<script>window.onload=function(){window.print();}</script></body></html>`
+      `<script>window.onload=function(){window.print();}<\/script></body></html>`
     );
     w.document.close();
   };
