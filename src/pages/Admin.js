@@ -54,6 +54,213 @@ const styles = {
   bannerBtn:  { marginLeft: "auto", padding: "6px 16px", background: "#92400e", color: "white", border: "none", borderRadius: "7px", cursor: "pointer", fontWeight: "600", fontSize: "13px" },
 };
 
+export function ActivityLogTab({ logs, total, page, loading, filter, setFilter, onPageChange, onRefresh }) {
+ 
+  const ACTION_LABELS = {
+    login:                      { label: "Login",              color: "#166534", bg: "#dcfce7", icon: "🔑" },
+    logout:                     { label: "Logout",             color: "#6b7280", bg: "#f3f4f6", icon: "🚪" },
+    order_created:              { label: "Order Created",      color: "#1e40af", bg: "#dbeafe", icon: "📦" },
+    order_status_changed:       { label: "Order Updated",      color: "#6d28d9", bg: "#ede9fe", icon: "🔄" },
+    walkin_order_created:       { label: "Walk-in Order",      color: "#b45309", bg: "#fef3c7", icon: "🏪" },
+    appointment_booked:         { label: "Appointment",        color: "#0891b2", bg: "#e0f2fe", icon: "📅" },
+    appointment_status_changed: { label: "Apt. Updated",       color: "#7c3aed", bg: "#faf5ff", icon: "✏️"  },
+    appointment_deleted:        { label: "Apt. Deleted",       color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
+    queue_next:                 { label: "Queue Next",         color: "#166534", bg: "#f0fdf4", icon: "➡️" },
+    queue_reset:                { label: "Queue Reset",        color: "#92400e", bg: "#fef3c7", icon: "🔁" },
+    medicine_added:             { label: "Medicine Added",     color: "#166534", bg: "#dcfce7", icon: "💊" },
+    medicine_updated:           { label: "Medicine Updated",   color: "#0891b2", bg: "#e0f2fe", icon: "✏️"  },
+    medicine_deleted:           { label: "Medicine Deleted",   color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
+    medicine_stock_updated:     { label: "Stock Updated",      color: "#b45309", bg: "#fef3c7", icon: "📊" },
+    user_created:               { label: "User Created",       color: "#166534", bg: "#dcfce7", icon: "👤" },
+    user_updated:               { label: "User Updated",       color: "#1e40af", bg: "#dbeafe", icon: "✏️"  },
+    user_deleted:               { label: "User Deleted",       color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
+    user_disabled:              { label: "User Disabled",      color: "#92400e", bg: "#fef3c7", icon: "🚫" },
+    user_enabled:               { label: "User Enabled",       color: "#166534", bg: "#dcfce7", icon: "✅" },
+    notice_published:           { label: "Notice Published",   color: "#7c3aed", bg: "#faf5ff", icon: "📢" },
+    notice_deleted:             { label: "Notice Deleted",     color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
+  };
+ 
+  const ROLE_COLORS = {
+    admin:     { bg: "#dbeafe", color: "#1e40af" },
+    staff:     { bg: "#dcfce7", color: "#166534" },
+    reception: { bg: "#faf5ff", color: "#6d28d9" },
+    user:      { bg: "#f9fafb", color: "#374151" },
+    patient:   { bg: "#f9fafb", color: "#374151" },
+    system:    { bg: "#f3f4f6", color: "#6b7280" },
+  };
+ 
+  const PAGES = Math.ceil(total / 50);
+ 
+  const timeStr = (iso) => {
+    if (!iso) return "-";
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) + " " +
+           d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
+  };
+ 
+  const ACTION_OPTIONS = [
+    ["", "All Actions"],
+    ["login", "Login"],
+    ["logout", "Logout"],
+    ["order_created", "Order Created"],
+    ["order_status_changed", "Order Updated"],
+    ["walkin_order_created", "Walk-in Order"],
+    ["appointment_booked", "Appointment Booked"],
+    ["appointment_status_changed", "Appointment Updated"],
+    ["queue_next", "Queue Next"],
+    ["queue_reset", "Queue Reset"],
+    ["medicine_added", "Medicine Added"],
+    ["medicine_updated", "Medicine Updated"],
+    ["medicine_deleted", "Medicine Deleted"],
+    ["medicine_stock_updated", "Stock Updated"],
+    ["user_created", "User Created"],
+    ["user_updated", "User Updated"],
+    ["user_deleted", "User Deleted"],
+    ["user_disabled", "User Disabled"],
+    ["user_enabled", "User Enabled"],
+    ["notice_published", "Notice Published"],
+  ];
+ 
+  return (
+    <div style={{ animation: "slideIn 0.3s ease" }}>
+ 
+      {/* Header + controls */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
+        <div>
+          <h3 style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: "700", color: "#111" }}>🕵️ Activity Log</h3>
+          <p style={{ margin: 0, fontSize: "13px", color: "#9ca3af" }}>
+            {total.toLocaleString()} total events recorded · Last 90 days
+          </p>
+        </div>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+          <select
+            value={filter}
+            onChange={(e) => setFilter(e.target.value)}
+            style={{ padding: "8px 12px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "13px", color: "#333", background: "white", cursor: "pointer", outline: "none" }}>
+            {ACTION_OPTIONS.map(([val, label]) => (
+              <option key={val} value={val}>{label}</option>
+            ))}
+          </select>
+          <button
+            onClick={onRefresh}
+            style={{ padding: "8px 18px", background: "#166534", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+            ↻ Refresh
+          </button>
+        </div>
+      </div>
+ 
+      {/* Table */}
+      <div style={{ background: "white", borderRadius: "14px", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", overflow: "hidden", marginBottom: "16px" }}>
+        {loading ? (
+          <div style={{ padding: "48px", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+            <div style={{ width: "28px", height: "28px", border: "3px solid #dcfce7", borderTop: "3px solid #166534", borderRadius: "50%", animation: "spin 0.8s linear infinite" }} />
+            <span style={{ color: "#9ca3af", fontSize: "14px" }}>Loading activity logs…</span>
+          </div>
+        ) : logs.length === 0 ? (
+          <div style={{ padding: "60px", textAlign: "center", color: "#9ca3af" }}>
+            <div style={{ fontSize: "40px", marginBottom: "12px" }}>📋</div>
+            <p style={{ fontSize: "14px" }}>No activity logs found</p>
+          </div>
+        ) : (
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
+                  {["Time", "Action", "User", "Role", "Description", "IP"].map((h) => (
+                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {logs.map((log, idx) => {
+                  const actionMeta = ACTION_LABELS[log.action] || { label: log.action, color: "#6b7280", bg: "#f3f4f6", icon: "📝" };
+                  const roleMeta   = ROLE_COLORS[log.userRole] || ROLE_COLORS.user;
+                  return (
+                    <tr key={log._id || idx}
+                      style={{ background: idx % 2 === 0 ? "white" : "#fafafa", borderBottom: "1px solid #f3f4f6" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "#f0fdf4"}
+                      onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? "white" : "#fafafa"}>
+ 
+                      {/* Time */}
+                      <td style={{ padding: "12px 14px", fontSize: "12px", color: "#9ca3af", whiteSpace: "nowrap" }}>
+                        {timeStr(log.createdAt)}
+                      </td>
+ 
+                      {/* Action badge */}
+                      <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: actionMeta.bg, color: actionMeta.color, padding: "3px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: "700" }}>
+                          {actionMeta.icon} {actionMeta.label}
+                        </span>
+                      </td>
+ 
+                      {/* User */}
+                      <td style={{ padding: "12px 14px" }}>
+                        <div style={{ fontWeight: "600", fontSize: "13px", color: "#111" }}>{log.userName || "—"}</div>
+                        <div style={{ fontSize: "11px", color: "#9ca3af" }}>{log.userEmail || ""}</div>
+                      </td>
+ 
+                      {/* Role */}
+                      <td style={{ padding: "12px 14px" }}>
+                        <span style={{ background: roleMeta.bg, color: roleMeta.color, padding: "2px 9px", borderRadius: "10px", fontSize: "11px", fontWeight: "600", textTransform: "capitalize" }}>
+                          {log.userRole || "—"}
+                        </span>
+                      </td>
+ 
+                      {/* Description */}
+                      <td style={{ padding: "12px 14px", fontSize: "13px", color: "#4b5563", maxWidth: "380px" }}>
+                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                          {log.description}
+                        </div>
+                      </td>
+ 
+                      {/* IP */}
+                      <td style={{ padding: "12px 14px", fontSize: "11px", color: "#9ca3af", fontFamily: "monospace" }}>
+                        {log.ip || "—"}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+ 
+      {/* Pagination */}
+      {PAGES > 1 && (
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 4px" }}>
+          <span style={{ fontSize: "13px", color: "#9ca3af" }}>
+            Page {page} of {PAGES} · {total.toLocaleString()} total records
+          </span>
+          <div style={{ display: "flex", gap: "6px" }}>
+            <button
+              onClick={() => onPageChange(page - 1)}
+              disabled={page <= 1}
+              style={{ padding: "7px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", background: page <= 1 ? "#f9fafb" : "white", color: page <= 1 ? "#d1d5db" : "#374151", cursor: page <= 1 ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600" }}>
+              ← Prev
+            </button>
+            {Array.from({ length: Math.min(5, PAGES) }, (_, i) => {
+              const p = Math.max(1, Math.min(page - 2, PAGES - 4)) + i;
+              return (
+                <button key={p} onClick={() => onPageChange(p)}
+                  style={{ padding: "7px 12px", border: `1px solid ${p === page ? "#166534" : "#e5e7eb"}`, borderRadius: "8px", background: p === page ? "#166534" : "white", color: p === page ? "white" : "#374151", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>
+                  {p}
+                </button>
+              );
+            })}
+            <button
+              onClick={() => onPageChange(page + 1)}
+              disabled={page >= PAGES}
+              style={{ padding: "7px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", background: page >= PAGES ? "#f9fafb" : "white", color: page >= PAGES ? "#d1d5db" : "#374151", cursor: page >= PAGES ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600" }}>
+              Next →
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Admin() {
   const navigate = useNavigate();
 
@@ -113,6 +320,14 @@ export default function Admin() {
   const [userFormOpen, setUserFormOpen]     = useState(false);
   const [editingUser, setEditingUser]       = useState(null);
   const [userFormLoading, setUserFormLoading] = useState(false);
+
+  //Activity log
+  const [activityLogs, setActivityLogs]         = useState([]);   
+  const [activityTotal, setActivityTotal]       = useState(0);
+  const [activityPage, setActivityPage]         = useState(1);
+  const [activityLoading, setActivityLoading]   = useState(false);
+  const [activityFilter, setActivityFilter]     = useState("");
+  const [activitySearch, setActivitySearch]     = useState("");
 
   // ─── AUTH CHECK ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -219,6 +434,11 @@ export default function Admin() {
     return () => clearInterval(interval);
   }, [authChecked]); // eslint-disable-line
 
+  useEffect(() => {
+     if (activeTab !== "activity" || !authChecked) return;
+     fetchActivityLogs(1, activityFilter);
+   }, [activeTab, authChecked, activityFilter]);
+
   // ─── ANALYTICS ───────────────────────────────────────────────────────────
   const fetchAnalytics = () => {
     setAnalyticsLoading(true);
@@ -264,6 +484,22 @@ export default function Admin() {
       setNotification({ open: true, message: "Failed to reset queue", severity: "error" });
     }
   };
+
+  const fetchActivityLogs = async (page = 1, action = "") => {
+     setActivityLoading(true);
+     try {
+       const params = new URLSearchParams({ page, limit: 50 });
+       if (action) params.set("action", action);
+       const res = await fetch(`${BASE_URL}/activity-logs?${params}`, { credentials: "include" });
+       if (res.ok) {
+         const data = await res.json();
+         setActivityLogs(data.logs || []);
+         setActivityTotal(data.total || 0);
+         setActivityPage(data.page || 1);
+       }
+     } catch { /* silent */ }
+     finally { setActivityLoading(false); }
+   };
 
   // ─── SOCKET.IO ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -698,6 +934,7 @@ export default function Admin() {
     { id: "inventory",    label: "💊 Inventory"    },
     { id: "users",        label: "👥 Users"        },
     { id: "notices",      label: "🔔 Notices"      },
+    { id: "activity",     label: "🕵️ Activity Log" },
   ];
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -1769,6 +2006,21 @@ export default function Admin() {
         )}
 
       </div>{/* end styles.content */}
+      {/* ════════════════════════════════════════════════════════════
+            ACTIVITY TAB
+        ════════════════════════════════════════════════════════════ */}
+      {activeTab === "activity" && (
+      <ActivityLogTab
+        logs={activityLogs}
+        total={activityTotal}
+        page={activityPage}
+        loading={activityLoading}
+        filter={activityFilter}
+        setFilter={setActivityFilter}
+        onPageChange={(p) => fetchActivityLogs(p, activityFilter)}
+        onRefresh={() => fetchActivityLogs(activityPage, activityFilter)}
+      />
+    )}
 
       {/* ════════════════════════════════════════════════════════════
           DIALOGS (outside content div, inside root div)
