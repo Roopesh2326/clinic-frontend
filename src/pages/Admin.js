@@ -382,7 +382,7 @@ export default function Admin() {
   const updateAptStatus = async (aptId, newStatus) => {
     try {
       await axios.patch(`${BASE_URL}/appointments/${aptId}/status`, { status: newStatus }, { withCredentials: true });
-      setAppointments((prev) => prev.map((a) => String(a.id) === String(aptId) ? { ...a, status: newStatus } : a));
+      setAppointments((prev) => prev.map((a) => String(a._id) === String(aptId) ? { ...a, status: newStatus } : a));
       setNotification({ open: true, message: "Appointment updated to " + newStatus, severity: "success" });
       setAptStatusDialogOpen(false);
       setSelectedApt(null);
@@ -1336,7 +1336,7 @@ export default function Admin() {
                     {filteredApts.map((apt, idx) => {
                       const sc = aptStatusColors[apt.status] || aptStatusColors.Pending;
                       return (
-                        <TableRow key={apt.id || idx} hover>
+                        <TableRow key={apt._id || idx} hover>
                           <TableCell>
                             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                               <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg,#166534,#4ade80)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "700", fontSize: "13px", flexShrink: 0 }}>
@@ -1823,7 +1823,7 @@ export default function Admin() {
         </DialogContent>
         <DialogActions style={{ padding: "16px" }}>
           <Button onClick={() => setAptStatusDialogOpen(false)} style={{ color: "#888" }}>Cancel</Button>
-          <Button onClick={() => updateAptStatus(selectedApt.id, selectedApt.status)} variant="contained" style={{ background: "#166534", color: "white" }}>Update Status</Button>
+          <Button onClick={() => updateAptStatus(selectedApt._id, selectedApt.status)} variant="contained" style={{ background: "#166534", color: "white" }}>Update Status</Button>
         </DialogActions>
       </Dialog>
 
