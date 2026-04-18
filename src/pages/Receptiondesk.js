@@ -89,17 +89,12 @@ const tc = {
 
 // ─── LIVE QUEUE PANEL ─────────────────────────────────────────────────────────
 function LiveQueue({ appointments }) {
-  const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-
-  const todayApts = appointments
-    .filter(a => {
-      const d = a.bookedAt ? new Date(a.bookedAt).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" }) : "";
-      return d === today && a.status !== "Cancelled";
-    })
-    .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
+  // /appointments/today already returns only today's non-cancelled data
+  // sorted by tokenNumber — no client-side date filter needed
+  const todayApts = appointments; // server pre-filters: tokenDate=today, status≠Cancelled
 
   const serving = todayApts.find(a => a.status === "Confirmed") || todayApts.find(a => a.status === "Pending");
-  const next5   = todayApts.filter(a => a !== serving && a.status === "Pending").slice(0, 5);
+  const next5   = todayApts.filter(a => a !== serving && (a.status === "Pending" || a.status === "Confirmed")).slice(0, 5);
   const total   = todayApts.length;
 
   return (
@@ -191,10 +186,11 @@ export default function ReceptionDesk() {
   const [appointments, setAppointments] = useState([]);
   const [loadingQueue, setLoadingQueue] = useState(true);
 
-  // Fetch appointments — public endpoint so no credentials needed
+  // Fetch today's queue — uses the public /appointments/today endpoint
+  // No auth cookie needed: only returns today's data with limited fields
   const fetchQueue = useCallback(async () => {
     try {
-      const res = await fetch(`${BASE_URL}/appointments`, { credentials: "include" });
+      const res = await fetch(`${BASE_URL}/appointments/today`);
       if (res.ok) {
         const data = await res.json();
         setAppointments(Array.isArray(data) ? data : []);
@@ -235,7 +231,6 @@ export default function ReceptionDesk() {
         time:    today.toTimeString().slice(0, 5),
         bookedAt: today.toISOString(),
         source:  "reception",
-        status: "Confirmed",
       };
 
       const res  = await fetch(`${BASE_URL}/appointment`, {

@@ -13,6 +13,7 @@ const STATUS_META = {
   Completed:          { bg: "#dcfce7", color: "#166534", dot: "#22c55e", label: "Completed"  },
   Cancelled:          { bg: "#fee2e2", color: "#991b1b", dot: "#ef4444", label: "Cancelled"  },
   Delivered:          { bg: "#dcfce7", color: "#166534", dot: "#22c55e", label: "Delivered"  },
+  Confirmed:          { bg: "#dbeafe", color: "#1e40af", dot: "#3b82f6", label: "Confirmed"  },
 };
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -34,7 +35,6 @@ function ConfirmModal({ order, nextStatus, onConfirm, onCancel, loading }) {
     ? (order.guestInfo?.name || "Walk-in")
     : (order.userId?.name || "Online customer");
   const meta = STATUS_META[nextStatus] || {};
-
   return (
     <div style={modal.overlay}>
       <div style={modal.box}>
@@ -46,10 +46,7 @@ function ConfirmModal({ order, nextStatus, onConfirm, onCancel, loading }) {
         </div>
         <div style={modal.row}>
           <button style={modal.cancel} onClick={onCancel}>Cancel</button>
-          <button
-            style={{ ...modal.confirm, opacity: loading ? 0.65 : 1, cursor: loading ? "not-allowed" : "pointer" }}
-            onClick={onConfirm}
-            disabled={loading}>
+          <button style={{ ...modal.confirm, opacity: loading ? 0.65 : 1, cursor: loading ? "not-allowed" : "pointer" }} onClick={onConfirm} disabled={loading}>
             {loading ? "Updating…" : "Yes, update"}
           </button>
         </div>
@@ -85,7 +82,6 @@ function OrderRow({ order, onAction, idx }) {
   const name   = order.orderType === "walk-in" ? (order.guestInfo?.name || "Walk-in") : (order.userId?.name || "Online");
   const items  = safeArray(order.items);
   const nextSt = NEXT_STATUS[order.status];
-
   return (
     <tr
       style={{ background: idx % 2 === 0 ? "white" : "#fafafa", transition: "background 0.12s" }}
@@ -123,8 +119,7 @@ function OrderRow({ order, onAction, idx }) {
       <td style={td}><StatusChip status={order.status} /></td>
       <td style={td}>
         {nextSt ? (
-          <button
-            onClick={() => onAction(order, nextSt)}
+          <button onClick={() => onAction(order, nextSt)}
             style={{ padding: "6px 14px", background: nextSt === "Completed" ? "#166534" : "#1e40af", color: "white", border: "none", borderRadius: "8px", fontWeight: "600", fontSize: "12px", cursor: "pointer", whiteSpace: "nowrap" }}>
             → {nextSt}
           </button>
@@ -145,7 +140,6 @@ function StatsBar({ orders }) {
   const approved       = orders.filter(o => o.status === "Approved").length;
   const completedToday = todayOrders.filter(o => o.status === "Completed" || o.status === "Delivered").length;
   const revenueToday   = todayOrders.reduce((s, o) => s + Number(o.total || 0), 0);
-
   return (
     <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "12px", marginBottom: "20px" }}>
       {[
@@ -172,10 +166,8 @@ function QueuePanel({ orders }) {
   const queue = orders
     .filter(o => o.tokenDate === today && o.status !== "Cancelled")
     .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
-
   const serving  = queue.find(o => o.status === "Approved") || queue.find(o => o.status === "Pending");
   const upcoming = queue.filter(o => o !== serving && o.status === "Pending").slice(0, 5);
-
   return (
     <div style={qp.wrap}>
       <div style={qp.header}>
@@ -185,7 +177,6 @@ function QueuePanel({ orders }) {
           <div style={qp.headerSub}>{queue.length} tokens issued</div>
         </div>
       </div>
-
       <div style={qp.nowWrap}>
         <div style={qp.nowLabel}>NOW SERVING</div>
         {serving ? (
@@ -198,7 +189,6 @@ function QueuePanel({ orders }) {
           <div style={{ color: "#9ca3af", fontSize: "13px", padding: "10px 0", textAlign: "center" }}>No active order</div>
         )}
       </div>
-
       {upcoming.length > 0 && (
         <div>
           <div style={qp.upLabel}>NEXT UP</div>
@@ -216,7 +206,6 @@ function QueuePanel({ orders }) {
           </div>
         </div>
       )}
-
       {queue.length === 0 && (
         <div style={{ textAlign: "center", padding: "24px", color: "#d1d5db" }}>
           <div style={{ fontSize: "28px" }}>🕐</div>
@@ -270,6 +259,7 @@ export default function StaffDashboard() {
 
   // ─── POS STATE ───────────────────────────────────────────────────────────
   const [medicines, setMedicines]               = useState([]);
+  const [medLoading, setMedLoading]             = useState(false); // ✅ NEW: loading state for medicines
   const [posCart, setPosCart]                   = useState([]);
   const [posCustomerName, setPosCustomerName]   = useState("");
   const [posCustomerPhone, setPosCustomerPhone] = useState("");
@@ -311,13 +301,27 @@ export default function StaffDashboard() {
   }, [fetchOrders]);
 
   // ─── FETCH MEDICINES ─────────────────────────────────────────────────────
+  // ✅ FIX: was calling res.json() twice — second call returned empty stream
   const fetchMedicines = useCallback(async () => {
+    setMedLoading(true);
     try {
       const res = await fetch(`${BASE_URL}/medicines/all`, { credentials: "include" });
-      if (res.ok) setMedicines(Array.isArray(await res.json()) ? await res.json() : []);
+      if (res.ok) {
+        const data = await res.json(); // ✅ call ONCE, store in variable
+        setMedicines(Array.isArray(data) ? data : []);
+      }
     } catch { /* silent */ }
+    finally { setMedLoading(false); }
   }, []);
 
+  // ✅ Fetch medicines when tab switches to POS (so it's always fresh)
+  useEffect(() => {
+    if (activeTab === "pos") {
+      fetchMedicines();
+    }
+  }, [activeTab, fetchMedicines]);
+
+  // Also fetch once on mount for background readiness
   useEffect(() => { fetchMedicines(); }, [fetchMedicines]);
 
   // ─── STATUS UPDATE ───────────────────────────────────────────────────────
@@ -412,8 +416,9 @@ export default function StaffDashboard() {
 
   const posTotal = posCart.reduce((sum, i) => sum + Number(i.price || 0) * (i.quantity || 1), 0);
 
+  // ✅ FIX: filter active medicines only — isActive check was inconsistent
   const posFilteredMedicines = medicines.filter(m => {
-    if (m.isActive === false) return false;
+    if (m.isActive === false) return false; // hide hidden medicines
     if (!posSearch.trim()) return true;
     return String(m.name || "").toLowerCase().includes(posSearch.toLowerCase());
   });
@@ -487,7 +492,7 @@ export default function StaffDashboard() {
       generateReceipt(data.order || data);
       setPosCart([]); setPosCustomerName(""); setPosCustomerPhone("");
       setPosPaymentMethod("cash"); setPosMatchedUser(null); setPosSearch("");
-      fetchMedicines();
+      fetchMedicines(); // ✅ refresh stock counts after sale
       fetchOrders(true);
     } catch (err) {
       showToast(err.message || "Failed to create order", false);
@@ -505,6 +510,7 @@ export default function StaffDashboard() {
       <style>{`
         @keyframes spin    { to { transform: rotate(360deg); } }
         @keyframes slideIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:.4; } }
         input:focus, select:focus { outline:none; border-color:#166534 !important; box-shadow:0 0 0 3px rgba(22,101,52,0.1); }
       `}</style>
 
@@ -548,9 +554,7 @@ export default function StaffDashboard() {
           { id: "orders", label: "📦 Orders" },
           { id: "pos",    label: "🏪 Walk-in POS" },
         ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id)}
+          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
             style={{ ...s.tab, ...(activeTab === tab.id ? s.tabActive : {}) }}>
             {tab.label}
             {tab.id === "pos" && posCart.length > 0 && (
@@ -570,7 +574,6 @@ export default function StaffDashboard() {
           <>
             <StatsBar orders={safeArray(orders)} />
             <div style={s.layout}>
-
               {/* Orders table */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={s.card}>
@@ -584,12 +587,7 @@ export default function StaffDashboard() {
                     <div style={s.controls}>
                       <div style={s.searchWrap}>
                         <span style={{ color: "#aaa", fontSize: "14px" }}>🔍</span>
-                        <input
-                          placeholder="Search name or token…"
-                          value={search}
-                          onChange={e => setSearch(e.target.value)}
-                          style={s.searchInput}
-                        />
+                        <input placeholder="Search name or token…" value={search} onChange={e => setSearch(e.target.value)} style={s.searchInput} />
                       </div>
                       <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={s.select}>
                         <option value="all">All Status</option>
@@ -615,13 +613,10 @@ export default function StaffDashboard() {
                     <div style={s.empty}>
                       <div style={{ fontSize: "40px" }}>📭</div>
                       <div style={{ color: "#888", marginTop: "8px" }}>
-                        {search || statusFilter !== "all" || typeFilter !== "all"
-                          ? "No orders match your filters"
-                          : "No orders found"}
+                        {search || statusFilter !== "all" || typeFilter !== "all" ? "No orders match your filters" : "No orders found"}
                       </div>
                       {(search || statusFilter !== "all" || typeFilter !== "all") && (
-                        <button
-                          onClick={() => { setSearch(""); setStatusFilter("all"); setTypeFilter("all"); }}
+                        <button onClick={() => { setSearch(""); setStatusFilter("all"); setTypeFilter("all"); }}
                           style={{ marginTop: "12px", padding: "6px 16px", background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", borderRadius: "8px", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>
                           Clear filters
                         </button>
@@ -665,9 +660,9 @@ export default function StaffDashboard() {
                     { icon: "✅", text: "Approve orders",         ok: true  },
                     { icon: "✅", text: "Complete orders",        ok: true  },
                     { icon: "✅", text: "Create walk-in orders",  ok: true  },
-                    { icon: "🚫", text: "Cannot cancel orders",  ok: false },
-                    { icon: "🚫", text: "Cannot edit medicines", ok: false },
-                    { icon: "🚫", text: "Cannot manage users",   ok: false },
+                    { icon: "🚫", text: "Cannot cancel orders",   ok: false },
+                    { icon: "🚫", text: "Cannot edit medicines",  ok: false },
+                    { icon: "🚫", text: "Cannot manage users",    ok: false },
                   ].map(({ icon, text, ok }) => (
                     <div key={text} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "5px 0", fontSize: "12px", color: ok ? "#166534" : "#9ca3af" }}>
                       <span>{icon}</span><span>{text}</span>
@@ -695,21 +690,11 @@ export default function StaffDashboard() {
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
                   <div>
                     <label style={s.fieldLabel}>Customer Name <span style={{ color: "#dc2626" }}>*</span></label>
-                    <input
-                      placeholder="Enter full name"
-                      value={posCustomerName}
-                      onChange={e => setPosCustomerName(e.target.value)}
-                      style={s.fieldInput}
-                    />
+                    <input placeholder="Enter full name" value={posCustomerName} onChange={e => setPosCustomerName(e.target.value)} style={s.fieldInput} />
                   </div>
                   <div>
                     <label style={s.fieldLabel}>Phone Number</label>
-                    <input
-                      placeholder="Phone to look up account"
-                      value={posCustomerPhone}
-                      onChange={e => handlePhoneChange(e.target.value)}
-                      style={s.fieldInput}
-                    />
+                    <input placeholder="Phone to look up account" value={posCustomerPhone} onChange={e => handlePhoneChange(e.target.value)} style={s.fieldInput} />
                     {posSearchingUser && <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "4px" }}>🔍 Looking up account…</p>}
                     {posMatchedUser && (
                       <div style={{ marginTop: "5px", padding: "6px 10px", background: "#dcfce7", borderRadius: "7px", fontSize: "12px", color: "#166534" }}>
@@ -729,15 +714,11 @@ export default function StaffDashboard() {
                   <label style={s.fieldLabel}>Payment Method</label>
                   <div style={{ display: "flex", gap: "8px" }}>
                     {[["cash","💵 Cash"],["upi","📱 UPI"],["card","💳 Card"]].map(([method, label]) => (
-                      <button
-                        key={method}
-                        onClick={() => setPosPaymentMethod(method)}
-                        style={{
-                          padding: "8px 16px", borderRadius: "8px", fontWeight: "600", fontSize: "13px", cursor: "pointer", transition: "all 0.15s",
+                      <button key={method} onClick={() => setPosPaymentMethod(method)}
+                        style={{ padding: "8px 16px", borderRadius: "8px", fontWeight: "600", fontSize: "13px", cursor: "pointer", transition: "all 0.15s",
                           border: `2px solid ${posPaymentMethod === method ? "#166534" : "#e5e7eb"}`,
                           background: posPaymentMethod === method ? "#166534" : "white",
-                          color: posPaymentMethod === method ? "white" : "#555",
-                        }}>
+                          color: posPaymentMethod === method ? "white" : "#555" }}>
                         {label}
                       </button>
                     ))}
@@ -749,12 +730,8 @@ export default function StaffDashboard() {
                   <label style={s.fieldLabel}>Search & Add Medicines</label>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "0 12px", height: "36px" }}>
                     <span style={{ color: "#aaa" }}>🔍</span>
-                    <input
-                      placeholder="Search medicine name…"
-                      value={posSearch}
-                      onChange={e => setPosSearch(e.target.value)}
-                      style={{ border: "none", background: "transparent", outline: "none", fontSize: "13px", color: "#111", width: "100%" }}
-                    />
+                    <input placeholder="Search medicine name…" value={posSearch} onChange={e => setPosSearch(e.target.value)}
+                      style={{ border: "none", background: "transparent", outline: "none", fontSize: "13px", color: "#111", width: "100%" }} />
                     {posSearch && (
                       <button onClick={() => setPosSearch("")} style={{ border: "none", background: "none", cursor: "pointer", color: "#aaa", fontSize: "14px" }}>✕</button>
                     )}
@@ -764,12 +741,28 @@ export default function StaffDashboard() {
 
               {/* Medicine grid */}
               <div style={{ padding: "0 18px 18px" }}>
-                {posFilteredMedicines.length === 0 ? (
+                {/* ✅ Show loading skeleton while medicines fetch */}
+                {medLoading ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(148px,1fr))", gap: "10px" }}>
+                    {[1,2,3,4,5,6].map(i => (
+                      <div key={i} style={{ border: "1px solid #e5e7eb", borderRadius: "10px", padding: "12px", background: "#f9fafb" }}>
+                        <div style={{ height: "60px", background: "#e5e7eb", borderRadius: "6px", marginBottom: "8px", animation: "pulse 1.5s ease-in-out infinite" }} />
+                        <div style={{ height: "13px", background: "#e5e7eb", borderRadius: "4px", marginBottom: "6px", width: "80%", animation: "pulse 1.5s ease-in-out infinite" }} />
+                        <div style={{ height: "13px", background: "#e5e7eb", borderRadius: "4px", width: "50%", animation: "pulse 1.5s ease-in-out infinite" }} />
+                      </div>
+                    ))}
+                  </div>
+                ) : posFilteredMedicines.length === 0 ? (
                   <div style={{ textAlign: "center", padding: "40px", color: "#9ca3af" }}>
                     <div style={{ fontSize: "32px" }}>💊</div>
                     <div style={{ fontSize: "13px", marginTop: "8px" }}>
-                      {posSearch ? "No medicines match your search" : "No medicines available"}
+                      {posSearch ? "No medicines match your search" : "No active medicines found"}
                     </div>
+                    {!posSearch && (
+                      <button onClick={fetchMedicines} style={{ marginTop: "10px", padding: "6px 16px", background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", borderRadius: "8px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>
+                        ⟳ Retry
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(148px,1fr))", gap: "10px", maxHeight: "420px", overflowY: "auto" }}>
@@ -777,17 +770,11 @@ export default function StaffDashboard() {
                       const inCart = posCart.find(i => i._id === m._id);
                       const oos    = m.stock <= 0;
                       return (
-                        <div
-                          key={m._id}
-                          onClick={() => !oos && posAddToCart(m)}
-                          style={{
-                            border: inCart ? "2px solid #166534" : "1px solid #e5e7eb",
-                            borderRadius: "10px", padding: "12px",
+                        <div key={m._id} onClick={() => !oos && posAddToCart(m)}
+                          style={{ border: inCart ? "2px solid #166534" : "1px solid #e5e7eb", borderRadius: "10px", padding: "12px",
                             cursor: oos ? "not-allowed" : "pointer",
                             background: oos ? "#f9fafb" : inCart ? "#f0fdf4" : "white",
-                            opacity: oos ? 0.5 : 1,
-                            position: "relative", transition: "all 0.15s",
-                          }}>
+                            opacity: oos ? 0.5 : 1, position: "relative", transition: "all 0.15s" }}>
                           {inCart && (
                             <div style={{ position: "absolute", top: "7px", right: "7px", background: "#166534", color: "white", borderRadius: "50%", width: "20px", height: "20px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "700" }}>
                               {inCart.quantity}
@@ -859,17 +846,8 @@ export default function StaffDashboard() {
                         </div>
                       )}
 
-                      <button
-                        onClick={posPlaceOrder}
-                        disabled={posPlacing}
-                        style={{
-                          width: "100%", padding: "13px",
-                          background: posPlacing ? "#9ca3af" : "#166534",
-                          color: "white", border: "none", borderRadius: "10px",
-                          fontWeight: "700", fontSize: "14px",
-                          cursor: posPlacing ? "not-allowed" : "pointer",
-                          transition: "background 0.15s",
-                        }}>
+                      <button onClick={posPlaceOrder} disabled={posPlacing}
+                        style={{ width: "100%", padding: "13px", background: posPlacing ? "#9ca3af" : "#166534", color: "white", border: "none", borderRadius: "10px", fontWeight: "700", fontSize: "14px", cursor: posPlacing ? "not-allowed" : "pointer", transition: "background 0.15s" }}>
                         {posPlacing ? "⏳ Creating order…" : "✅ Complete Sale & Print Receipt"}
                       </button>
                     </>
