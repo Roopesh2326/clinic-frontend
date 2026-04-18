@@ -462,7 +462,7 @@ export default function UserDashboard() {
                   </div>
                 ) : (
                   appointments.map((apt, idx) => {
-                    const m = getStatus(apt.status);
+                    // const m = getStatus(apt.status);
                     return (
                       <div key={apt._id || idx} className="order-card" style={{ background: "white", borderRadius: "16px", padding: "20px", marginBottom: "12px", border: "1.5px solid #e8edf2", transition: "all 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
@@ -635,7 +635,7 @@ export default function UserDashboard() {
                 </div>
                 {(() => {
                   const apt = upcomingApts[0] || appointments[0];
-                  const m = getStatus(apt.status);
+                  // const m = getStatus(apt.status);
                   return (
                     <div style={{ background: "#f8fafc", borderRadius: "12px", padding: "14px" }}>
                       <div style={{ fontSize: "14px", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>{apt.date}</div>
