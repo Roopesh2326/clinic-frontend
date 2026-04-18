@@ -327,7 +327,7 @@ export default function Admin() {
   const [activityPage, setActivityPage]         = useState(1);
   const [activityLoading, setActivityLoading]   = useState(false);
   const [activityFilter, setActivityFilter]     = useState("");
-  const [activitySearch, setActivitySearch]     = useState("");
+  // const [activitySearch, setActivitySearch]     = useState("");
 
   // ─── AUTH CHECK ──────────────────────────────────────────────────────────
   useEffect(() => {
