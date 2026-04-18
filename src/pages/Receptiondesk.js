@@ -235,6 +235,7 @@ export default function ReceptionDesk() {
         time:    today.toTimeString().slice(0, 5),
         bookedAt: today.toISOString(),
         source:  "reception",
+        status: "Confirmed",
       };
 
       const res  = await fetch(`${BASE_URL}/appointment`, {

@@ -29,11 +29,11 @@ export default function Login() {
       localStorage.setItem("phone",  phone || "");
       localStorage.setItem("userId", userId || "");
 
-      // ✅ Role-based redirect
-      if (role === "admin")     navigate("/admin");
-      else if (role === "staff")     navigate("/staff");
-      else if (role === "reception") navigate("/reception");
-      else                           navigate("/dashboard");
+      // ✅ Role-based redirect (using normalizedRole — fixes casing bugs)
+      if (normalizedRole === "admin")          navigate("/admin");
+      else if (normalizedRole === "staff")     navigate("/staff");
+      else if (normalizedRole === "reception") navigate("/reception");
+      else                                     navigate("/dashboard");
 
     } catch (err) {
       setError(err?.response?.data?.message || "Invalid email or password");
@@ -103,22 +103,6 @@ export default function Login() {
             Forgot password?
           </Link>
         </div>
-
-        {/* ROLE HINT */}
-        <div style={s.hint}>
-          <div style={s.hintTitle}>Access levels</div>
-          <div style={{ display: "flex", justifyContent: "center", gap: "16px", flexWrap: "wrap" }}>
-            {[["🔑","Admin","Full access"],["🏥","Staff","Orders & queue"],["🖥️","Reception","Token desk"]].map(([icon, role, desc]) => (
-              <div key={role} style={s.hintItem}>
-                <span>{icon}</span>
-                <div>
-                  <div style={{ fontWeight: "700", fontSize: "12px", color: "#374151" }}>{role}</div>
-                  <div style={{ fontSize: "11px", color: "#9ca3af" }}>{desc}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
       </div>
 
       <style>{`
@@ -143,7 +127,4 @@ const s = {
   btn:      { padding: "14px", background: "#166534", color: "white", border: "none", borderRadius: "12px", fontSize: "16px", fontWeight: "700", transition: "background 0.15s" },
   spinner:  { width: "18px", height: "18px", border: "2px solid rgba(255,255,255,0.4)", borderTop: "2px solid white", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" },
   errorBox: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "12px 16px", color: "#dc2626", fontSize: "14px", fontWeight: "500" },
-  hint:     { marginTop: "28px", paddingTop: "20px", borderTop: "1px solid #f3f4f6" },
-  hintTitle:{ fontSize: "11px", fontWeight: "700", color: "#d1d5db", textAlign: "center", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: "12px" },
-  hintItem: { display: "flex", alignItems: "center", gap: "6px", fontSize: "12px" },
 };
