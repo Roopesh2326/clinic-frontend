@@ -47,7 +47,7 @@ function App() {
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/staff" element={<Staffdashboard />} />
           <Route path="/reception" element={<Receptiondesk />} />
-          <Route path="/queue-display" element={<QueueDisplayPage />} />
+          <Route path="/queue-display" element={<QueueDisplay />} />
           <Route path="/my-orders" element={<MyOrders />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/appointment" element={<Appointment />} />
