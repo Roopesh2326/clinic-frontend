@@ -11,7 +11,7 @@ import Home from "./pages/Home";
 import Admin from "./pages/Admin";
 import UserDashboard from "./pages/UserDashboard";
 import Cart from "./pages/Cart";
-import StaffDashboard from "./pages/StaffDashboard";
+import Staffdashboard from "./pages/Staffdashboard";
 import ReceptionDesk from "./pages/ReceptionDesk";
 import QueueDisplay from "./pages/QueueDisplay";
 import Store from "./pages/Store";
@@ -45,7 +45,7 @@ function App() {
           <Route path="/store" element={<Store />} />
           <Route path="/admin" element={<Admin />} />
           <Route path="/dashboard" element={<UserDashboard />} />
-          <Route path="/staff" element={<StaffDashboard />} />
+          <Route path="/staff" element={<Staffdashboard />} />
           <Route path="/reception" element={<ReceptionDesk />} />
           <Route path="/queue-display" element={<QueueDisplayPage />} />
           <Route path="/my-orders" element={<MyOrders />} />
