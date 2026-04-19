@@ -80,8 +80,8 @@ function Hero({ onBook }) {
 }
 
 // ─── MAIN HOME COMPONENT ──────────────────────────────────────────────────────
-export default function Home() {
-  const [dbData, setDbData] = useState(null);
+// export default function Home() {
+//   const [dbData, setDbData] = useState(null);
 
   // MERN BACKEND INTEGRATION PLACEHOLDER
   useEffect(() => {
@@ -142,7 +142,7 @@ export default function Home() {
       </div>
     </>
   );
-}
+
 
 // ─── HELPER COMPONENTS ────────────────────────────────────────────────────────
 const Stat = ({ val, lab }) => (
