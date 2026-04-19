@@ -290,6 +290,7 @@ export default function Admin() {
   const [medForm, setMedForm] = useState({
     name: "", desc: "", price: "", category: "",
     img: "", stock: "100", lowStockThreshold: "10", unit: "units",
+    supplier: "", expiryDate: "", entryDate: "",
   });
   const [imgPreview, setImgPreview]           = useState("");
   const [editingMed, setEditingMed]           = useState(null);
@@ -647,7 +648,7 @@ export default function Admin() {
         stock: Number(medForm.stock), lowStockThreshold: Number(medForm.lowStockThreshold),
       }, { withCredentials: true });
       setNotification({ open: true, message: "Medicine added!", severity: "success" });
-      setMedForm({ name: "", desc: "", price: "", category: "", img: "", stock: "100", lowStockThreshold: "10", unit: "units" });
+      setMedForm({ name: "", desc: "", price: "", category: "", img: "", stock: "100", lowStockThreshold: "10", unit: "units", supplier: "", expiryDate: "", entryDate: "" });
       setImgPreview("");
       axios.get(`${BASE_URL}/medicines/all`, { withCredentials: true }).then((r) => setMedicines(sanitizeObjectArray(r.data))).catch(() => {});
     } catch (err) {
@@ -664,6 +665,8 @@ export default function Admin() {
         category: editingMed.category, stock: Number(editingMed.stock),
         lowStockThreshold: Number(editingMed.lowStockThreshold),
         unit: editingMed.unit, isActive: editingMed.isActive,
+        supplier: editingMed.supplier || "", expiryDate: editingMed.expiryDate || "", 
+        entryDate: editingMed.entryDate || "",
       }, { withCredentials: true });
       setNotification({ open: true, message: "Medicine updated!", severity: "success" });
       setMedEditOpen(false); setEditingMed(null);
@@ -1804,6 +1807,9 @@ export default function Admin() {
                     {["units","bottles","strips","boxes","sachets","vials"].map((u) => <option key={u} value={u}>{u.charAt(0).toUpperCase()+u.slice(1)}</option>)}
                   </select>
                 </div>
+                <div><label style={styles.fieldLabel}>Supplier</label><input placeholder="e.g. Sun Pharma, Cipla" value={medForm.supplier} onChange={(e) => setMedForm({ ...medForm, supplier: e.target.value })} style={styles.inputField} /></div>
+                <div><label style={styles.fieldLabel}>Expiry Date</label><input type="date" value={medForm.expiryDate} onChange={(e) => setMedForm({ ...medForm, expiryDate: e.target.value })} style={styles.inputField} /></div>
+                <div><label style={styles.fieldLabel}>Entry / Purchase Date</label><input type="date" value={medForm.entryDate} onChange={(e) => setMedForm({ ...medForm, entryDate: e.target.value })} style={styles.inputField} /></div>
                 <div style={{ gridColumn: "span 2" }}><label style={styles.fieldLabel}>Description</label><input placeholder="Brief description" value={medForm.desc} onChange={(e) => setMedForm({ ...medForm, desc: e.target.value })} style={styles.inputField} /></div>
                 <div>
                   <label style={styles.fieldLabel}>Image</label>
@@ -1821,7 +1827,7 @@ export default function Admin() {
                 <Table>
                   <TableHead style={{ background: "#f9fafb" }}>
                     <TableRow>
-                      {["Medicine","Category","Price","Stock","Status","Visibility","Actions"].map((h) => (
+                      {["Medicine","Category","Price","Stock", "Supplier","Expiry","Status","Visibility","Actions"].map((h) => (
                         <TableCell key={h}><strong style={{ fontSize: "12px", color: "#374151" }}>{h}</strong></TableCell>
                       ))}
                     </TableRow>
@@ -1845,6 +1851,19 @@ export default function Admin() {
                           <TableCell>
                             <div style={{ fontWeight: "700", fontSize: "15px", color: ss.color }}>{med.stock}</div>
                             <div style={{ fontSize: "11px", color: "#9ca3af" }}>{med.unit || "units"}</div>
+                          </TableCell>
+                          <TableCell style={{ fontSize: "13px", color: "#555" }}>{med.supplier || <span style={{ color: "#d1d5db" }}>—</span>}</TableCell>
+                          <TableCell>
+                            {med.expiryDate ? (
+                              <span style={{
+                                fontSize: "12px", fontWeight: "600", padding: "2px 8px", borderRadius: "6px",
+                                background: new Date(med.expiryDate) < new Date() ? "#fee2e2" : new Date(med.expiryDate) < new Date(Date.now() + 60*24*60*60*1000) ? "#fef3c7" : "#f0fdf4",
+                                color: new Date(med.expiryDate) < new Date() ? "#991b1b" : new Date(med.expiryDate) < new Date(Date.now() + 60*24*60*60*1000) ? "#92400e" : "#166534",
+                              }}>
+                                {new Date(med.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
+                                {new Date(med.expiryDate) < new Date() ? " ⚠️" : ""}
+                              </span>
+                            ) : <span style={{ color: "#d1d5db", fontSize: "13px" }}>—</span>}
                           </TableCell>
                           <TableCell><Chip label={ss.label} size="small" style={{ background: ss.bg, color: ss.color, fontWeight: "600", fontSize: "11px" }} /></TableCell>
                           <TableCell><Chip label={med.isActive ? "Visible" : "Hidden"} size="small" style={{ background: med.isActive ? "#dcfce7" : "#f3f4f6", color: med.isActive ? "#166534" : "#888", fontWeight: "600", fontSize: "11px" }} /></TableCell>
@@ -2097,6 +2116,9 @@ export default function Admin() {
                   {["units","bottles","strips","boxes","sachets","vials"].map((u) => <MenuItem key={u} value={u}>{u.charAt(0).toUpperCase() + u.slice(1)}</MenuItem>)}
                 </Select>
               </FormControl>
+              <TextField label="Supplier" placeholder="e.g. Sun Pharma, Cipla" value={editingMed.supplier || ""} onChange={(e) => setEditingMed({ ...editingMed, supplier: e.target.value })} fullWidth size="small" />
+              <TextField label="Expiry Date" type="date" value={editingMed.expiryDate || ""} onChange={(e) => setEditingMed({ ...editingMed, expiryDate: e.target.value })} fullWidth size="small" InputLabelProps={{ shrink: true }} />
+              <TextField label="Entry / Purchase Date" type="date" value={editingMed.entryDate || ""} onChange={(e) => setEditingMed({ ...editingMed, entryDate: e.target.value })} fullWidth size="small" InputLabelProps={{ shrink: true }} />
             </Box>
           )}
         </DialogContent>
