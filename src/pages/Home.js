@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 // Assuming hero.jpeg exists in your assets folder based on your Hero.js
-import heroBg from "../assets/hero.jpeg"; 
+// import heroBg from "../assets/hero.jpeg"; 
 
 // ─── DESIGN TOKENS (Matches your branding) ──────────────────────────────────
 const C = {
