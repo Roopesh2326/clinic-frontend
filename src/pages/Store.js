@@ -53,11 +53,11 @@ export default function Store() {
     setTimeout(() => setAddedId(null), 1400);
   };
 
-  const removeFromCart = (id) => {
-    const updated = cart.filter(i => i._id !== id);
-    setCart(updated);
-    safeWriteArray("cart", updated);
-  };
+  // const removeFromCart = (id) => {
+  //   const updated = cart.filter(i => i._id !== id);
+  //   setCart(updated);
+  //   safeWriteArray("cart", updated);
+  // };
 
   const updateQty = (id, delta) => {
     const updated = cart.map(i => {
