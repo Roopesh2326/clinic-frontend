@@ -361,66 +361,69 @@ export default function Navbar() {
               {link.label}
             </a>
           ))}
-
-            <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
-              {isLoggedIn ? (
-                <a href={dashboardRoute} style={{
-                  flex:           1,
-                  textAlign:      "center",
-                  fontFamily:     "'Plus Jakarta Sans', sans-serif",
-                  fontSize:       "14px",
-                  fontWeight:     "600",
-                  color:          T.g1,
-                  background:     T.g4,
-                  padding:        "12px",
-                  borderRadius:   "10px",
-                  textDecoration: "none",
-                }}>Dashboard →</a>
-              ) : (
-                <>
+          <div style={{ display: "flex", flexDirection: "column", gap: "10px", marginTop: "20px" }}>
+            {isLoggedIn ? (
+              <a href={dashboardRoute} style={{
+                textAlign: "center",
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontSize: "15px", fontWeight: "600",
+                color: T.g1, background: T.g4,
+                padding: "14px", borderRadius: "10px",
+                textDecoration: "none",
+              }}>Dashboard →</a>
+            ) : (
+              <>
+                {/* Sign In + Sign Up side by side */}
+                <div style={{ display: "flex", gap: "10px" }}>
                   <a href="/login" style={{
-                    flex:           1,
-                    textAlign:      "center",
-                    fontFamily:     "'Plus Jakarta Sans', sans-serif",
-                    fontSize:       "14px",
-                    fontWeight:     "500",
-                    color:          T.wh,
-                    border:         "1px solid rgba(255,255,255,0.25)",
-                    padding:        "12px",
-                    borderRadius:   "10px",
+                    flex: 1, textAlign: "center",
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontSize: "14px", fontWeight: "600",
+                    color: T.wh,
+                    border: "1.5px solid rgba(255,255,255,0.35)",
+                    padding: "13px", borderRadius: "10px",
                     textDecoration: "none",
-                  }}>Sign In</a>
+                    transition: "background .2s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    Sign In
+                  </a>
 
-                  <a href="/signup" styles={{
-                    flex:            1,
-                    textAlign:       "center",
-                    fontFamily:      "' Plus Jakarta Sans', sans-seriff",
-                    fontSize:        "13px",
-                    fontWeight:      "500",
-                    border:          "1px solid rgba(255,255,255,0.25)",
-                    padding:         "12px",
-                    bborderRadius:   "10px",
-                    textDecoration:  "none",
-                  }}>Sign Up</a>
-
-                  <a href="/appointment" style={{
-                    flex:           1,
-                    textAlign:      "center",
-                    fontFamily:     "'Plus Jakarta Sans', sans-serif",
-                    fontSize:       "14px",
-                    fontWeight:     "600",
-                    color:          T.g1,
-                    background:     T.g4,
-                    padding:        "12px",
-                    borderRadius:   "10px",
+                  <a href="/signup" style={{
+                    flex: 1, textAlign: "center",
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontSize: "14px", fontWeight: "600",
+                    color: T.wh,
+                    border: "1.5px solid rgba(255,255,255,0.35)",
+                    padding: "13px", borderRadius: "10px",
                     textDecoration: "none",
-                  }}>Book Now</a>
-                </>
-              )}
-            </div>
+                    transition: "background .2s",
+                  }}
+                  onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.1)"}
+                  onMouseLeave={e => e.currentTarget.style.background = "transparent"}>
+                    Sign Up
+                  </a>
+                </div>
+
+                {/* Book Now full width below */}
+                <a href="/appointment" style={{
+                  display: "block", textAlign: "center",
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontSize: "15px", fontWeight: "700",
+                  color: T.g1, background: T.g4,
+                  padding: "14px", borderRadius: "10px",
+                  textDecoration: "none",
+                  boxShadow: `0 4px 14px ${T.g4}50`,
+                }}>
+                  📅 Book Appointment
+                </a>
+              </>
+            )}
           </div>
-        )}
-      </nav>
-    </>
-  );
-}
+                    </div>
+                  )}
+                </nav>
+              </>
+            );
+          }
