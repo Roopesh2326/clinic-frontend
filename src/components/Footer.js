@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const T = {
   g1:  "#0b3d1f",
@@ -10,7 +10,7 @@ const T = {
 };
 
 export default function Footer() {
-  const location = useLocation();
+
 
   const scrollTo = (e, href) => {
     if (href.startsWith("#")) {
