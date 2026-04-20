@@ -6,10 +6,10 @@ import {
   TableHead, TableRow, Paper, Select, MenuItem, FormControl,
   InputLabel, Alert, Dialog, DialogTitle, DialogContent,
   DialogActions, IconButton, Tooltip, Snackbar, Box, Button,
-  Badge, TextField, InputAdornment
+   TextField, InputAdornment
 } from "@mui/material";
 import {
-  Edit, Search, NotificationsActive, TrendingUp, People,
+  Edit, Search, TrendingUp, People,
   ShoppingCart, AttachMoney, Inventory
 } from "@mui/icons-material";
 import {
@@ -682,7 +682,7 @@ export default function Admin() {
       `<tbody>${rows}</tbody></table>` +
       `<h3 style='text-align:right;'>Total: Rs.${order.total}</h3><hr/>` +
       `<p style='text-align:center;color:#888;font-size:12px;'>Thank you for choosing Digital Clinic!</p>` +
-      `<script>window.onload=function(){window.print();}<\/script></body></html>`
+      `<script>window.onload=function(){window.print();}</script></body></html>`
     );
     w.document.close();
   };
