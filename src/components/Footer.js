@@ -1,143 +1,171 @@
-import React from "react";
-import { Box, Container, Grid, Typography, Link } from "@mui/material";
+import { useLocation } from "react-router-dom";
+
+const T = {
+  g1:  "#0b3d1f",
+  g2:  "#155231",
+  g4:  "#22c55e",
+  g5:  "#dcfce7",
+  gol: "#b8955a",
+  wh:  "#ffffff",
+};
 
 export default function Footer() {
+  const location = useLocation();
+
+  const scrollTo = (e, href) => {
+    if (href.startsWith("#")) {
+      e.preventDefault();
+      document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
+    }
+  };
+
   return (
-    <footer style={styles.footer}>
-      <Container maxWidth="lg" style={styles.containerInner}>
-        <Grid container spacing={4} style={styles.gridSection}>
+    <footer id="contact" style={{ background: T.g1, padding: "64px 32px 32px" }}>
+      <div style={{ maxWidth: "1100px", margin: "0 auto" }}>
 
-          {/* ABOUT US */}
-          <Grid item xs={12} md={6}>
-            <Typography variant="h6" style={styles.sectionTitle}>
-              📋 About Us
-            </Typography>
-            <Typography variant="body2" style={styles.text}>
-              Dr. Loknath Clinic is dedicated to providing holistic homeopathic healthcare with natural remedies. We believe in treating the root cause rather than just symptoms.
-            </Typography>
-            <Typography variant="body2" style={styles.text}>
-              <strong>Mission:</strong> Healing with nature, caring with compassion.
-            </Typography>
-          </Grid>
+        {/* ── TOP ROW ── */}
+        <div style={{
+          display: "flex", gap: "48px", flexWrap: "wrap",
+          paddingBottom: "48px",
+          borderBottom: "1px solid rgba(255,255,255,.1)",
+          marginBottom: "32px",
+        }} className="footer-grid">
 
-          {/* CONTACT + QUICK LINKS SIDE BY SIDE */}
-          <Grid item xs={12} md={6}>
-            <Box style={styles.contactQuickWrapper}>
+          {/* Brand */}
+          <div style={{ flex: "0 0 260px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "16px" }}>
+              <div style={{
+                width: "40px", height: "40px", borderRadius: "12px",
+                background: `linear-gradient(135deg, ${T.g4}, ${T.g2})`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                fontSize: "20px",
+              }}>🌿</div>
+              <div>
+                <div style={{
+                  fontFamily: "'Cormorant Garamond', serif",
+                  fontSize: "18px", fontWeight: "700", color: T.wh,
+                }}>Dr. Somnath Clinic</div>
+                <div style={{
+                  fontSize: "10px", color: `${T.g4}99`,
+                  fontWeight: "600", letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                }}>Homeopathy · Est. 2003</div>
+              </div>
+            </div>
+            <p style={{
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontSize: "14px", lineHeight: "1.75",
+              color: "rgba(255,255,255,.5)", margin: 0,
+            }}>
+              Natural, effective healing for chronic conditions.
+              Personalized care with 20+ years of expertise.
+            </p>
+          </div>
 
-              {/* CONTACT */}
-              <Box style={styles.contactColumn}>
-                <Typography variant="h6" style={styles.sectionTitle}>
-                  📞 Contact Us
-                </Typography>
-                <Typography style={styles.text}>📍 Delhi, India</Typography>
-                <Typography style={styles.text}>📱 +91 9752-44-4444</Typography>
-                <Typography style={styles.text}>✉️ info@clinic.com</Typography>
-                <Typography style={styles.text}>🕐 10 AM - 6 PM, Mon-Sat</Typography>
-              </Box>
+          {/* Quick Links */}
+          <div style={{ flex: 1, minWidth: "140px" }}>
+            <div style={{
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontSize: "11px", fontWeight: "700",
+              letterSpacing: "0.1em", textTransform: "uppercase",
+              color: T.gol, marginBottom: "18px",
+            }}>Quick Links</div>
+            {[
+              { label: "Home",           href: "/"               },
+              { label: "Appointments",   href: "/appointment"    },
+              { label: "Medicine Store", href: "/store"          },
+              { label: "Login",          href: "/login"          },
+              { label: "Queue Display",  href: "/queue-display"  },
+            ].map(link => (
+                <a // Added the missing opening tag
+                key={link.label}
+                href={link.href}
+                onClick={(e) => scrollTo(e, link.href)}
+                style={{
+                  display: "block",
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontSize: "14px",
+                  color: "rgba(255,255,255,.55)",
+                  textDecoration: "none",
+                  marginBottom: "10px",
+                  transition: "color .2s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = T.wh}
+                onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,.55)"}
+              >
+                {link.label}
+              </a>
+            ))}
+          </div>
 
-              {/* QUICK LINKS */}
-              <Box style={styles.quickLinksWrapper}>
-                <Typography style={styles.quickLinksTitle}>
-                  Quick Links
-                </Typography>
+          {/* Contact */}
+          <div style={{ flex: 1, minWidth: "200px" }}>
+            <div style={{
+              fontFamily: "'Plus Jakarta Sans', sans-serif",
+              fontSize: "11px", fontWeight: "700",
+              letterSpacing: "0.1em", textTransform: "uppercase",
+              color: T.gol, marginBottom: "18px",
+            }}>Contact</div>
+            {[
+              { icon: "📞", label: "+91 97524 40622", href: "tel:+919752440622" },
+              { icon: "📍", label: "Thane, Maharashtra", href: "#"             },
+              { icon: "🕐", label: "Mon–Sat · 9 AM – 6 PM", href: "#"          },
+            ].map((c, i) => (
+                <a // Added the missing opening tag
+                key={i}
+                href={c.href}
+                style={{
+                  display: "flex", gap: "10px", alignItems: "flex-start",
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontSize: "14px", color: "rgba(255,255,255,.55)",
+                  textDecoration: "none", marginBottom: "12px",
+                  transition: "color .2s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = T.wh}
+                onMouseLeave={e => e.currentTarget.style.color = "rgba(255,255,255,.55)"}
+              >
+                <span style={{ fontSize: "16px" }}>{c.icon}</span>
+                <span>{c.label}</span>
+              </a>
+            ))}
+          </div>
+        </div>
 
-                <ul style={styles.list}>
-                  <li><Link href="/store" style={styles.link}>Store</Link></li>
-                  <li><Link href="/remedies" style={styles.link}>Remedies</Link></li>
-                  <li><Link href="/treatments" style={styles.link}>Treatments</Link></li>
-                  <li><Link href="/appointment" style={styles.link}>Book Appointment</Link></li>
-                  <li><Link href="/health-tips" style={styles.link}>Health Tips</Link></li>
-                </ul>
-              </Box>
+        {/* ── BOTTOM ROW ── */}
+        <div style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "12px",
+        }}>
+          <div style={{
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+            fontSize: "13px", color: "rgba(255,255,255,.3)",
+          }}>
+            © 2025 Dr. Somnath Clinic. All rights reserved.
+          </div>
 
-            </Box>
-          </Grid>
+          <div style={{
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+            fontSize: "13px", color: "rgba(255,255,255,.3)",
+          }}>
+            Made with ❤️ by{" "}
+            <span style={{ color: "rgba(255,255,255,.6)", fontWeight: "600" }}>
+              Roopesh
+            </span>
+          </div>
 
-        </Grid>
+          <div style={{
+            fontFamily: "'Plus Jakarta Sans', sans-serif",
+            fontSize: "13px", color: "rgba(255,255,255,.3)",
+          }}>
+            Natural Healing · Modern Care
+          </div>
+        </div>
 
-        {/* BOTTOM */}
-        <Box style={styles.bottom}>
-          <Typography style={styles.text}>
-            &copy; 2026 Dr. Loknath Clinic. All rights reserved.
-          </Typography>
-          <Typography style={styles.text}>
-            Made with ❤️ by Roopesh Deep
-          </Typography>
-        </Box>
-      </Container>
+      </div>
     </footer>
   );
 }
-
-const styles = {
-  footer: {
-    background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
-    color: "white",
-    padding: "50px 0 20px",
-  },
-
-  containerInner: {
-    padding: "0 20px",
-  },
-
-  gridSection: {
-    marginBottom: "30px",
-  },
-
-  sectionTitle: {
-    fontWeight: "700",
-    marginBottom: "15px",
-    color: "#4ade80",
-  },
-
-  text: {
-    marginBottom: "10px",
-    color: "#e2e8f0",
-  },
-
-  /* 🔥 MAIN FIX */
-  contactQuickWrapper: {
-    display: "flex",
-    gap: "40px",
-    flexWrap: "wrap",
-  },
-
-  contactColumn: {
-    flex: "1",
-    minWidth: "200px",
-  },
-
-  quickLinksWrapper: {
-    flex: "1",
-    minWidth: "200px",
-    background: "rgba(255,255,255,0.05)",
-    padding: "15px",
-    borderRadius: "10px",
-  },
-
-  quickLinksTitle: {
-    color: "#4ade80",
-    fontWeight: "600",
-    marginBottom: "10px",
-  },
-
-  /* 🔥 REMOVE BUTTON LOOK */
-  list: {
-    listStyle: "none",
-    padding: 0,
-  },
-
-  link: {
-    color: "#e2e8f0",
-    textDecoration: "none",
-    display: "block",
-    marginBottom: "8px",
-    transition: "0.3s",
-  },
-
-  bottom: {
-    textAlign: "center",
-    borderTop: "1px solid rgba(255,255,255,0.1)",
-    paddingTop: "20px",
-  },
-};

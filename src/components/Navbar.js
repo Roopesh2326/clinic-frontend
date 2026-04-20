@@ -1,175 +1,426 @@
-import { Link } from "react-router-dom";
-import { useCallback, useEffect, useState } from "react";
-import { AppBar, Toolbar, Typography, Button, Box, Badge, IconButton, Menu, MenuItem, Grow } from "@mui/material";
-import MenuIcon from '@mui/icons-material/Menu';
-import HomeIcon from '@mui/icons-material/Home';
-import SpaIcon from '@mui/icons-material/Spa';
-import LocalPharmacyIcon from '@mui/icons-material/LocalPharmacy';
-import CalendarTodayIcon from '@mui/icons-material/CalendarToday';
-import StorefrontIcon from '@mui/icons-material/Storefront';
-import DashboardIcon from '@mui/icons-material/Dashboard';
-import ShoppingCartIcon from '@mui/icons-material/ShoppingCart';
-import LogoutIcon from '@mui/icons-material/Logout';
-import LoginIcon from '@mui/icons-material/Login';
-import PersonAddIcon from '@mui/icons-material/PersonAdd';
+import { useState, useEffect } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+
+const T = {
+  g1:  "#0b3d1f",
+  g2:  "#155231",
+  g4:  "#22c55e",
+  wh:  "#ffffff",
+};
 
 export default function Navbar() {
-  const [cartCount, setCartCount] = useState(0);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const isLoggedIn = localStorage.getItem("isLoggedIn");
-  const role = localStorage.getItem("role");
+  const [scrolled,  setScrolled]  = useState(false);
+  const [menuOpen,  setMenuOpen]  = useState(false);
+  const location  = useLocation();
+  const navigate  = useNavigate();
+  const isHome    = location.pathname === "/";
 
-  const safeReadCart = useCallback(() => {
-    try {
-      const raw = localStorage.getItem("cart");
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
+  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+  const role       = localStorage.getItem("role") || "";
+  const name       = localStorage.getItem("name") || "";
+
+  const dashboardRoute =
+    role === "admin"     ? "/admin"     :
+    role === "staff"     ? "/staff"     :
+    role === "reception" ? "/reception" : "/dashboard";
+
+  // Scroll listener
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 24);
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  const updateCartCount = useCallback(() => {
-    const cartItems = safeReadCart();
-    setCartCount(cartItems.length);
-  }, [safeReadCart]);
-
+  // Close mobile menu on outside click
   useEffect(() => {
-    updateCartCount();
-
-    const onStorage = () => updateCartCount();
-    const onResize = () => setIsMobile(window.innerWidth < 768);
-
-    window.addEventListener("storage", onStorage);
-    window.addEventListener("cartUpdate", onStorage);
-    window.addEventListener("resize", onResize);
-
-    return () => {
-      window.removeEventListener("storage", onStorage);
-      window.removeEventListener("cartUpdate", onStorage);
-      window.removeEventListener("resize", onResize);
+    if (!menuOpen) return;
+    const close = (e) => {
+      if (!e.target.closest("#nav-root")) setMenuOpen(false);
     };
-  }, [updateCartCount]);
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [menuOpen]);
 
-  const { handleLogout } = {
-    handleLogout: () => {
-      localStorage.removeItem("isLoggedIn");
-      localStorage.removeItem("role");
-      window.location.href = "/";
-    },
+  // On non-home pages navbar is always solid green
+  const isSolid = !isHome || scrolled;
+
+  const navLinks = [
+    { label: "Home",           href: "/"            },
+    { label: "Appointments",   href: "/appointment" },
+    { label: "Medicine Store", href: "/store"       },
+    { label: "About",          href: "#about"       },
+    { label: "Contact",        href: "#contact"     },
+  ];
+
+  const handleNav = (e, href) => {
+    if (href.startsWith("#")) {
+      e.preventDefault();
+      if (isHome) {
+        document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
+      } else {
+        navigate("/");
+        setTimeout(() => {
+          document.querySelector(href)?.scrollIntoView({ behavior: "smooth" });
+        }, 500);
+      }
+      setMenuOpen(false);
+    } else {
+      setMenuOpen(false);
+    }
   };
 
   return (
-    <AppBar position="sticky" style={{ background: "linear-gradient(90deg, #0f172a 0%, #1e293b 100%)" }}>
-      <Toolbar style={{ justifyContent: "space-between", flexWrap: "wrap" }}>
-        <Link to="/" style={{ textDecoration: "none", color: "white" }}>
-          <Typography variant="h6" style={{ fontWeight: "700" }}>
-            🏥 Dr. Loknath Clinic
-          </Typography>
-        </Link>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
 
-        {isMobile ? (
-          <>
-            <IconButton onClick={(event) => { setAnchorEl(event.currentTarget); setMobileOpen(true); }} color="inherit">
-              <MenuIcon />
-            </IconButton>
-            <Menu
-              anchorEl={anchorEl}
-              open={mobileOpen}
-              onClose={() => { setMobileOpen(false); setAnchorEl(null); }}
-              TransitionComponent={Grow}
-              keepMounted
-              PaperProps={{ style: { borderRadius: 16, minWidth: 180 } }}
-              elevation={4}
-            >
-              <MenuItem component={Link} to="/store" onClick={() => { setMobileOpen(false); setAnchorEl(null); }}>
-                <StorefrontIcon style={{ marginRight: 8 }} /> Store
-              </MenuItem>
-              {isLoggedIn && role === "user" && (
-                <>
-                  <MenuItem component={Link} to="/dashboard" onClick={() => { setMobileOpen(false); setAnchorEl(null); }}>
-                    <DashboardIcon style={{ marginRight: 8 }} /> Dashboard
-                  </MenuItem>
-                  <MenuItem component={Link} to="/cart" onClick={() => { setMobileOpen(false); setAnchorEl(null); }}>
-                    <ShoppingCartIcon style={{ marginRight: 8 }} /> Cart {cartCount > 0 ? `(${cartCount})` : ""}
-                  </MenuItem>
-                </>
-              )}
-              {isLoggedIn ? (
-                <MenuItem onClick={() => { setMobileOpen(false); setAnchorEl(null); handleLogout(); }}>
-                  <LogoutIcon style={{ marginRight: 8 }} /> Logout
-                </MenuItem>
-              ) : (
-                <>
-                  <MenuItem component={Link} to="/login" onClick={() => { setMobileOpen(false); setAnchorEl(null); }}>
-                    <LoginIcon style={{ marginRight: 8 }} /> Login
-                  </MenuItem>
-                  <MenuItem component={Link} to="/signup" onClick={() => { setMobileOpen(false); setAnchorEl(null); }}>
-                    <PersonAddIcon style={{ marginRight: 8 }} /> Signup
-                  </MenuItem>
-                </>
-              )}
-            </Menu>
-          </>
-        ) : (
-          <Box style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-            <Link to="/" style={{ textDecoration: "none" }}>
-              <Button color="inherit" startIcon={<HomeIcon />}>Home</Button>
-            </Link>
-            <a href="/#remedies" style={{ textDecoration: "none" }}>
-              <Button color="inherit" startIcon={<SpaIcon />}>Remedies</Button>
-            </a>
+        @keyframes menuDown {
+          from { opacity: 0; transform: translateY(-8px); }
+          to   { opacity: 1; transform: translateY(0);    }
+        }
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(-16px); }
+          to   { opacity: 1; transform: translateX(0);     }
+        }
 
-            <a href="/#treatments" style={{ textDecoration: "none" }}>
-              <Button color="inherit" startIcon={<LocalPharmacyIcon />}>Treatments</Button>
-            </a>
+        .nav-link:hover {
+          color: #ffffff !important;
+          background: rgba(255,255,255,0.1) !important;
+        }
+        .nav-cta:hover {
+          transform: translateY(-1px);
+          box-shadow: 0 8px 24px rgba(34,197,94,0.6) !important;
+        }
+        .nav-signin:hover { color: #ffffff !important; }
 
-            <a href="/#appointment" style={{ textDecoration: "none" }}>
-              <Button color="inherit" startIcon={<CalendarTodayIcon />}>Consultation</Button>
-            </a>
+        @media (max-width: 860px) {
+          .nav-desktop { display: none !important; }
+          .nav-burger  { display: flex !important; }
+        }
+      `}</style>
 
-            <Link to="/store" style={{ textDecoration: "none" }}>
-              <Button color="inherit" startIcon={<StorefrontIcon />}>Store</Button>
-            </Link>
+      <nav id="nav-root" style={{
+        position:       "fixed",
+        top: 0, left: 0, right: 0,
+        zIndex:         1000,
+        transition:     "background .35s, box-shadow .35s, padding .35s",
+        background:     isSolid ? "rgba(11,61,31,0.97)" : "transparent",
+        backdropFilter: isSolid ? "blur(18px)" : "none",
+        boxShadow:      isSolid ? "0 4px 32px rgba(0,0,0,0.22)" : "none",
+        padding:        isSolid ? "10px 0" : "18px 0",
+      }}>
 
-            {isLoggedIn && role === "user" && (
-              <>
-                <Link to="/dashboard" style={{ textDecoration: "none" }}>
-                  <Button color="inherit" startIcon={<DashboardIcon />}>Dashboard</Button>
-                </Link>
-                <Link to="/cart" style={{ textDecoration: "none" }}>
-                  <Button color="inherit" startIcon={<ShoppingCartIcon />}>
-                    Cart
-                    <Badge badgeContent={cartCount} color="error" style={{ marginLeft: "8px" }} />
-                  </Button>
-                </Link>
-              </>
-            )}
+        {/* ── MAIN ROW ── */}
+        <div style={{
+          maxWidth:       "1200px",
+          margin:         "0 auto",
+          padding:        "0 24px",
+          display:        "flex",
+          alignItems:     "center",
+          justifyContent: "space-between",
+        }}>
 
+          {/* LOGO */}
+          <a href="/" style={{
+            textDecoration: "none",
+            display:        "flex",
+            alignItems:     "center",
+            gap:            "10px",
+          }}>
+            <div style={{
+              width:          "40px",
+              height:         "40px",
+              borderRadius:   "12px",
+              background:     `linear-gradient(135deg, ${T.g4}, ${T.g2})`,
+              display:        "flex",
+              alignItems:     "center",
+              justifyContent: "center",
+              fontSize:       "20px",
+              boxShadow:      "0 4px 14px rgba(34,197,94,0.35)",
+              flexShrink:     0,
+            }}>🌿</div>
+            <div>
+              <div style={{
+                fontFamily:    "'Cormorant Garamond', serif",
+                fontSize:      "18px",
+                fontWeight:    "700",
+                color:         T.wh,
+                lineHeight:    1,
+                letterSpacing: "0.01em",
+              }}>Dr. Somnath</div>
+              <div style={{
+                fontFamily:    "'Plus Jakarta Sans', sans-serif",
+                fontSize:      "10px",
+                color:         `${T.g4}cc`,
+                fontWeight:    "600",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}>Homeopathy Clinic</div>
+            </div>
+          </a>
+
+          {/* DESKTOP LINKS */}
+          <div className="nav-desktop" style={{
+            display:    "flex",
+            alignItems: "center",
+            gap:        "4px",
+          }}>
+            {navLinks.map(link => {
+            const isActive = location.pathname === link.href;
+            return (
+              <a // <--- THIS OPENING TAG WAS MISSING
+                key={link.label}
+                href={link.href}
+                className="nav-link"
+                onClick={(e) => handleNav(e, link.href)}
+                style={{
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontSize: "14px",
+                  fontWeight: isActive ? "600" : "500",
+                  color: isActive ? T.wh : "rgba(255,255,255,0.78)",
+                  textDecoration: "none",
+                  padding: "8px 14px",
+                  borderRadius: "8px",
+                  background: isActive ? "rgba(255,255,255,0.12)" : "transparent",
+                  transition: "color .2s, background .2s",
+                }}
+              >
+                {link.label}
+              </a>
+            );
+          })}
+          </div>
+
+          {/* RIGHT — Auth buttons */}
+          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
             {isLoggedIn ? (
-              <Button color="inherit" startIcon={<LogoutIcon />} onClick={handleLogout}>
-                Logout
-              </Button>
+              <>
+                {/* Avatar chip */}
+                <div style={{
+                  display:      "flex",
+                  alignItems:   "center",
+                  gap:          "8px",
+                  background:   "rgba(255,255,255,0.12)",
+                  borderRadius: "10px",
+                  padding:      "6px 12px",
+                }}>
+                  <div style={{
+                    width:          "28px",
+                    height:         "28px",
+                    borderRadius:   "50%",
+                    background:     `linear-gradient(135deg, ${T.g4}, ${T.g2})`,
+                    display:        "flex",
+                    alignItems:     "center",
+                    justifyContent: "center",
+                    fontSize:       "13px",
+                    fontWeight:     "700",
+                    color:          T.wh,
+                  }}>
+                    {(name || "U").charAt(0).toUpperCase()}
+                  </div>
+                  <span style={{
+                    fontFamily: "'Plus Jakarta Sans', sans-serif",
+                    fontSize:   "13px",
+                    fontWeight: "600",
+                    color:      T.wh,
+                  }}>
+                    {name.split(" ")[0]}
+                  </span>
+                </div>
+
+                {/* Dashboard button */}
+                <a href={dashboardRoute} className="nav-cta" style={{
+                  fontFamily:     "'Plus Jakarta Sans', sans-serif",
+                  fontSize:       "13px",
+                  fontWeight:     "600",
+                  color:          T.g1,
+                  background:     T.g4,
+                  padding:        "9px 18px",
+                  borderRadius:   "10px",
+                  textDecoration: "none",
+                  boxShadow:      `0 4px 14px ${T.g4}50`,
+                  transition:     "transform .15s, box-shadow .15s",
+                }}>
+                  Dashboard
+                </a>
+              </>
             ) : (
               <>
-                <Link to="/login" style={{ textDecoration: "none" }}>
-                  <Button color="inherit" variant="outlined" startIcon={<LoginIcon />}>
-                    Login
-                  </Button>
-                </Link>
-                <Link to="/signup" style={{ textDecoration: "none" }}>
-                  <Button variant="contained" startIcon={<PersonAddIcon />} style={{ background: "#4ade80", color: "black" }}>
-                    Signup
-                  </Button>
-                </Link>
+                <a href="/login" className="nav-signin" style={{
+                  fontFamily:     "'Plus Jakarta Sans', sans-serif",
+                  fontSize:       "14px",
+                  fontWeight:     "500",
+                  color:          "rgba(255,255,255,0.88)",
+                  textDecoration: "none",
+                  padding:        "9px 16px",
+                  transition:     "color .2s",
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = T.wh}
+                onMouseLeaves={e => e.currentTarget.style.color = "rgba(255,255,255,0.88)"}>
+                  Sign In
+                </a>
+
+                <a href="/signup" style={{
+                  fontFamily: "'Plus Jakarta Sans', sans-serif",
+                  fontSize: "14px", fontWeight: "500",
+                  color: "rgba(255,255,255,0.88)",
+                  textDecoration: "none",
+                  padding: "9px 16px",
+                  borderRadius: "10px",
+                  border: "1px solid rgba{255,255,255,0.28)",
+                  transition: "color .2s, background .2s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.color = T.wh; e.currentTarget.style.background = "rgba(255,255,255,0.1)";}}
+                onMouseLeave={e => { e.currentTarget.style.color = "(rgba(255,255,255,0.88)"; e.currentTarget.style.background = "transparent"; }}>
+                  Sign Up
+                </a>
+                <a href="/appointment" className="nav-cta" style={{
+                  fontFamily:     "'Plus Jakarta Sans', sans-serif",
+                  fontSize:       "14px",
+                  fontWeight:     "600",
+                  color:          T.g1,
+                  background:     T.g4,
+                  padding:        "9px 22px",
+                  borderRadius:   "10px",
+                  textDecoration: "none",
+                  boxShadow:      `0 4px 14px ${T.g4}50`,
+                  transition:     "transform .15s, box-shadow .15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-1px)"; e.currentTarget.style.boxShadow = `0 8px 24px $[T.g4}60]`; }}
+                onMouseLeaves={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = `0 4px 14px ${T.g4}50`; }}>
+                  Book Now
+                </a>
               </>
             )}
-          </Box>
+
+            {/* HAMBURGER */}
+            <button
+              className="nav-burger"
+              onClick={() => setMenuOpen(m => !m)}
+              style={{
+                background:   "rgba(255,255,255,0.1)",
+                border:       "none",
+                borderRadius: "10px",
+                padding:      "10px 12px",
+                cursor:       "pointer",
+                display:      "none",        // shown via media query
+                flexDirection:"column",
+                gap:          "5px",
+              }}
+            >
+              {[0, 1, 2].map(i => (
+                <span key={i} style={{
+                  width:        "22px",
+                  height:       "2px",
+                  background:   T.wh,
+                  borderRadius: "2px",
+                  display:      "block",
+                  transition:   "transform .3s, opacity .3s",
+                  transform: menuOpen
+                    ? i === 0 ? "rotate(45deg) translateY(7px)"
+                    : i === 2 ? "rotate(-45deg) translateY(-7px)"
+                    : "scale(0)"
+                    : "none",
+                  opacity: menuOpen && i === 1 ? 0 : 1,
+                }} />
+              ))}
+            </button>
+          </div>
+        </div>
+
+        {/* ── MOBILE MENU ── */}
+        {menuOpen && (
+          <div style={{
+            position:       "absolute",
+            top:            "100%",
+            left:           0,
+            right:          0,
+            background:     "rgba(11,61,31,0.98)",
+            backdropFilter: "blur(18px)",
+            padding:        "20px 24px 28px",
+            animation:      "menuDown .25s ease",
+            boxShadow:      "0 20px 40px rgba(0,0,0,0.3)",
+          }}>
+            {navLinks.map((link, i) => (
+            <a // <--- THIS OPENING TAG WAS MISSING
+              key={link.label}
+              href={link.href}
+              onClick={(e) => handleNav(e, link.href)}
+              style={{
+                display: "block",
+                fontFamily: "'Plus Jakarta Sans', sans-serif",
+                fontSize: "16px",
+                fontWeight: "500",
+                color: location.pathname === link.href ? T.wh : "rgba(255,255,255,0.75)",
+                textDecoration: "none",
+                padding: "13px 0",
+                borderBottom: i < navLinks.length - 1 ? "1px solid rgba(255,255,255,0.08)" : "none",
+                animation: `slideIn .3s ease ${i * 0.05}s both`,
+              }}
+            >
+              {link.label}
+            </a>
+          ))}
+
+            <div style={{ display: "flex", gap: "10px", marginTop: "20px" }}>
+              {isLoggedIn ? (
+                <a href={dashboardRoute} style={{
+                  flex:           1,
+                  textAlign:      "center",
+                  fontFamily:     "'Plus Jakarta Sans', sans-serif",
+                  fontSize:       "14px",
+                  fontWeight:     "600",
+                  color:          T.g1,
+                  background:     T.g4,
+                  padding:        "12px",
+                  borderRadius:   "10px",
+                  textDecoration: "none",
+                }}>Dashboard →</a>
+              ) : (
+                <>
+                  <a href="/login" style={{
+                    flex:           1,
+                    textAlign:      "center",
+                    fontFamily:     "'Plus Jakarta Sans', sans-serif",
+                    fontSize:       "14px",
+                    fontWeight:     "500",
+                    color:          T.wh,
+                    border:         "1px solid rgba(255,255,255,0.25)",
+                    padding:        "12px",
+                    borderRadius:   "10px",
+                    textDecoration: "none",
+                  }}>Sign In</a>
+
+                  <a href="/signup" styles={{
+                    flex:            1,
+                    textAlign:       "center",
+                    fontFamily:      "' Plus Jakarta Sans', sans-seriff",
+                    fontSize:        "13px",
+                    fontWeight:      "500",
+                    border:          "1px solid rgba(255,255,255,0.25)",
+                    padding:         "12px",
+                    bborderRadius:   "10px",
+                    textDecoration:  "none",
+                  }}>Sign Up</a>
+
+                  <a href="/appointment" style={{
+                    flex:           1,
+                    textAlign:      "center",
+                    fontFamily:     "'Plus Jakarta Sans', sans-serif",
+                    fontSize:       "14px",
+                    fontWeight:     "600",
+                    color:          T.g1,
+                    background:     T.g4,
+                    padding:        "12px",
+                    borderRadius:   "10px",
+                    textDecoration: "none",
+                  }}>Book Now</a>
+                </>
+              )}
+            </div>
+          </div>
         )}
-      </Toolbar>
-    </AppBar>
+      </nav>
+    </>
   );
 }

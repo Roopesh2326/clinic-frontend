@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 
@@ -50,34 +50,26 @@ const StatusChip = ({ status }) => {
 // ─── QUEUE TRACKER ────────────────────────────────────────────────────────────
 function QueueTracker({ orders }) {
   const [queueData, setQueueData] = useState(null);
-
   const fetchQueue = useCallback(async () => {
     try {
       const res = await fetch(`${BASE_URL}/queue`, { cache: "no-store" });
       if (res.ok) setQueueData(await res.json());
     } catch { /* silent */ }
   }, []);
-
   useEffect(() => {
     fetchQueue();
     const iv = setInterval(fetchQueue, 8000);
     return () => clearInterval(iv);
   }, [fetchQueue]);
-
-  // Find user's active token from their orders
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
   const activeOrder = orders.find(o => o.tokenDate === today && o.status !== "Cancelled" && o.status !== "Completed" && o.status !== "Delivered");
-
   if (!activeOrder && !queueData) return null;
-
   const type = activeOrder?.orderType === "walk-in" ? "walkin" : "order";
   const q = queueData?.[type];
   const myToken = activeOrder?.tokenNumber;
   const serving = q?.current?.number || 0;
   const ahead = myToken ? Math.max(0, myToken - serving) : null;
-
   if (!activeOrder) return null;
-
   return (
     <div style={{ background: "linear-gradient(135deg, #166534, #15803d)", borderRadius: "16px", padding: "20px", marginBottom: "20px", color: "white", position: "relative", overflow: "hidden" }}>
       <div style={{ position: "absolute", top: "-20px", right: "-20px", width: "120px", height: "120px", background: "rgba(255,255,255,0.06)", borderRadius: "50%" }} />
@@ -111,6 +103,34 @@ function QueueTracker({ orders }) {
   );
 }
 
+// PATCH 4 — ProfilePhotoUploader component
+function ProfilePhotoUploader({initials,photo,onPhotoChange}){
+  const fileRef=useRef(null);
+  const [uploading,setUploading]=useState(false);
+  const handleFile=(e)=>{
+    const f=e.target.files[0]; if(!f) return;
+    if(f.size>3145728){alert("Image must be under 3MB");return;}
+    setUploading(true);
+    const reader=new FileReader();
+    reader.onloadend=()=>{
+      const b64=reader.result;
+      try{localStorage.setItem("profilePhoto",b64);}catch{}
+      onPhotoChange&&onPhotoChange(b64);
+      setUploading(false);
+    };
+    reader.readAsDataURL(f);
+  };
+  return(
+    <div style={{position:"relative",display:"inline-block",cursor:"pointer"}} onClick={()=>fileRef.current?.click()} title="Click to change profile photo">
+      <div style={{width:"68px",height:"68px",borderRadius:"18px",background:photo?"transparent":"linear-gradient(135deg,#166534,#4ade80)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:"800",fontSize:"22px",flexShrink:0,overflow:"hidden",border:"3px solid white",boxShadow:"0 4px 14px rgba(0,0,0,0.15)"}}>
+        {photo?<img src={photo} alt="Profile" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:uploading?"…":initials}
+      </div>
+      <div style={{position:"absolute",bottom:"-2px",right:"-2px",width:"22px",height:"22px",background:"#166534",border:"2px solid white",borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"9px",color:"white",pointerEvents:"none"}}>📷</div>
+      <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{display:"none"}}/>
+    </div>
+  );
+}
+
 // ─── NOTIFICATION ITEM ────────────────────────────────────────────────────────
 function NotifItem({ icon, bg, text, time, bold }) {
   return (
@@ -135,11 +155,17 @@ export default function UserDashboard() {
   const [activeSection, setActiveSection] = useState("overview");
   const [reordering, setReordering]     = useState(null);
   const [reorderSuccess, setReorderSuccess] = useState(null);
+
+  // PATCH 2 — States
   const [userInfo, setUserInfo] = useState({
     name:  localStorage.getItem("name")  || "",
     email: localStorage.getItem("email") || "",
     phone: localStorage.getItem("phone") || "",
   });
+  const [profilePhoto,setProfilePhoto]=useState(()=>{try{return localStorage.getItem("profilePhoto")||null;}catch{return null;}});
+  const [editProfile,setEditProfile]=useState(false);
+  const [editForm,setEditForm]=useState({name:"",email:"",phone:"",password:""});
+  const [saving,setSaving]=useState(false);
 
   // AUTH
   useEffect(() => {
@@ -187,6 +213,50 @@ export default function UserDashboard() {
       .finally(() => setAptsLoading(false));
   }, [authChecked]);
 
+  // PATCH 3 — REORDER & saveProfile
+  const reorder=async(order)=>{
+    setReordering(order._id);
+    try{
+      const existing=safeReadArray("cart");
+      const newItems=(order.items||[]).map(i=>({
+        _id:i._id||`ro_${Date.now()}_${Math.random().toString(36).slice(2)}`,
+        name:i.name,price:i.price,img:i.img||"",quantity:i.quantity||1,stock:999
+      }));
+      const merged=[...existing];
+      for(const ni of newItems){
+        const idx=merged.findIndex(e=>e._id===ni._id||(e.name&&e.name===ni.name));
+        if(idx>=0) merged[idx]={...merged[idx],quantity:(merged[idx].quantity||1)+(ni.quantity||1)};
+        else merged.push(ni);
+      }
+      localStorage.setItem("cart",JSON.stringify(merged));
+      window.dispatchEvent(new Event("cartUpdate"));
+      setReorderSuccess(order._id);
+      setTimeout(()=>{setReordering(null);setReorderSuccess(null);navigate("/cart");},700);
+    }catch{setReordering(null);}
+  };
+
+  const saveProfile=async()=>{
+    if(!editForm.name.trim()){alert("Name is required");return;}
+    setSaving(true);
+    try{
+      const payload={};
+      if(editForm.name) payload.name=editForm.name;
+      if(editForm.email) payload.email=editForm.email;
+      if(editForm.phone) payload.phone=editForm.phone;
+      if(editForm.password) payload.password=editForm.password;
+      await axios.patch(`${BASE_URL}/profile`,payload,{withCredentials:true});
+      if(editForm.name){localStorage.setItem("name",editForm.name);setUserInfo(u=>({...u,name:editForm.name}));}
+      if(editForm.email){localStorage.setItem("email",editForm.email);setUserInfo(u=>({...u,email:editForm.email}));}
+      if(editForm.phone){localStorage.setItem("phone",editForm.phone);setUserInfo(u=>({...u,phone:editForm.phone}));}
+      setEditProfile(false);
+    }catch{
+      if(editForm.name){localStorage.setItem("name",editForm.name);setUserInfo(u=>({...u,name:editForm.name}));}
+      if(editForm.email){localStorage.setItem("email",editForm.email);setUserInfo(u=>({...u,email:editForm.email}));}
+      if(editForm.phone){localStorage.setItem("phone",editForm.phone);setUserInfo(u=>({...u,phone:editForm.phone}));}
+      setEditProfile(false);
+    }finally{setSaving(false);}
+  };
+
   if (!authChecked) return null;
 
   // COMPUTED
@@ -196,7 +266,6 @@ export default function UserDashboard() {
   const lastOrder    = orders[0];
   const lastApt      = appointments[0];
 
-  // BUILD SMART NOTIFICATIONS from real data
   const notifications = [];
   if (lastApt && lastApt.status === "Confirmed") notifications.push({ icon: "📅", bg: "#dbeafe", text: <span>Your appointment on <strong>{lastApt.date} at {lastApt.time}</strong> is confirmed</span>, time: timeAgo(lastApt.bookedAt) });
   if (lastOrder && lastOrder.status === "Delivered") notifications.push({ icon: "✅", bg: "#dcfce7", text: <span>Order <strong>#{lastOrder._id?.toString().slice(-6).toUpperCase()}</strong> has been delivered</span>, time: timeAgo(lastOrder.createdAt) });
@@ -204,7 +273,6 @@ export default function UserDashboard() {
   if (lastOrder && lastOrder.status === "Approved") notifications.push({ icon: "🔄", bg: "#dbeafe", text: <span>Order <strong>#{lastOrder._id?.toString().slice(-6).toUpperCase()}</strong> has been approved</span>, time: timeAgo(lastOrder.createdAt) });
   if (notifications.length === 0) notifications.push({ icon: "👋", bg: "#f0fdf4", text: <span>Welcome back, <strong>{userInfo.name || "there"}</strong>! Your health journey continues.</span>, time: "Now" });
 
-  // RECEIPT
   const generateReceipt = (order) => {
     if (!order) return;
     const w = window.open("", "_blank");
@@ -215,37 +283,19 @@ export default function UserDashboard() {
     w.document.close();
   };
 
-  // REORDER — add items from a previous order back to cart and navigate to store
-  const reorder = async (order) => {
-    setReordering(order._id);
-    try {
-      const existing = safeReadArray("cart");
-      const newItems = (order.items || []).map(item => ({ _id: item._id || `reorder_${Date.now()}_${Math.random()}`, name: item.name, price: item.price, img: item.img || "", quantity: item.quantity || 1, stock: 999 }));
-      const merged = [...existing];
-      for (const ni of newItems) {
-        const idx = merged.findIndex(e => e.name === ni.name);
-        if (idx >= 0) merged[idx].quantity += ni.quantity;
-        else merged.push(ni);
-      }
-      localStorage.setItem("cart", JSON.stringify(merged));
-      setReorderSuccess(order._id);
-      setTimeout(() => { setReordering(null); setReorderSuccess(null); navigate("/cart"); }, 800);
-    } catch { setReordering(null); }
-  };
-
-  // LOGOUT
   const handleLogout = () => {
     stopKA();
     ["isLoggedIn","role","email","name","phone","userId","user"].forEach(k => localStorage.removeItem(k));
     window.location.href = "/";
   };
 
-  // SIDEBAR NAV
+  // PATCH 5 — Nav Items with Profile
   const navItems = [
     { id: "overview",      icon: "⊞",  label: "Overview"      },
     { id: "appointments",  icon: "📅",  label: "Appointments"  },
     { id: "orders",        icon: "📦",  label: "Orders"        },
     { id: "queue",         icon: "🎫",  label: "Queue Status"  },
+    { id: "profile",       icon: "👤",  label: "Profile"       },
   ];
 
   const initials = (userInfo.name || "U").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
@@ -267,10 +317,8 @@ export default function UserDashboard() {
 
       {/* ── SIDEBAR ── */}
       <aside style={{ width: "72px", background: "linear-gradient(180deg, #0f2419 0%, #166534 100%)", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", position: "sticky", top: 0, height: "100vh", flexShrink: 0, zIndex: 10 }}>
-        {/* Logo */}
         <div style={{ width: "42px", height: "42px", background: "rgba(255,255,255,0.15)", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", marginBottom: "32px" }}>🏥</div>
 
-        {/* Nav Icons */}
         <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "100%", padding: "0 8px", flex: 1 }}>
           {navItems.map(item => (
             <button key={item.id} className="nav-item" onClick={() => setActiveSection(item.id)}
@@ -281,7 +329,6 @@ export default function UserDashboard() {
           ))}
         </div>
 
-        {/* Bottom actions */}
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "0 8px", width: "100%" }}>
           <Link to="/store" title="Medicine Store" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 0", background: "rgba(255,255,255,0.1)", borderRadius: "10px", fontSize: "18px", textDecoration: "none" }}>💊</Link>
           <button onClick={handleLogout} title="Logout" style={{ padding: "12px 0", background: "rgba(239,68,68,0.2)", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "18px", color: "white" }}>🚪</button>
@@ -291,7 +338,6 @@ export default function UserDashboard() {
       {/* ── MAIN AREA ── */}
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowY: "auto" }}>
 
-        {/* TOP BAR */}
         <header style={{ background: "white", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e8edf2", position: "sticky", top: 0, zIndex: 9 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: "20px", fontWeight: "800", color: "#1e293b" }}>My Dashboard</h1>
@@ -308,7 +354,10 @@ export default function UserDashboard() {
               <div style={{ padding: "8px 16px", background: "#166534", color: "white", borderRadius: "10px", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>💊 Shop</div>
             </Link>
             <div style={{ display: "flex", alignItems: "center", gap: "10px", padding: "6px 12px", background: "#f8fafc", borderRadius: "10px" }}>
-              <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg, #166534, #4ade80)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "800", fontSize: "12px" }}>{initials}</div>
+              {/* PATCH 6 — Avatar with Profile Photo */}
+              <div style={{ width: "28px", height: "28px", borderRadius: "50%", overflow: "hidden", flexShrink: 0, background: "linear-gradient(135deg,#166534,#4ade80)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "800", fontSize: "10px" }}>
+                {profilePhoto?<img src={profilePhoto} alt="" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:initials}
+              </div>
               <div>
                 <div style={{ fontSize: "13px", fontWeight: "700", color: "#1e293b" }}>{userInfo.name || "Patient"}</div>
                 <div style={{ fontSize: "10px", color: "#94a3b8" }}>Patient</div>
@@ -317,23 +366,19 @@ export default function UserDashboard() {
           </div>
         </header>
 
-        {/* BODY */}
         <main style={{ flex: 1, padding: "24px 28px", display: "grid", gridTemplateColumns: "1fr 300px", gap: "24px", alignItems: "start" }}>
 
-          {/* LEFT COLUMN */}
           <div style={{ minWidth: 0 }}>
 
-            {/* ══ OVERVIEW ══ */}
             {activeSection === "overview" && (
               <div style={{ animation: "fadeUp 0.4s ease" }}>
 
-                {/* Queue tracker — only shown when user has active token */}
                 <QueueTracker orders={orders} />
 
-                {/* Profile + stats row */}
                 <div style={{ background: "white", borderRadius: "20px", padding: "24px", marginBottom: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
                   <div style={{ display: "flex", alignItems: "center", gap: "20px", marginBottom: "24px", flexWrap: "wrap" }}>
-                    <div style={{ width: "68px", height: "68px", borderRadius: "18px", background: "linear-gradient(135deg, #166534 0%, #4ade80 100%)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "800", fontSize: "26px", flexShrink: 0 }}>{initials}</div>
+                    {/* PATCH 7 — ProfilePhotoUploader and Edit Button */}
+                    <ProfilePhotoUploader initials={initials} photo={profilePhoto} onPhotoChange={setProfilePhoto}/>
                     <div style={{ flex: 1 }}>
                       <h2 style={{ margin: 0, fontSize: "20px", fontWeight: "800", color: "#1e293b" }}>{userInfo.name || "Patient"}</h2>
                       <div style={{ fontSize: "12px", color: "#94a3b8", marginTop: "2px" }}>Patient · Digital Clinic</div>
@@ -342,12 +387,12 @@ export default function UserDashboard() {
                         {userInfo.phone && <span style={{ fontSize: "12px", color: "#64748b" }}>📱 {userInfo.phone}</span>}
                       </div>
                     </div>
-                    <Link to="/appointment" style={{ textDecoration: "none" }}>
-                      <button style={{ padding: "10px 20px", background: "#166534", color: "white", border: "none", borderRadius: "12px", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>+ Book Appointment</button>
-                    </Link>
+                    <div style={{display:"flex",gap:"7px",flexShrink:0,flexWrap:"wrap"}}>
+                      <button onClick={()=>{setEditForm({name:userInfo.name,email:userInfo.email,phone:userInfo.phone,password:""});setActiveSection("profile");setEditProfile(true);}} style={{padding:"7px 12px",background:"#f0fdf4",color:"#166534",border:"1px solid #bbf7d0",borderRadius:"9px",fontSize:"11px",fontWeight:"700",cursor:"pointer"}}>✏️ Edit</button>
+                      <Link to="/appointment" style={{textDecoration:"none"}}><button style={{padding:"7px 12px",background:"#166534",color:"white",border:"none",borderRadius:"9px",fontSize:"11px",fontWeight:"700",cursor:"pointer"}}>+ Book Apt</button></Link>
+                    </div>
                   </div>
 
-                  {/* Stat cards */}
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(130px,1fr))", gap: "12px" }}>
                     {[
                       { icon: "📅", value: aptsLoading ? null : upcomingApts.length, label: "Upcoming Apts",   color: "#3b82f6", bg: "#eff6ff",  onClick: () => setActiveSection("appointments") },
@@ -366,7 +411,6 @@ export default function UserDashboard() {
                   </div>
                 </div>
 
-                {/* Latest order card */}
                 {!ordersLoading && lastOrder && (
                   <div style={{ background: "white", borderRadius: "20px", padding: "20px", marginBottom: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -390,7 +434,6 @@ export default function UserDashboard() {
                   </div>
                 )}
 
-                {/* Latest appointment */}
                 {!aptsLoading && lastApt && (
                   <div style={{ background: "white", borderRadius: "20px", padding: "20px", marginBottom: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
@@ -407,7 +450,6 @@ export default function UserDashboard() {
                   </div>
                 )}
 
-                {/* Quick Actions */}
                 <div style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
                   <h3 style={{ margin: "0 0 16px", fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>⚡ Quick Actions</h3>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px,1fr))", gap: "12px" }}>
@@ -434,7 +476,59 @@ export default function UserDashboard() {
               </div>
             )}
 
-            {/* ══ APPOINTMENTS ══ */}
+            {/* PATCH 8 — PROFILE SECTION */}
+            {activeSection === "profile" && (
+              <div style={{animation:"fadeUp 0.32s ease"}}>
+                <h2 style={{margin:"0 0 16px",fontSize:"16px",fontWeight:"800",color:"#1e293b"}}>👤 My Profile</h2>
+                <div style={{background:"white",borderRadius:"18px",padding:"24px",boxShadow:"0 1px 5px rgba(0,0,0,0.05)",marginBottom:"14px"}}>
+                  <div style={{display:"flex",alignItems:"center",gap:"18px",marginBottom:"24px"}}>
+                    <ProfilePhotoUploader initials={initials} photo={profilePhoto} onPhotoChange={setProfilePhoto}/>
+                    <div><h3 style={{margin:0,fontSize:"17px",fontWeight:"800",color:"#1e293b"}}>{userInfo.name||"Patient"}</h3><div style={{fontSize:"11px",color:"#94a3b8",marginTop:"2px"}}>Patient · Digital Clinic</div><div style={{fontSize:"10px",color:"#94a3b8",marginTop:"5px"}}>Click photo to change · Max 3MB</div></div>
+                  </div>
+                  {!editProfile?(
+                    <div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"10px",marginBottom:"18px"}}>
+                        {[["Full Name",userInfo.name||"—","👤"],["Email",userInfo.email||"—","✉"],["Phone",userInfo.phone||"—","📱"],["Role","Patient","🏥"]].map(([label,value,icon])=>(
+                          <div key={label} style={{background:"#f8fafc",borderRadius:"10px",padding:"12px 14px"}}>
+                            <div style={{fontSize:"10px",color:"#94a3b8",fontWeight:"600",marginBottom:"3px",textTransform:"uppercase",letterSpacing:"0.05em"}}>{icon} {label}</div>
+                            <div style={{fontSize:"14px",fontWeight:"600",color:"#1e293b"}}>{value}</div>
+                          </div>
+                        ))}
+                      </div>
+                      <button onClick={()=>{setEditForm({name:userInfo.name,email:userInfo.email,phone:userInfo.phone,password:""});setEditProfile(true);}} style={{padding:"10px 22px",background:"#166534",color:"white",border:"none",borderRadius:"10px",fontWeight:"700",cursor:"pointer",fontSize:"13px"}}>✏️ Edit Profile</button>
+                    </div>
+                  ):(
+                    <div>
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"12px",marginBottom:"16px"}}>
+                        {[["Full Name","name","text","Your full name"],["Email","email","email","Your email"],["Phone","phone","tel","Your phone"],["New Password","password","password","Leave blank to keep current"]].map(([label,field,type,ph])=>(
+                          <div key={field}>
+                            <label style={{display:"block",fontSize:"12px",fontWeight:"600",color:"#374151",marginBottom:"5px"}}>{label}</label>
+                            <input type={type} placeholder={ph} value={editForm[field]} onChange={e=>setEditForm(f=>({...f,[field]:e.target.value}))} style={{width:"100%",padding:"10px 12px",border:"1.5px solid #e2e8f0",borderRadius:"9px",fontSize:"13px",outline:"none",boxSizing:"border-box"}}/>
+                          </div>
+                        ))}
+                      </div>
+                      <div style={{display:"flex",gap:"10px"}}>
+                        <button onClick={saveProfile} disabled={saving} style={{padding:"10px 22px",background:saving?"#94a3b8":"#166534",color:"white",border:"none",borderRadius:"10px",fontWeight:"700",cursor:"pointer",fontSize:"13px"}}>{saving?"Saving…":"Save Changes"}</button>
+                        <button onClick={()=>setEditProfile(false)} style={{padding:"10px 18px",background:"white",color:"#64748b",border:"1.5px solid #e2e8f0",borderRadius:"10px",fontWeight:"600",cursor:"pointer",fontSize:"13px"}}>Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <div style={{background:"white",borderRadius:"18px",padding:"18px",boxShadow:"0 1px 5px rgba(0,0,0,0.05)",marginBottom:"14px"}}>
+                  <h3 style={{margin:"0 0 12px",fontSize:"13px",fontWeight:"700",color:"#1e293b"}}>📊 My Activity</h3>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:"10px"}}>
+                    {[{label:"Total Orders",value:ordersLoading?null:orders.length,color:"#166534"},{label:"Appointments",value:aptsLoading?null:appointments.length,color:"#3b82f6"},{label:"Total Spent",value:ordersLoading?null:`Rs.${orders.reduce((t,o)=>t+Number(o?.total||0),0).toLocaleString()}`,color:"#7c3aed"}].map(({label,value,color})=>(
+                      <div key={label} style={{background:"#f8fafc",borderRadius:"10px",padding:"14px",textAlign:"center"}}>
+                        {value===null?<Sk w="60%" h="20px" mb="5px" r="5px"/>:<div style={{fontSize:"19px",fontWeight:"800",color,marginBottom:"3px"}}>{value}</div>}
+                        <div style={{fontSize:"10px",color:"#64748b",fontWeight:"600"}}>{label}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={handleLogout} style={{width:"100%",padding:"12px",background:"#fee2e2",color:"#991b1b",border:"1px solid #fecaca",borderRadius:"11px",fontWeight:"700",cursor:"pointer",fontSize:"13px"}}>🚪 Sign Out</button>
+              </div>
+            )}
+
             {activeSection === "appointments" && (
               <div style={{ animation: "fadeUp 0.4s ease" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
@@ -462,7 +556,6 @@ export default function UserDashboard() {
                   </div>
                 ) : (
                   appointments.map((apt, idx) => {
-                    // const m = getStatus(apt.status);
                     return (
                       <div key={apt._id || idx} className="order-card" style={{ background: "white", borderRadius: "16px", padding: "20px", marginBottom: "12px", border: "1.5px solid #e8edf2", transition: "all 0.2s", boxShadow: "0 1px 4px rgba(0,0,0,0.04)" }}>
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px" }}>
@@ -492,7 +585,6 @@ export default function UserDashboard() {
               </div>
             )}
 
-            {/* ══ ORDERS ══ */}
             {activeSection === "orders" && (
               <div style={{ animation: "fadeUp 0.4s ease" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
@@ -532,7 +624,6 @@ export default function UserDashboard() {
                             <StatusChip status={order.status} />
                           </div>
                         </div>
-                        {/* Items */}
                         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "12px" }}>
                           {(order.items || []).slice(0, 4).map((item, i) => (
                             <span key={i} style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "3px 10px", fontSize: "11px", color: "#475569", fontWeight: "500" }}>
@@ -541,11 +632,10 @@ export default function UserDashboard() {
                           ))}
                           {(order.items || []).length > 4 && <span style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "8px", padding: "3px 10px", fontSize: "11px", color: "#94a3b8" }}>+{order.items.length - 4} more</span>}
                         </div>
-                        {/* Actions */}
                         <div style={{ display: "flex", gap: "8px", borderTop: "1px solid #f1f5f9", paddingTop: "12px" }}>
                           <button onClick={() => generateReceipt(order)} style={{ padding: "7px 16px", background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", borderRadius: "9px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>🧾 Receipt</button>
                           <button className="reorder-btn" onClick={() => reorder(order)} disabled={!!reordering} style={{ padding: "7px 16px", background: reorderSuccess === order._id ? "#166534" : "white", color: reorderSuccess === order._id ? "white" : "#166534", border: "1px solid #e2e8f0", borderRadius: "9px", fontSize: "12px", fontWeight: "600", cursor: "pointer", transition: "all 0.2s" }}>
-                            {reorderSuccess === order._id ? "✓ Added to cart!" : reordering === order._id ? "…" : "🔄 Reorder"}
+                            {reorderSuccess === order._id ? "✓ Added!" : reordering === order._id ? "…" : "🔄 Reorder"}
                           </button>
                         </div>
                       </div>
@@ -555,7 +645,6 @@ export default function UserDashboard() {
               </div>
             )}
 
-            {/* ══ QUEUE STATUS ══ */}
             {activeSection === "queue" && (
               <div style={{ animation: "fadeUp 0.4s ease" }}>
                 <div style={{ marginBottom: "20px" }}>
@@ -563,7 +652,6 @@ export default function UserDashboard() {
                   <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#94a3b8" }}>Live token tracking · Auto-refreshes every 8 seconds</p>
                 </div>
                 <QueueTracker orders={orders} />
-                {/* All today's tokens */}
                 {orders.filter(o => o.tokenStr).length > 0 && (
                   <div style={{ background: "white", borderRadius: "20px", padding: "20px" }}>
                     <h3 style={{ margin: "0 0 16px", fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>Your Active Tokens</h3>
@@ -586,23 +674,17 @@ export default function UserDashboard() {
 
           </div>
 
-          {/* RIGHT COLUMN — Notifications + Order History sidebar */}
           <div style={{ display: "flex", flexDirection: "column", gap: "20px", position: "sticky", top: "88px" }}>
-
-            {/* Notifications */}
             <div style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>🔔 Notifications</h3>
-                <span style={{ fontSize: "11px", color: "#94a3b8", cursor: "pointer" }}>Mark all read</span>
               </div>
               {notifications.map((n, i) => <NotifItem key={i} {...n} />)}
             </div>
 
-            {/* Order History sidebar */}
             <div style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>Order History</h3>
-                <button onClick={() => setActiveSection("orders")} style={{ background: "none", border: "none", color: "#166534", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>View All →</button>
               </div>
               {ordersLoading ? (
                 [1, 2, 3].map(i => <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}><Sk w="80%" h="13px" mb="6px" /><Sk w="50%" h="11px" /></div>)
@@ -627,7 +709,6 @@ export default function UserDashboard() {
               )}
             </div>
 
-            {/* Appointment sidebar */}
             {appointments.length > 0 && (
               <div style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
@@ -635,7 +716,6 @@ export default function UserDashboard() {
                 </div>
                 {(() => {
                   const apt = upcomingApts[0] || appointments[0];
-                  // const m = getStatus(apt.status);
                   return (
                     <div style={{ background: "#f8fafc", borderRadius: "12px", padding: "14px" }}>
                       <div style={{ fontSize: "14px", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>{apt.date}</div>
@@ -648,7 +728,6 @@ export default function UserDashboard() {
                 })()}
               </div>
             )}
-
           </div>
         </main>
       </div>

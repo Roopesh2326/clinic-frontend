@@ -54,102 +54,71 @@ const styles = {
   bannerBtn:  { marginLeft: "auto", padding: "6px 16px", background: "#92400e", color: "white", border: "none", borderRadius: "7px", cursor: "pointer", fontWeight: "600", fontSize: "13px" },
 };
 
+
 export function ActivityLogTab({ logs, total, page, loading, filter, setFilter, onPageChange, onRefresh }) {
- 
   const ACTION_LABELS = {
-    login:                      { label: "Login",              color: "#166534", bg: "#dcfce7", icon: "🔑" },
-    logout:                     { label: "Logout",             color: "#6b7280", bg: "#f3f4f6", icon: "🚪" },
-    order_created:              { label: "Order Created",      color: "#1e40af", bg: "#dbeafe", icon: "📦" },
-    order_status_changed:       { label: "Order Updated",      color: "#6d28d9", bg: "#ede9fe", icon: "🔄" },
-    walkin_order_created:       { label: "Walk-in Order",      color: "#b45309", bg: "#fef3c7", icon: "🏪" },
-    appointment_booked:         { label: "Appointment",        color: "#0891b2", bg: "#e0f2fe", icon: "📅" },
-    appointment_status_changed: { label: "Apt. Updated",       color: "#7c3aed", bg: "#faf5ff", icon: "✏️"  },
-    appointment_deleted:        { label: "Apt. Deleted",       color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
-    queue_next:                 { label: "Queue Next",         color: "#166534", bg: "#f0fdf4", icon: "➡️" },
-    queue_reset:                { label: "Queue Reset",        color: "#92400e", bg: "#fef3c7", icon: "🔁" },
-    medicine_added:             { label: "Medicine Added",     color: "#166534", bg: "#dcfce7", icon: "💊" },
-    medicine_updated:           { label: "Medicine Updated",   color: "#0891b2", bg: "#e0f2fe", icon: "✏️"  },
-    medicine_deleted:           { label: "Medicine Deleted",   color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
-    medicine_stock_updated:     { label: "Stock Updated",      color: "#b45309", bg: "#fef3c7", icon: "📊" },
-    user_created:               { label: "User Created",       color: "#166534", bg: "#dcfce7", icon: "👤" },
-    user_updated:               { label: "User Updated",       color: "#1e40af", bg: "#dbeafe", icon: "✏️"  },
-    user_deleted:               { label: "User Deleted",       color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
-    user_disabled:              { label: "User Disabled",      color: "#92400e", bg: "#fef3c7", icon: "🚫" },
-    user_enabled:               { label: "User Enabled",       color: "#166534", bg: "#dcfce7", icon: "✅" },
-    notice_published:           { label: "Notice Published",   color: "#7c3aed", bg: "#faf5ff", icon: "📢" },
-    notice_deleted:             { label: "Notice Deleted",     color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
+    login:                      { label: "Login",            color: "#166534", bg: "#dcfce7", icon: "🔑" },
+    logout:                     { label: "Logout",           color: "#6b7280", bg: "#f3f4f6", icon: "🚪" },
+    order_created:              { label: "Order Created",    color: "#1e40af", bg: "#dbeafe", icon: "📦" },
+    order_status_changed:       { label: "Order Updated",    color: "#6d28d9", bg: "#ede9fe", icon: "🔄" },
+    walkin_order_created:       { label: "Walk-in Order",    color: "#b45309", bg: "#fef3c7", icon: "🏪" },
+    appointment_booked:         { label: "Appointment",      color: "#0891b2", bg: "#e0f2fe", icon: "📅" },
+    appointment_status_changed: { label: "Apt. Updated",     color: "#7c3aed", bg: "#faf5ff", icon: "✏️"  },
+    appointment_deleted:        { label: "Apt. Deleted",     color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
+    queue_next:                 { label: "Queue Next",       color: "#166534", bg: "#f0fdf4", icon: "➡️" },
+    queue_reset:                { label: "Queue Reset",      color: "#92400e", bg: "#fef3c7", icon: "🔁" },
+    medicine_added:             { label: "Medicine Added",   color: "#166534", bg: "#dcfce7", icon: "💊" },
+    medicine_updated:           { label: "Medicine Updated", color: "#0891b2", bg: "#e0f2fe", icon: "✏️"  },
+    medicine_deleted:           { label: "Medicine Deleted", color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
+    medicine_stock_updated:     { label: "Stock Updated",    color: "#b45309", bg: "#fef3c7", icon: "📊" },
+    user_created:               { label: "User Created",     color: "#166534", bg: "#dcfce7", icon: "👤" },
+    user_updated:               { label: "User Updated",     color: "#1e40af", bg: "#dbeafe", icon: "✏️"  },
+    user_deleted:               { label: "User Deleted",     color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
+    user_disabled:              { label: "User Disabled",    color: "#92400e", bg: "#fef3c7", icon: "🚫" },
+    user_enabled:               { label: "User Enabled",     color: "#166534", bg: "#dcfce7", icon: "✅" },
+    notice_published:           { label: "Notice Published", color: "#7c3aed", bg: "#faf5ff", icon: "📢" },
+    notice_deleted:             { label: "Notice Deleted",   color: "#dc2626", bg: "#fee2e2", icon: "🗑️" },
   };
- 
   const ROLE_COLORS = {
     admin:     { bg: "#dbeafe", color: "#1e40af" },
     staff:     { bg: "#dcfce7", color: "#166534" },
     reception: { bg: "#faf5ff", color: "#6d28d9" },
     user:      { bg: "#f9fafb", color: "#374151" },
     patient:   { bg: "#f9fafb", color: "#374151" },
-    system:    { bg: "#f3f4f6", color: "#6b7280" },
   };
- 
   const PAGES = Math.ceil(total / 50);
- 
   const timeStr = (iso) => {
     if (!iso) return "-";
     const d = new Date(iso);
     return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) + " " +
            d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" });
   };
- 
   const ACTION_OPTIONS = [
-    ["", "All Actions"],
-    ["login", "Login"],
-    ["logout", "Logout"],
-    ["order_created", "Order Created"],
-    ["order_status_changed", "Order Updated"],
-    ["walkin_order_created", "Walk-in Order"],
-    ["appointment_booked", "Appointment Booked"],
-    ["appointment_status_changed", "Appointment Updated"],
-    ["queue_next", "Queue Next"],
-    ["queue_reset", "Queue Reset"],
-    ["medicine_added", "Medicine Added"],
-    ["medicine_updated", "Medicine Updated"],
-    ["medicine_deleted", "Medicine Deleted"],
-    ["medicine_stock_updated", "Stock Updated"],
-    ["user_created", "User Created"],
-    ["user_updated", "User Updated"],
-    ["user_deleted", "User Deleted"],
-    ["user_disabled", "User Disabled"],
-    ["user_enabled", "User Enabled"],
-    ["notice_published", "Notice Published"],
+    ["", "All Actions"], ["login","Login"], ["logout","Logout"],
+    ["order_created","Order Created"], ["order_status_changed","Order Updated"],
+    ["walkin_order_created","Walk-in Order"], ["appointment_booked","Appointment Booked"],
+    ["appointment_status_changed","Appointment Updated"], ["queue_next","Queue Next"],
+    ["queue_reset","Queue Reset"], ["medicine_added","Medicine Added"],
+    ["medicine_updated","Medicine Updated"], ["medicine_deleted","Medicine Deleted"],
+    ["medicine_stock_updated","Stock Updated"], ["user_created","User Created"],
+    ["user_updated","User Updated"], ["user_deleted","User Deleted"],
+    ["user_disabled","User Disabled"], ["user_enabled","User Enabled"],
+    ["notice_published","Notice Published"],
   ];
- 
   return (
     <div style={{ animation: "slideIn 0.3s ease" }}>
- 
-      {/* Header + controls */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h3 style={{ margin: "0 0 4px", fontSize: "17px", fontWeight: "700", color: "#111" }}>🕵️ Activity Log</h3>
-          <p style={{ margin: 0, fontSize: "13px", color: "#9ca3af" }}>
-            {total.toLocaleString()} total events recorded · Last 90 days
-          </p>
+          <p style={{ margin: 0, fontSize: "13px", color: "#9ca3af" }}>{total.toLocaleString()} total events · Last 90 days</p>
         </div>
-        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
-          <select
-            value={filter}
-            onChange={(e) => setFilter(e.target.value)}
-            style={{ padding: "8px 12px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "13px", color: "#333", background: "white", cursor: "pointer", outline: "none" }}>
-            {ACTION_OPTIONS.map(([val, label]) => (
-              <option key={val} value={val}>{label}</option>
-            ))}
+        <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+          <select value={filter} onChange={(e) => setFilter(e.target.value)} style={{ padding: "8px 12px", border: "1px solid #e5e7eb", borderRadius: "8px", fontSize: "13px", background: "white", cursor: "pointer", outline: "none" }}>
+            {ACTION_OPTIONS.map(([val, label]) => <option key={val} value={val}>{label}</option>)}
           </select>
-          <button
-            onClick={onRefresh}
-            style={{ padding: "8px 18px", background: "#166534", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
-            ↻ Refresh
-          </button>
+          <button onClick={onRefresh} style={{ padding: "8px 18px", background: "#166534", color: "white", border: "none", borderRadius: "8px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>↻ Refresh</button>
         </div>
       </div>
- 
-      {/* Table */}
       <div style={{ background: "white", borderRadius: "14px", boxShadow: "0 1px 6px rgba(0,0,0,0.06)", overflow: "hidden", marginBottom: "16px" }}>
         {loading ? (
           <div style={{ padding: "48px", display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
@@ -163,60 +132,40 @@ export function ActivityLogTab({ logs, total, page, loading, filter, setFilter, 
           </div>
         ) : (
           <div style={{ overflowX: "auto" }}>
-            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse", minWidth: "700px" }}>
               <thead>
                 <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
-                  {["Time", "Action", "User", "Role", "Description", "IP"].map((h) => (
+                  {["Time","Action","User","Role","Description","IP"].map(h => (
                     <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
                   ))}
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log, idx) => {
-                  const actionMeta = ACTION_LABELS[log.action] || { label: log.action, color: "#6b7280", bg: "#f3f4f6", icon: "📝" };
-                  const roleMeta   = ROLE_COLORS[log.userRole] || ROLE_COLORS.user;
+                  const am = ACTION_LABELS[log.action] || { label: log.action, color: "#6b7280", bg: "#f3f4f6", icon: "📝" };
+                  const rm = ROLE_COLORS[log.userRole] || ROLE_COLORS.user;
                   return (
                     <tr key={log._id || idx}
                       style={{ background: idx % 2 === 0 ? "white" : "#fafafa", borderBottom: "1px solid #f3f4f6" }}
                       onMouseEnter={e => e.currentTarget.style.background = "#f0fdf4"}
                       onMouseLeave={e => e.currentTarget.style.background = idx % 2 === 0 ? "white" : "#fafafa"}>
- 
-                      {/* Time */}
-                      <td style={{ padding: "12px 14px", fontSize: "12px", color: "#9ca3af", whiteSpace: "nowrap" }}>
-                        {timeStr(log.createdAt)}
-                      </td>
- 
-                      {/* Action badge */}
+                      <td style={{ padding: "12px 14px", fontSize: "12px", color: "#9ca3af", whiteSpace: "nowrap" }}>{timeStr(log.createdAt)}</td>
                       <td style={{ padding: "12px 14px", whiteSpace: "nowrap" }}>
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: actionMeta.bg, color: actionMeta.color, padding: "3px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: "700" }}>
-                          {actionMeta.icon} {actionMeta.label}
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: am.bg, color: am.color, padding: "3px 10px", borderRadius: "20px", fontSize: "11px", fontWeight: "700" }}>
+                          {am.icon} {am.label}
                         </span>
                       </td>
- 
-                      {/* User */}
                       <td style={{ padding: "12px 14px" }}>
                         <div style={{ fontWeight: "600", fontSize: "13px", color: "#111" }}>{log.userName || "—"}</div>
                         <div style={{ fontSize: "11px", color: "#9ca3af" }}>{log.userEmail || ""}</div>
                       </td>
- 
-                      {/* Role */}
                       <td style={{ padding: "12px 14px" }}>
-                        <span style={{ background: roleMeta.bg, color: roleMeta.color, padding: "2px 9px", borderRadius: "10px", fontSize: "11px", fontWeight: "600", textTransform: "capitalize" }}>
-                          {log.userRole || "—"}
-                        </span>
+                        <span style={{ background: rm.bg, color: rm.color, padding: "2px 9px", borderRadius: "10px", fontSize: "11px", fontWeight: "600", textTransform: "capitalize" }}>{log.userRole || "—"}</span>
                       </td>
- 
-                      {/* Description */}
-                      <td style={{ padding: "12px 14px", fontSize: "13px", color: "#4b5563", maxWidth: "380px" }}>
-                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {log.description}
-                        </div>
+                      <td style={{ padding: "12px 14px", fontSize: "13px", color: "#4b5563", maxWidth: "340px" }}>
+                        <div style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{log.description}</div>
                       </td>
- 
-                      {/* IP */}
-                      <td style={{ padding: "12px 14px", fontSize: "11px", color: "#9ca3af", fontFamily: "monospace" }}>
-                        {log.ip || "—"}
-                      </td>
+                      <td style={{ padding: "12px 14px", fontSize: "11px", color: "#9ca3af", fontFamily: "monospace" }}>{log.ip || "—"}</td>
                     </tr>
                   );
                 })}
@@ -225,41 +174,37 @@ export function ActivityLogTab({ logs, total, page, loading, filter, setFilter, 
           </div>
         )}
       </div>
- 
-      {/* Pagination */}
       {PAGES > 1 && (
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "0 4px" }}>
-          <span style={{ fontSize: "13px", color: "#9ca3af" }}>
-            Page {page} of {PAGES} · {total.toLocaleString()} total records
-          </span>
-          <div style={{ display: "flex", gap: "6px" }}>
-            <button
-              onClick={() => onPageChange(page - 1)}
-              disabled={page <= 1}
-              style={{ padding: "7px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", background: page <= 1 ? "#f9fafb" : "white", color: page <= 1 ? "#d1d5db" : "#374151", cursor: page <= 1 ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600" }}>
-              ← Prev
-            </button>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
+          <span style={{ fontSize: "13px", color: "#9ca3af" }}>Page {page} of {PAGES} · {total.toLocaleString()} records</span>
+          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+            <button onClick={() => onPageChange(page - 1)} disabled={page <= 1} style={{ padding: "7px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", background: page <= 1 ? "#f9fafb" : "white", color: page <= 1 ? "#d1d5db" : "#374151", cursor: page <= 1 ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600" }}>← Prev</button>
             {Array.from({ length: Math.min(5, PAGES) }, (_, i) => {
               const p = Math.max(1, Math.min(page - 2, PAGES - 4)) + i;
               return (
-                <button key={p} onClick={() => onPageChange(p)}
-                  style={{ padding: "7px 12px", border: `1px solid ${p === page ? "#166534" : "#e5e7eb"}`, borderRadius: "8px", background: p === page ? "#166534" : "white", color: p === page ? "white" : "#374151", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>
-                  {p}
-                </button>
+                <button key={p} onClick={() => onPageChange(p)} style={{ padding: "7px 12px", border: `1px solid ${p === page ? "#166534" : "#e5e7eb"}`, borderRadius: "8px", background: p === page ? "#166534" : "white", color: p === page ? "white" : "#374151", cursor: "pointer", fontSize: "13px", fontWeight: "600" }}>{p}</button>
               );
             })}
-            <button
-              onClick={() => onPageChange(page + 1)}
-              disabled={page >= PAGES}
-              style={{ padding: "7px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", background: page >= PAGES ? "#f9fafb" : "white", color: page >= PAGES ? "#d1d5db" : "#374151", cursor: page >= PAGES ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600" }}>
-              Next →
-            </button>
+            <button onClick={() => onPageChange(page + 1)} disabled={page >= PAGES} style={{ padding: "7px 14px", border: "1px solid #e5e7eb", borderRadius: "8px", background: page >= PAGES ? "#f9fafb" : "white", color: page >= PAGES ? "#d1d5db" : "#374151", cursor: page >= PAGES ? "not-allowed" : "pointer", fontSize: "13px", fontWeight: "600" }}>Next →</button>
           </div>
         </div>
       )}
     </div>
   );
 }
+
+
+// ─── EXPIRY STATUS HELPER ─────────────────────────────────────────────────────
+const getExpiryStatus = (expiryDate) => {
+  if (!expiryDate) return null;
+  const today   = new Date();
+  const expiry  = new Date(expiryDate);
+  const daysLeft = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
+  if (daysLeft < 0)   return { label: "Expired",           bg: "#fee2e2", color: "#991b1b", days: daysLeft };
+  if (daysLeft <= 30) return { label: `${daysLeft}d left`, bg: "#fee2e2", color: "#991b1b", days: daysLeft };
+  if (daysLeft <= 90) return { label: `${daysLeft}d left`, bg: "#fef3c7", color: "#92400e", days: daysLeft };
+  return               { label: "Valid",                   bg: "#dcfce7", color: "#166534", days: daysLeft };
+};
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -321,14 +266,6 @@ export default function Admin() {
   const [userFormOpen, setUserFormOpen]     = useState(false);
   const [editingUser, setEditingUser]       = useState(null);
   const [userFormLoading, setUserFormLoading] = useState(false);
-
-  //Activity log
-  const [activityLogs, setActivityLogs]         = useState([]);   
-  const [activityTotal, setActivityTotal]       = useState(0);
-  const [activityPage, setActivityPage]         = useState(1);
-  const [activityLoading, setActivityLoading]   = useState(false);
-  const [activityFilter, setActivityFilter]     = useState("");
-  // const [activitySearch, setActivitySearch]     = useState("");
 
   // ─── AUTH CHECK ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -435,11 +372,6 @@ export default function Admin() {
     return () => clearInterval(interval);
   }, [authChecked]); // eslint-disable-line
 
-  useEffect(() => {
-     if (activeTab !== "activity" || !authChecked) return;
-     fetchActivityLogs(1, activityFilter);
-   }, [activeTab, authChecked, activityFilter]);
-
   // ─── ANALYTICS ───────────────────────────────────────────────────────────
   const fetchAnalytics = () => {
     setAnalyticsLoading(true);
@@ -485,22 +417,6 @@ export default function Admin() {
       setNotification({ open: true, message: "Failed to reset queue", severity: "error" });
     }
   };
-
-  const fetchActivityLogs = async (page = 1, action = "") => {
-     setActivityLoading(true);
-     try {
-       const params = new URLSearchParams({ page, limit: 50 });
-       if (action) params.set("action", action);
-       const res = await fetch(`${BASE_URL}/activity-logs?${params}`, { credentials: "include" });
-       if (res.ok) {
-         const data = await res.json();
-         setActivityLogs(data.logs || []);
-         setActivityTotal(data.total || 0);
-         setActivityPage(data.page || 1);
-       }
-     } catch { /* silent */ }
-     finally { setActivityLoading(false); }
-   };
 
   // ─── SOCKET.IO ───────────────────────────────────────────────────────────
   useEffect(() => {
@@ -619,7 +535,7 @@ export default function Admin() {
   const updateAptStatus = async (aptId, newStatus) => {
     try {
       await axios.patch(`${BASE_URL}/appointments/${aptId}/status`, { status: newStatus }, { withCredentials: true });
-      setAppointments((prev) => prev.map((a) => String(a._id) === String(aptId) ? { ...a, status: newStatus } : a));
+      setAppointments((prev) => prev.map((a) => String(a.id) === String(aptId) ? { ...a, status: newStatus } : a));
       setNotification({ open: true, message: "Appointment updated to " + newStatus, severity: "success" });
       setAptStatusDialogOpen(false);
       setSelectedApt(null);
@@ -665,7 +581,8 @@ export default function Admin() {
         category: editingMed.category, stock: Number(editingMed.stock),
         lowStockThreshold: Number(editingMed.lowStockThreshold),
         unit: editingMed.unit, isActive: editingMed.isActive,
-        supplier: editingMed.supplier || "", expiryDate: editingMed.expiryDate || "", 
+        supplier: editingMed.supplier || "",
+        expiryDate: editingMed.expiryDate || "",
         entryDate: editingMed.entryDate || "",
       }, { withCredentials: true });
       setNotification({ open: true, message: "Medicine updated!", severity: "success" });
@@ -765,7 +682,7 @@ export default function Admin() {
       `<tbody>${rows}</tbody></table>` +
       `<h3 style='text-align:right;'>Total: Rs.${order.total}</h3><hr/>` +
       `<p style='text-align:center;color:#888;font-size:12px;'>Thank you for choosing Digital Clinic!</p>` +
-      `<script>window.onload=function(){window.print();}</script></body></html>`
+      `<script>window.onload=function(){window.print();}<\/script></body></html>`
     );
     w.document.close();
   };
@@ -916,6 +833,40 @@ export default function Admin() {
     URL.revokeObjectURL(url);
   };
 
+  // ─── ACTIVITY LOG STATE ─────────────────────────────────────────
+  const [activityLogs, setActivityLogs]       = useState([]);
+  const [activityTotal, setActivityTotal]     = useState(0);
+  const [activityPage, setActivityPage]       = useState(1);
+  const [activityLoading, setActivityLoading] = useState(false);
+  const [activityFilter, setActivityFilter]   = useState("");
+  const [sidebarOpen, setSidebarOpen]         = useState(false);
+
+  const fetchActivityLogs = async (pg = 1, action = "") => {
+    setActivityLoading(true);
+    try {
+      const params = new URLSearchParams({ page: pg, limit: 50 });
+      if (action) params.set("action", action);
+      const res = await fetch(`${BASE_URL}/activity-logs?${params}`, { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setActivityLogs(data.logs || []);
+        setActivityTotal(data.total || 0);
+        setActivityPage(data.page || 1);
+      }
+    } catch { /* silent */ }
+    finally { setActivityLoading(false); }
+  };
+
+  useEffect(() => {
+    if (activeTab !== "activity" || !authChecked) return;
+    fetchActivityLogs(1, activityFilter);
+  }, [activeTab, authChecked, activityFilter]); // eslint-disable-line
+
+  const handleLogout = () => {
+    ["isLoggedIn","role","email","name","phone","userId"].forEach(k => localStorage.removeItem(k));
+    window.location.href = "/";
+  };
+
   // ─── LOADING SCREEN ───────────────────────────────────────────────────────
   if (!authChecked) return (
     <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#f8fafc" }}>
@@ -927,76 +878,236 @@ export default function Admin() {
     </div>
   );
 
+
   const tabs = [
-    { id: "dashboard",    label: "📊 Dashboard"    },
-    { id: "analytics",    label: "📈 Analytics"    },
-    { id: "orders",       label: "📦 Orders"       },
-    { id: "appointments", label: "📅 Appointments" },
-    { id: "queue",        label: "🎫 Queue"        },
-    { id: "pos",          label: "🏪 Walk-in POS"  },
-    { id: "inventory",    label: "💊 Inventory"    },
-    { id: "users",        label: "👥 Users"        },
-    { id: "notices",      label: "🔔 Notices"      },
-    { id: "activity",     label: "🕵️ Activity Log" },
+    { id: "dashboard",    icon: "📊", label: "Dashboard"    },
+    { id: "analytics",    icon: "📈", label: "Analytics"    },
+    { id: "orders",       icon: "📦", label: "Orders"       },
+    { id: "appointments", icon: "📅", label: "Appointments" },
+    { id: "queue",        icon: "🎫", label: "Queue"        },
+    { id: "pos",          icon: "🏪", label: "Walk-in POS"  },
+    { id: "inventory",    icon: "💊", label: "Inventory"    },
+    { id: "users",        icon: "👥", label: "Users"        },
+    { id: "notices",      icon: "🔔", label: "Notices"      },
+    { id: "activity",     icon: "🕵️", label: "Activity Log" },
   ];
 
+
   // ═══════════════════════════════════════════════════════════════════════════
-  // RENDER
+  // RENDER — SaaS Sidebar Layout
   // ═══════════════════════════════════════════════════════════════════════════
+  const adminName = localStorage.getItem("name") || "Admin";
+  const initials  = adminName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+  const curTab    = tabs.find(t => t.id === activeTab) || tabs[0];
+
   return (
-    <div style={styles.page}>
+    <div style={{ height: "100vh", overflow: "hidden", background: "#f1f5f9", fontFamily: "'Plus Jakarta Sans','Segoe UI', system-ui, sans-serif", display: "flex" }}>
       <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:.4; } }
-        @keyframes slideIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-        .metric-card:hover { transform: translateY(-3px) !important; box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important; }
-        .row-hover:hover { background: #f9fafb !important; }
-        .tab-btn:hover { color: #166534 !important; background: #f0fdf4 !important; }
+        @keyframes spin    { to { transform: rotate(360deg); } }
+        @keyframes pulse   { 0%,100%{opacity:1} 50%{opacity:.4} }
+        @keyframes slideIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+        @keyframes sideIn  { from{transform:translateX(-100%)} to{transform:translateX(0)} }
+        * { box-sizing: border-box; }
+        ::-webkit-scrollbar{width:5px;height:5px}
+        ::-webkit-scrollbar-track{background:transparent}
+        ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+        .metric-card:hover{transform:translateY(-3px)!important;box-shadow:0 8px 24px rgba(0,0,0,.12)!important}
+        .row-hover:hover{background:#f9fafb!important}
+        .sb-nav-item{transition:all .15s;border:none;cursor:pointer;text-align:left;width:100%}
+        .sb-nav-item:hover{background:rgba(255,255,255,.12)!important;color:white!important}
+        .tab-btn:hover{color:#166534!important;background:#f0fdf4!important}
+        @media(max-width:900px){
+          .pos-grid{grid-template-columns:1fr!important}
+          .stats-grid{grid-template-columns:repeat(2,1fr)!important}
+          .inv-form-grid{grid-template-columns:1fr 1fr!important}
+          .analytics-grid{grid-template-columns:1fr!important}
+          .rev-summary-grid{grid-template-columns:1fr!important}
+        }
+        @media(max-width:768px){
+          .sidebar-desktop{display:none!important}
+          .mob-topbar{display:flex!important}
+          .main-content-pad{padding:14px!important}
+          .stats-grid{grid-template-columns:1fr 1fr!important}
+          .admin-main-area{margin-left:0!important}
+        }
+        @media(min-width:769px){
+          .mob-topbar{display:none!important}
+          .mob-overlay{display:none!important}
+        }
       `}</style>
 
-      {/* ── HEADER ── */}
-      <div style={styles.header}>
-        <div>
-          <h1 style={styles.headerTitle}>🏥 Digital Clinic</h1>
-          <p style={styles.headerSub}>Admin Management System</p>
+      {/* ══════════════════════════════════════════════════════════
+          DESKTOP SIDEBAR
+      ══════════════════════════════════════════════════════════ */}
+      <aside className="sidebar-desktop" style={{
+        width:"220px", flexShrink:0, height:"100vh", position:"fixed", top:0, left:0,
+        background:"linear-gradient(180deg,#071810 0%,#0d3320 45%,#166534 100%)",
+        display:"flex", flexDirection:"column", overflowY:"auto",
+        boxShadow:"4px 0 24px rgba(0,0,0,.2)",
+      }}>
+        {/* Logo */}
+        <div style={{padding:"20px 16px 14px",borderBottom:"1px solid rgba(255,255,255,.09)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+            <div style={{width:"40px",height:"40px",borderRadius:"12px",background:"rgba(255,255,255,.13)",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"20px",flexShrink:0}}>🏥</div>
+            <div>
+              <div style={{fontWeight:"700",fontSize:"14px",color:"white",letterSpacing:"-0.01em"}}>Digital Clinic</div>
+              <div style={{fontSize:"10px",color:"rgba(255,255,255,.45)",textTransform:"uppercase",letterSpacing:"0.07em"}}>Admin Panel</div>
+            </div>
+          </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          {lowStockMeds.length > 0 && (
-            <Tooltip title={`${lowStockMeds.length} low stock alert(s)`}>
-              <IconButton onClick={() => setActiveTab("inventory")} style={{ background: "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}>
-                <Badge badgeContent={lowStockMeds.length} color="warning">
-                  <Inventory style={{ color: "white" }} />
-                </Badge>
-              </IconButton>
-            </Tooltip>
-          )}
-          <Tooltip title="New orders">
-            <IconButton
-              onClick={() => { setNewOrdersCount(0); setActiveTab("orders"); }}
-              style={{ background: newOrdersCount > 0 ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.15)", backdropFilter: "blur(4px)" }}>
-              <Badge badgeContent={newOrdersCount} color="error">
-                <NotificationsActive style={{ color: "white" }} />
-              </Badge>
-            </IconButton>
-          </Tooltip>
-          <div style={styles.adminBadge}>👤 Admin</div>
-        </div>
-      </div>
 
-      {/* ── TABS ── */}
-      <div style={styles.tabBar}>
-        {tabs.map((tab) => (
-          <button key={tab.id} className="tab-btn" onClick={() => setActiveTab(tab.id)}
-            style={{ ...styles.tab, ...(activeTab === tab.id ? styles.tabActive : {}) }}>
-            {tab.label}
-            {tab.id === "orders" && newOrdersCount > 0 && (
-              <span style={{ marginLeft: "6px", background: "#dc2626", color: "white", borderRadius: "10px", padding: "1px 6px", fontSize: "10px", fontWeight: "700" }}>{newOrdersCount}</span>
-            )}
+        {/* Admin profile */}
+        <div style={{padding:"14px 16px",borderBottom:"1px solid rgba(255,255,255,.09)"}}>
+          <div style={{display:"flex",alignItems:"center",gap:"10px"}}>
+            <div style={{width:"36px",height:"36px",borderRadius:"50%",background:"linear-gradient(135deg,#22c55e,#15803d)",display:"flex",alignItems:"center",justifyContent:"center",fontWeight:"800",color:"white",fontSize:"13px",flexShrink:0}}>{initials}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:"13px",fontWeight:"700",color:"white",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{adminName}</div>
+              <div style={{fontSize:"10px",color:"rgba(255,255,255,.45)"}}>Administrator</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Nav items */}
+        <nav style={{flex:1,padding:"10px 8px",overflowY:"auto"}}>
+          {tabs.map(tab => {
+            const isActive = activeTab === tab.id;
+            return (
+              <button key={tab.id} className="sb-nav-item" onClick={() => setActiveTab(tab.id)} style={{
+                display:"flex", alignItems:"center", gap:"10px",
+                padding:"10px 13px", borderRadius:"10px", marginBottom:"2px",
+                background: isActive ? "rgba(255,255,255,.18)" : "transparent",
+                color: isActive ? "white" : "rgba(255,255,255,.6)",
+                fontWeight: isActive ? "700" : "400", fontSize:"13px",
+                position:"relative",
+              }}>
+                <span style={{fontSize:"15px",width:"18px",textAlign:"center",flexShrink:0}}>{tab.icon}</span>
+                <span style={{flex:1}}>{tab.label}</span>
+                {tab.id === "orders" && newOrdersCount > 0 && (
+                  <span style={{background:"#ef4444",color:"white",borderRadius:"10px",padding:"1px 7px",fontSize:"10px",fontWeight:"800"}}>{newOrdersCount}</span>
+                )}
+                {tab.id === "inventory" && lowStockMeds.length > 0 && (
+                  <span style={{background:"#f59e0b",color:"white",borderRadius:"10px",padding:"1px 7px",fontSize:"10px",fontWeight:"800"}}>{lowStockMeds.length}</span>
+                )}
+                {isActive && <div style={{position:"absolute",left:0,top:"20%",bottom:"20%",width:"3px",borderRadius:"0 3px 3px 0",background:"#4ade80"}} />}
+              </button>
+            );
+          })}
+        </nav>
+
+        {/* Sidebar footer */}
+        <div style={{padding:"12px 8px",borderTop:"1px solid rgba(255,255,255,.09)"}}>
+          {/* Visit Store */}
+          <button className="sb-nav-item" onClick={() => navigate("/store")} style={{
+            display:"flex",alignItems:"center",gap:"10px",
+            padding:"10px 13px",borderRadius:"10px",background:"rgba(34,197,94,.15)",
+            color:"#86efac",fontSize:"13px",marginBottom:"4px",
+          }}>
+            <span style={{fontSize:"15px",width:"18px",textAlign:"center"}}>🛒</span>
+            <span>Visit Store</span>
           </button>
-        ))}
-      </div>
+          {/* Logout */}
+          <button className="sb-nav-item" onClick={handleLogout} style={{
+            display:"flex",alignItems:"center",gap:"10px",
+            padding:"10px 13px",borderRadius:"10px",background:"rgba(239,68,68,.15)",
+            color:"#fca5a5",fontSize:"13px",
+          }}>
+            <span style={{fontSize:"15px",width:"18px",textAlign:"center"}}>🚪</span>
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
 
-      <div style={styles.content}>
+      {/* ══════════════════════════════════════════════════════════
+          MOBILE SIDEBAR OVERLAY
+      ══════════════════════════════════════════════════════════ */}
+      {sidebarOpen && (
+        <div className="mob-overlay" style={{position:"fixed",inset:0,zIndex:200,display:"flex"}}>
+          <aside style={{
+            width:"220px",height:"100%",overflowY:"auto",
+            background:"linear-gradient(180deg,#071810 0%,#0d3320 45%,#166534 100%)",
+            display:"flex",flexDirection:"column",animation:"sideIn .25s ease",
+            boxShadow:"4px 0 24px rgba(0,0,0,.3)",
+          }}>
+            <div style={{padding:"16px",borderBottom:"1px solid rgba(255,255,255,.1)",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+              <div style={{fontWeight:"700",color:"white",fontSize:"14px"}}>🏥 Admin Panel</div>
+              <button onClick={() => setSidebarOpen(false)} style={{background:"rgba(255,255,255,.1)",border:"none",borderRadius:"8px",padding:"6px 10px",color:"white",cursor:"pointer",fontSize:"14px"}}>✕</button>
+            </div>
+            <nav style={{flex:1,padding:"10px 8px"}}>
+              {tabs.map(tab => (
+                <button key={tab.id} className="sb-nav-item" onClick={() => { setActiveTab(tab.id); setSidebarOpen(false); }} style={{
+                  display:"flex",alignItems:"center",gap:"10px",
+                  padding:"11px 13px",borderRadius:"10px",marginBottom:"2px",
+                  background: activeTab === tab.id ? "rgba(255,255,255,.18)" : "transparent",
+                  color: activeTab === tab.id ? "white" : "rgba(255,255,255,.6)",
+                  fontWeight: activeTab === tab.id ? "700" : "400", fontSize:"13px",
+                }}>
+                  <span>{tab.icon}</span><span style={{flex:1}}>{tab.label}</span>
+                  {tab.id === "orders" && newOrdersCount > 0 && <span style={{background:"#ef4444",color:"white",borderRadius:"10px",padding:"1px 6px",fontSize:"10px",fontWeight:"800"}}>{newOrdersCount}</span>}
+                  {tab.id === "inventory" && lowStockMeds.length > 0 && <span style={{background:"#f59e0b",color:"white",borderRadius:"10px",padding:"1px 6px",fontSize:"10px",fontWeight:"800"}}>{lowStockMeds.length}</span>}
+                </button>
+              ))}
+            </nav>
+            <div style={{padding:"12px 8px",borderTop:"1px solid rgba(255,255,255,.1)"}}>
+              <button className="sb-nav-item" onClick={() => { navigate("/store"); setSidebarOpen(false); }} style={{display:"flex",alignItems:"center",gap:"10px",padding:"11px 13px",borderRadius:"10px",background:"rgba(34,197,94,.15)",color:"#86efac",fontSize:"13px",marginBottom:"4px"}}>
+                <span>🛒</span><span>Visit Store</span>
+              </button>
+              <button className="sb-nav-item" onClick={handleLogout} style={{display:"flex",alignItems:"center",gap:"10px",padding:"11px 13px",borderRadius:"10px",background:"rgba(239,68,68,.15)",color:"#fca5a5",fontSize:"13px"}}>
+                <span>🚪</span><span>Logout</span>
+              </button>
+            </div>
+          </aside>
+          <div style={{flex:1,background:"rgba(0,0,0,.45)"}} onClick={() => setSidebarOpen(false)} />
+        </div>
+      )}
+
+      {/* ══════════════════════════════════════════════════════════
+          MAIN CONTENT AREA
+      ══════════════════════════════════════════════════════════ */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",minWidth:0,overflowY:"auto",marginLeft:"220px"}} className="admin-main-area">
+
+        {/* Mobile top bar */}
+        <div className="mob-topbar" style={{background:"linear-gradient(135deg,#071810,#166534)",padding:"12px 16px",alignItems:"center",justifyContent:"space-between",display:"none",position:"sticky",top:0,zIndex:9}}>
+          <button onClick={() => setSidebarOpen(true)} style={{background:"rgba(255,255,255,.12)",border:"none",borderRadius:"8px",padding:"8px 12px",color:"white",cursor:"pointer",fontSize:"16px"}}>☰</button>
+          <div style={{fontWeight:"700",color:"white",fontSize:"15px"}}>{curTab.icon} {curTab.label}</div>
+          <div style={{display:"flex",gap:"6px"}}>
+            {newOrdersCount > 0 && <span style={{background:"#ef4444",color:"white",borderRadius:"8px",padding:"4px 8px",fontSize:"11px",fontWeight:"800"}}>{newOrdersCount}</span>}
+            {lowStockMeds.length > 0 && <span style={{background:"#f59e0b",color:"white",borderRadius:"8px",padding:"4px 8px",fontSize:"11px",fontWeight:"800"}}>{lowStockMeds.length}</span>}
+          </div>
+        </div>
+
+        {/* Desktop top bar */}
+        <header style={{background:"white",padding:"13px 28px",display:"flex",alignItems:"center",justifyContent:"space-between",borderBottom:"1px solid #e5e7eb",position:"sticky",top:0,zIndex:9,flexWrap:"wrap",gap:"10px"}}>
+          <div>
+            <h1 style={{margin:0,fontSize:"17px",fontWeight:"800",color:"#1e293b"}}>{curTab.icon} {curTab.label}</h1>
+            <p style={{margin:0,fontSize:"11px",color:"#94a3b8"}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",flexWrap:"wrap"}}>
+            {lowStockMeds.length > 0 && (
+              <button onClick={() => setActiveTab("inventory")} style={{display:"flex",alignItems:"center",gap:"6px",padding:"7px 13px",background:"#fef3c7",color:"#92400e",border:"none",borderRadius:"9px",fontSize:"12px",fontWeight:"700",cursor:"pointer"}}>
+                ⚠️ {lowStockMeds.length} Low Stock
+              </button>
+            )}
+            {newOrdersCount > 0 && (
+              <button onClick={() => { setNewOrdersCount(0); setActiveTab("orders"); }} style={{display:"flex",alignItems:"center",gap:"6px",padding:"7px 13px",background:"#fee2e2",color:"#991b1b",border:"none",borderRadius:"9px",fontSize:"12px",fontWeight:"700",cursor:"pointer"}}>
+                🔔 {newOrdersCount} New
+              </button>
+            )}
+            <button onClick={() => navigate("/store")} style={{padding:"7px 13px",background:"#f0fdf4",color:"#166534",border:"1px solid #bbf7d0",borderRadius:"9px",fontSize:"12px",fontWeight:"700",cursor:"pointer",display:"flex",alignItems:"center",gap:"5px"}}>
+              🛒 Store
+            </button>
+            <div style={{display:"flex",alignItems:"center",gap:"8px",padding:"7px 12px",background:"#f8fafc",borderRadius:"10px",border:"1px solid #e2e8f0"}}>
+              <div style={{width:"28px",height:"28px",borderRadius:"50%",background:"linear-gradient(135deg,#166534,#4ade80)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:"800",fontSize:"11px"}}>{initials}</div>
+              <div>
+                <div style={{fontSize:"12px",fontWeight:"700",color:"#1e293b"}}>{adminName.split(" ")[0]}</div>
+                <div style={{fontSize:"10px",color:"#94a3b8"}}>Admin</div>
+              </div>
+            </div>
+          </div>
+        </header>
+
+        {/* Tab Content */}
+        <div className="main-content-pad" style={{padding:"24px 28px",flex:1}}>
+
 
         {/* ════════════════════════════════════════════════════════════
             DASHBOARD TAB
@@ -1576,7 +1687,7 @@ export default function Admin() {
                     {filteredApts.map((apt, idx) => {
                       const sc = aptStatusColors[apt.status] || aptStatusColors.Pending;
                       return (
-                        <TableRow key={apt._id || idx} hover>
+                        <TableRow key={apt.id || idx} hover>
                           <TableCell>
                             <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                               <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "linear-gradient(135deg,#166534,#4ade80)", display: "flex", alignItems: "center", justifyContent: "center", color: "white", fontWeight: "700", fontSize: "13px", flexShrink: 0 }}>
@@ -1822,12 +1933,17 @@ export default function Admin() {
 
             {/* All medicines table */}
             <div style={styles.card}>
-              <h3 style={styles.cardTitle}>💊 All Medicines ({safeMedicines.length})</h3>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"16px"}}>
+                <h3 style={{...styles.cardTitle,marginBottom:0}}>💊 All Medicines ({safeMedicines.length})</h3>
+                <button onClick={() => window.open("/store","_blank")} style={{display:"flex",alignItems:"center",gap:"7px",padding:"8px 16px",background:"linear-gradient(135deg,#166534,#15803d)",color:"white",border:"none",borderRadius:"9px",fontSize:"13px",fontWeight:"700",cursor:"pointer",boxShadow:"0 3px 12px rgba(22,101,52,.35)"}}>
+                  <span>🛒</span> Preview in Store
+                </button>
+              </div>
               <TableContainer component={Paper} elevation={0} style={{ border: "1px solid #e5e7eb", borderRadius: "10px", marginTop: "16px" }}>
                 <Table>
                   <TableHead style={{ background: "#f9fafb" }}>
                     <TableRow>
-                      {["Medicine","Category","Price","Stock", "Supplier","Expiry","Status","Visibility","Actions"].map((h) => (
+                      {["Medicine","Category","Price","Stock","Supplier","Expiry","Status","Visibility","Actions"].map((h) => (
                         <TableCell key={h}><strong style={{ fontSize: "12px", color: "#374151" }}>{h}</strong></TableCell>
                       ))}
                     </TableRow>
@@ -1854,16 +1970,15 @@ export default function Admin() {
                           </TableCell>
                           <TableCell style={{ fontSize: "13px", color: "#555" }}>{med.supplier || <span style={{ color: "#d1d5db" }}>—</span>}</TableCell>
                           <TableCell>
-                            {med.expiryDate ? (
-                              <span style={{
-                                fontSize: "12px", fontWeight: "600", padding: "2px 8px", borderRadius: "6px",
-                                background: new Date(med.expiryDate) < new Date() ? "#fee2e2" : new Date(med.expiryDate) < new Date(Date.now() + 60*24*60*60*1000) ? "#fef3c7" : "#f0fdf4",
-                                color: new Date(med.expiryDate) < new Date() ? "#991b1b" : new Date(med.expiryDate) < new Date(Date.now() + 60*24*60*60*1000) ? "#92400e" : "#166534",
-                              }}>
-                                {new Date(med.expiryDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
-                                {new Date(med.expiryDate) < new Date() ? " ⚠️" : ""}
-                              </span>
-                            ) : <span style={{ color: "#d1d5db", fontSize: "13px" }}>—</span>}
+                            {(() => {
+                              const expSt = getExpiryStatus(med.expiryDate);
+                              if (!expSt) return <span style={{ color: "#d1d5db", fontSize: "12px" }}>—</span>;
+                              return (
+                                <span style={{ display: "inline-block", background: expSt.bg, color: expSt.color, padding: "2px 9px", borderRadius: "8px", fontSize: "11px", fontWeight: "600" }}>
+                                  {expSt.days < 0 ? "⛔ Expired" : expSt.days <= 90 ? `⚠️ ${expSt.label}` : `✓ ${new Date(med.expiryDate).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"2-digit"})}`}
+                                </span>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell><Chip label={ss.label} size="small" style={{ background: ss.bg, color: ss.color, fontWeight: "600", fontSize: "11px" }} /></TableCell>
                           <TableCell><Chip label={med.isActive ? "Visible" : "Hidden"} size="small" style={{ background: med.isActive ? "#dcfce7" : "#f3f4f6", color: med.isActive ? "#166534" : "#888", fontWeight: "600", fontSize: "11px" }} /></TableCell>
@@ -2024,22 +2139,26 @@ export default function Admin() {
           </div>
         )}
 
-      </div>{/* end styles.content */}
-      {/* ════════════════════════════════════════════════════════════
-            ACTIVITY TAB
-        ════════════════════════════════════════════════════════════ */}
-      {activeTab === "activity" && (
-      <ActivityLogTab
-        logs={activityLogs}
-        total={activityTotal}
-        page={activityPage}
-        loading={activityLoading}
-        filter={activityFilter}
-        setFilter={setActivityFilter}
-        onPageChange={(p) => fetchActivityLogs(p, activityFilter)}
-        onRefresh={() => fetchActivityLogs(activityPage, activityFilter)}
-      />
-    )}
+
+          {/* ════════════════════════════════════════════════════════════
+              ACTIVITY TAB
+          ════════════════════════════════════════════════════════════ */}
+          {activeTab === "activity" && (
+            <ActivityLogTab
+              logs={activityLogs}
+              total={activityTotal}
+              page={activityPage}
+              loading={activityLoading}
+              filter={activityFilter}
+              setFilter={setActivityFilter}
+              onPageChange={(p) => fetchActivityLogs(p, activityFilter)}
+              onRefresh={() => fetchActivityLogs(activityPage, activityFilter)}
+            />
+          )}
+
+
+        </div>{/* end main-content-pad */}
+
 
       {/* ════════════════════════════════════════════════════════════
           DIALOGS (outside content div, inside root div)
@@ -2094,7 +2213,7 @@ export default function Admin() {
         </DialogContent>
         <DialogActions style={{ padding: "16px" }}>
           <Button onClick={() => setAptStatusDialogOpen(false)} style={{ color: "#888" }}>Cancel</Button>
-          <Button onClick={() => updateAptStatus(selectedApt._id, selectedApt.status)} variant="contained" style={{ background: "#166534", color: "white" }}>Update Status</Button>
+          <Button onClick={() => updateAptStatus(selectedApt.id, selectedApt.status)} variant="contained" style={{ background: "#166534", color: "white" }}>Update Status</Button>
         </DialogActions>
       </Dialog>
 
@@ -2239,6 +2358,8 @@ export default function Admin() {
         </Alert>
       </Snackbar>
 
-    </div>/* end styles.page */
+
+      </div>{/* end main area */}
+    </div>
   );
 }
