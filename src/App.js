@@ -4,7 +4,7 @@ import "aos/dist/aos.css";
 import {
   BrowserRouter as Router,
   Routes, Route,
-  useLocation, Navigate,
+  useLocation,
 } from "react-router-dom";
 
 import Navbar        from "./components/Navbar";

@@ -2,7 +2,7 @@
 // Reception desk — full queue management + appointment status update
 // Uses requireClinicStaff middleware (allows reception role)
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
