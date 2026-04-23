@@ -881,13 +881,7 @@ export default function Admin() {
     fetchActivityLogs(1, activityFilter);
   }, [activeTab, authChecked, activityFilter]); // eslint-disable-line
 
-  // FIND this:
-const handleLogout = () => {
-  ["isLoggedIn","role","email","name","phone","userId"].forEach(k => localStorage.removeItem(k));
-  window.location.href = "/";
-};
-
-// REPLACE with:
+  // LOGOUT handler:
 const handleLogout = async () => {
   try {
     const token = localStorage.getItem("token");
