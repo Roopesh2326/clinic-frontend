@@ -19,6 +19,11 @@ import {
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
+const getAuthHeader = () => {
+  const token = localStorage.getItem("token");
+  return token ? { "Authorizatioon": `Bearer ${token}` } : {};
+};
+
 const sanitizeObjectArray = (items) => {
   if (!Array.isArray(items)) return [];
   return items.filter((item) => item && typeof item === "object");
@@ -311,14 +316,20 @@ export default function Admin() {
 
     // Step 2: All 5 requests fire simultaneously with Promise.allSettled
     const fetchAll = async () => {
-      try {
-        const [aptsR, usersR, ordersR, medsR, lowR] = await Promise.allSettled([
-          fetch(`${BASE_URL}/appointments`,        { credentials: "include" }),
-          fetch(`${BASE_URL}/users`,               { credentials: "include" }),
-          fetch(`${BASE_URL}/orders`,              { credentials: "include" }),
-          fetch(`${BASE_URL}/medicines/all`,       { credentials: "include" }),
-          fetch(`${BASE_URL}/medicines/low-stock`, { credentials: "include" }),
-        ]);
+  const token = localStorage.getItem("token");
+  const headers = {
+    "Content-Type": "application/json",
+    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+  };
+
+  try {
+    const [aptsR, usersR, ordersR, medsR, lowR] = await Promise.allSettled([
+      fetch(`${BASE_URL}/appointments`,        { credentials: "include", headers }),
+      fetch(`${BASE_URL}/users`,               { credentials: "include", headers }),
+      fetch(`${BASE_URL}/orders`,              { credentials: "include", headers }),
+      fetch(`${BASE_URL}/medicines/all`,       { credentials: "include", headers }),
+      fetch(`${BASE_URL}/medicines/low-stock`, { credentials: "include", headers }),
+    ]);
 
         let newApts, newUsers, newOrders, newMeds, newLow;
 
@@ -374,12 +385,20 @@ export default function Admin() {
 
   // ─── ANALYTICS ───────────────────────────────────────────────────────────
   const fetchAnalytics = () => {
-    setAnalyticsLoading(true);
-    axios.get(`${BASE_URL}/analytics/sales`, { withCredentials: true })
-      .then((res) => setAnalytics(res.data))
-      .catch(() => setNotification({ open: true, message: "Failed to load analytics", severity: "error" }))
-      .finally(() => setAnalyticsLoading(false));
-  };
+  const token = localStorage.getItem("token");
+  setAnalyticsLoading(true);
+  axios.get(`${BASE_URL}/analytics/sales`, {
+    withCredentials: true,
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
+  })
+  .then((res) => setAnalytics(res.data))
+  .catch(() => setNotification({ 
+    open: true, 
+    message: "Failed to load analytics", 
+    severity: "error" 
+  }))
+  .finally(() => setAnalyticsLoading(false));
+};
 
   useEffect(() => {
     if (activeTab !== "analytics" || !authChecked) return;
