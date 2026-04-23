@@ -317,19 +317,18 @@ export default function Admin() {
     // Step 2: All 5 requests fire simultaneously with Promise.allSettled
     const fetchAll = async () => {
   const token = localStorage.getItem("token");
-
   const headers = {
     "Content-Type": "application/json",
-    "Authorization": `Bearer ${token}`
+    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
   };
 
   try {
     const [aptsR, usersR, ordersR, medsR, lowR] = await Promise.allSettled([
-      fetch(`${BASE_URL}/appointments`,        { headers }),
-      fetch(`${BASE_URL}/users`,               {  headers }),
-      fetch(`${BASE_URL}/orders`,              {  headers }),
-      fetch(`${BASE_URL}/medicines/all`,       {  headers }),
-      fetch(`${BASE_URL}/medicines/low-stock`, {  headers }),
+      fetch(`${BASE_URL}/appointments`,        { credentials: "include", headers }),
+      fetch(`${BASE_URL}/users`,               { credentials: "include", headers }),
+      fetch(`${BASE_URL}/orders`,              { credentials: "include", headers }),
+      fetch(`${BASE_URL}/medicines/all`,       { credentials: "include", headers }),
+      fetch(`${BASE_URL}/medicines/low-stock`, { credentials: "include", headers }),
     ]);
 
         let newApts, newUsers, newOrders, newMeds, newLow;
@@ -387,10 +386,9 @@ export default function Admin() {
   // ─── ANALYTICS ───────────────────────────────────────────────────────────
   const fetchAnalytics = () => {
   const token = localStorage.getItem("token");
-if (!token) return;
-
   setAnalyticsLoading(true);
   axios.get(`${BASE_URL}/analytics/sales`, {
+    withCredentials: true,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
   .then((res) => setAnalytics(res.data))
