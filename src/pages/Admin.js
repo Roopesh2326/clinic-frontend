@@ -19,11 +19,6 @@ import {
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
-// const getAuthHeader = () => {
-//   const token = localStorage.getItem("token");
-//   return token ? { "Authorization": `Bearer ${token}` } : {};
-// };
-
 const sanitizeObjectArray = (items) => {
   if (!Array.isArray(items)) return [];
   return items.filter((item) => item && typeof item === "object");
@@ -316,20 +311,14 @@ export default function Admin() {
 
     // Step 2: All 5 requests fire simultaneously with Promise.allSettled
     const fetchAll = async () => {
-  const token = localStorage.getItem("token");
-  const headers = {
-    "Content-Type": "application/json",
-    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-  };
-
-  try {
-    const [aptsR, usersR, ordersR, medsR, lowR] = await Promise.allSettled([
-      fetch(`${BASE_URL}/appointments`,        { credentials: "include", headers }),
-      fetch(`${BASE_URL}/users`,               { credentials: "include", headers }),
-      fetch(`${BASE_URL}/orders`,              { credentials: "include", headers }),
-      fetch(`${BASE_URL}/medicines/all`,       { credentials: "include", headers }),
-      fetch(`${BASE_URL}/medicines/low-stock`, { credentials: "include", headers }),
-    ]);
+      try {
+        const [aptsR, usersR, ordersR, medsR, lowR] = await Promise.allSettled([
+          fetch(`${BASE_URL}/appointments`,        { credentials: "include" }),
+          fetch(`${BASE_URL}/users`,               { credentials: "include" }),
+          fetch(`${BASE_URL}/orders`,              { credentials: "include" }),
+          fetch(`${BASE_URL}/medicines/all`,       { credentials: "include" }),
+          fetch(`${BASE_URL}/medicines/low-stock`, { credentials: "include" }),
+        ]);
 
         let newApts, newUsers, newOrders, newMeds, newLow;
 
@@ -385,20 +374,12 @@ export default function Admin() {
 
   // ─── ANALYTICS ───────────────────────────────────────────────────────────
   const fetchAnalytics = () => {
-  const token = localStorage.getItem("token");
-  setAnalyticsLoading(true);
-  axios.get(`${BASE_URL}/analytics/sales`, {
-    withCredentials: true,
-    headers: token ? { Authorization: `Bearer ${token}` } : {},
-  })
-  .then((res) => setAnalytics(res.data))
-  .catch(() => setNotification({ 
-    open: true, 
-    message: "Failed to load analytics", 
-    severity: "error" 
-  }))
-  .finally(() => setAnalyticsLoading(false));
-};
+    setAnalyticsLoading(true);
+    axios.get(`${BASE_URL}/analytics/sales`, { withCredentials: true })
+      .then((res) => setAnalytics(res.data))
+      .catch(() => setNotification({ open: true, message: "Failed to load analytics", severity: "error" }))
+      .finally(() => setAnalyticsLoading(false));
+  };
 
   useEffect(() => {
     if (activeTab !== "analytics" || !authChecked) return;
@@ -881,22 +862,10 @@ export default function Admin() {
     fetchActivityLogs(1, activityFilter);
   }, [activeTab, authChecked, activityFilter]); // eslint-disable-line
 
-  // LOGOUT handler:
-const handleLogout = async () => {
-  try {
-    const token = localStorage.getItem("token");
-    await fetch(`${BASE_URL}/logout`, {
-      method: "POST",
-      credentials: "include",
-      headers: token ? { "Authorization": `Bearer ${token}` } : {},
-    });
-  } catch {}
-  // Clear ALL auth keys including token
-  ["isLoggedIn","role","email","name","phone","userId","token"].forEach(k => 
-    localStorage.removeItem(k)
-  );
-  window.location.href = "/login";
-};;
+  const handleLogout = () => {
+    ["isLoggedIn","role","email","name","phone","userId"].forEach(k => localStorage.removeItem(k));
+    window.location.href = "/";
+  };
 
   // ─── LOADING SCREEN ───────────────────────────────────────────────────────
   if (!authChecked) return (
