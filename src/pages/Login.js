@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
+import { saveAuth } from "../utils/auth";
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
@@ -13,24 +14,35 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
-    if (!form.email.trim() || !form.password) { setError("Email and password are required"); return; }
+    if (!form.email.trim() || !form.password) {
+      setError("Email and password are required");
+      return;
+    }
     setLoading(true);
 
     try {
-      const res = await axios.post(`${BASE_URL}/login`, form, { withCredentials: true });
-      const { role, name, email, phone, userId } = res.data;
+      const res = await axios.post(`${BASE_URL}/login`, form, {
+        withCredentials: true,
+      });
+
+      // ✅ res.data is the response — not "data"
+      const { role, name, email, phone, userId, token } = res.data;
       const normalizedRole = (role || "user").toLowerCase().trim();
 
-      // ✅ Save user info to localStorage
-      localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("role",   normalizedRole);
-      localStorage.setItem("email",  email || form.email);
-      localStorage.setItem("name",   name  || "");
-      localStorage.setItem("phone",  phone || "");
-      localStorage.setItem("userId", userId || "");
+      // ✅ Save auth properly
+      saveAuth({
+        token:  token || `session_${Date.now()}`,
+        role:   normalizedRole,
+        name:   name   || "",
+        userId: userId || "",
+      });
 
-      // ✅ Role-based redirect (using normalizedRole — fixes casing bugs)
-      if (normalizedRole === "admin")          navigate("/admin");
+      // Save extra display fields
+      localStorage.setItem("email", email || form.email);
+      localStorage.setItem("phone", phone || "");
+
+      // Role-based redirect
+      if      (normalizedRole === "admin")     navigate("/admin");
       else if (normalizedRole === "staff")     navigate("/staff");
       else if (normalizedRole === "reception") navigate("/reception");
       else                                     navigate("/dashboard");
@@ -54,11 +66,7 @@ export default function Login() {
 
         {/* FORM */}
         <form onSubmit={handleSubmit} style={s.form}>
-          {error && (
-            <div style={s.errorBox}>
-              ⚠️ {error}
-            </div>
-          )}
+          {error && <div style={s.errorBox}>⚠️ {error}</div>}
 
           <div style={s.field}>
             <label style={s.label}>Email address</label>
@@ -88,7 +96,12 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            style={{ ...s.btn, opacity: loading ? 0.7 : 1, cursor: loading ? "not-allowed" : "pointer" }}>
+            style={{
+              ...s.btn,
+              opacity: loading ? 0.7 : 1,
+              cursor:  loading ? "not-allowed" : "pointer",
+            }}
+          >
             {loading ? (
               <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
                 <span style={s.spinner} /> Signing in...
@@ -97,10 +110,16 @@ export default function Login() {
           </button>
         </form>
 
-        {/* FORGOT PASSWORD LINK */}
+        {/* LINKS */}
         <div style={{ textAlign: "center", marginTop: "16px" }}>
           <Link to="/forgot-password" style={{ color: "#166534", fontSize: "14px", textDecoration: "none", fontWeight: "600" }}>
             Forgot password?
+          </Link>
+        </div>
+        <div style={{ textAlign: "center", marginTop: "12px" }}>
+          <span style={{ fontSize: "14px", color: "#6b7280" }}>Don't have an account? </span>
+          <Link to="/signup" style={{ color: "#166534", fontSize: "14px", fontWeight: "700", textDecoration: "none" }}>
+            Sign Up
           </Link>
         </div>
       </div>

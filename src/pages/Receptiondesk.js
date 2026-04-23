@@ -1,440 +1,501 @@
-import { useState, useEffect, useCallback } from "react";
+// src/pages/Receptiondesk.jsx
+// Reception desk — full queue management + appointment status update
+// Uses requireClinicStaff middleware (allows reception role)
+
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import axios from "axios";
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
-// ─── TOKEN CARD (print slip) ──────────────────────────────────────────────────
-function TokenCard({ result, onDismiss }) {
-  const [countdown, setCountdown] = useState(30);
-
-  useEffect(() => {
-    const iv = setInterval(() => {
-      setCountdown(c => {
-        if (c <= 1) { onDismiss(); return 0; }
-        return c - 1;
-      });
-    }, 1000);
-    return () => clearInterval(iv);
-  }, [onDismiss]);
-
-  const handlePrint = () => window.print();
-
-  return (
-    <div style={tc.overlay}>
-      <div style={tc.card}>
-        <div style={tc.header}>
-          <div style={tc.headerText}>✅ Token Generated!</div>
-          <div style={tc.headerSub}>Please give this slip to the patient</div>
-        </div>
-
-        <div style={tc.body}>
-          <div style={tc.tokenLabel}>QUEUE TOKEN</div>
-          <div style={tc.tokenNum}>{result.tokenStr || "APT-?"}</div>
-          <div style={tc.date}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</div>
-
-          <div style={tc.divider} />
-
-          <div style={tc.infoRow}>
-            <span style={tc.infoLabel}>Patient</span>
-            <span style={tc.infoVal}>{result.name}</span>
-          </div>
-          {result.contact && (
-            <div style={tc.infoRow}>
-              <span style={tc.infoLabel}>Phone</span>
-              <span style={tc.infoVal}>{result.contact}</span>
-            </div>
-          )}
-          {result.age && (
-            <div style={tc.infoRow}>
-              <span style={tc.infoLabel}>Age</span>
-              <span style={tc.infoVal}>{result.age}</span>
-            </div>
-          )}
-
-          <div style={tc.notice}>
-            ⏳ Please wait — you will be called when your token is announced
-          </div>
-        </div>
-
-        <div style={tc.footer}>
-          <button onClick={handlePrint} style={tc.printBtn}>🖨️ Print Slip</button>
-          <button onClick={onDismiss} style={tc.nextBtn}>Next Patient ➜</button>
-        </div>
-        <div style={tc.countdown}>Auto-closing in {countdown}s</div>
-      </div>
-    </div>
-  );
-}
-
-const tc = {
-  overlay:    { position: "fixed", inset: 0, background: "rgba(0,0,0,0.55)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 999, backdropFilter: "blur(6px)" },
-  card:       { background: "white", borderRadius: "20px", width: "360px", overflow: "hidden", boxShadow: "0 24px 64px rgba(0,0,0,0.25)" },
-  header:     { background: "linear-gradient(135deg,#14532d,#16a34a)", padding: "24px 28px", textAlign: "center" },
-  headerText: { color: "white", fontSize: "22px", fontWeight: "800" },
-  headerSub:  { color: "rgba(255,255,255,0.8)", fontSize: "13px", marginTop: "4px" },
-  body:       { padding: "24px 28px" },
-  tokenLabel: { textAlign: "center", fontSize: "11px", fontWeight: "700", color: "#888", letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: "8px" },
-  tokenNum:   { textAlign: "center", fontSize: "56px", fontWeight: "900", color: "#166534", lineHeight: 1, marginBottom: "6px" },
-  date:       { textAlign: "center", color: "#aaa", fontSize: "13px", marginBottom: "20px" },
-  divider:    { height: "1px", background: "#f3f4f6", margin: "0 0 16px" },
-  infoRow:    { display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: "1px solid #f9fafb" },
-  infoLabel:  { color: "#888", fontSize: "13px" },
-  infoVal:    { fontWeight: "600", fontSize: "13px", color: "#111" },
-  notice:     { marginTop: "16px", background: "#fef3c7", borderRadius: "8px", padding: "10px 14px", fontSize: "12px", color: "#92400e", textAlign: "center", lineHeight: 1.5 },
-  footer:     { display: "flex", gap: "10px", padding: "0 28px 20px" },
-  printBtn:   { flex: 1, padding: "11px", border: "1.5px solid #d1d5db", borderRadius: "10px", background: "white", color: "#555", fontWeight: "600", cursor: "pointer", fontSize: "13px" },
-  nextBtn:    { flex: 1, padding: "11px", border: "none", borderRadius: "10px", background: "#166534", color: "white", fontWeight: "700", cursor: "pointer", fontSize: "13px" },
-  countdown:  { textAlign: "center", padding: "0 0 14px", fontSize: "11px", color: "#ccc" },
+// ─── STYLES ──────────────────────────────────────────────────────────────────
+const S = {
+  page:    { height:"100vh", overflow:"hidden", background:"#f1f5f9", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", display:"flex" },
+  sidebar: { width:"220px", background:"linear-gradient(180deg,#0a1f12 0%,#14532d 50%,#1e7a3e 100%)", display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, height:"100vh", zIndex:20, overflowY:"auto" },
+  main:    { flex:1, display:"flex", flexDirection:"column", minWidth:0, overflowY:"auto", marginLeft:"220px" },
+  topbar:  { background:"white", padding:"13px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #e5e7eb", position:"sticky", top:0, zIndex:9, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", gap:"12px" },
+  content: { padding:"24px 28px", maxWidth:"1200px", margin:"0 auto", width:"100%" },
+  card:    { background:"white", borderRadius:"14px", padding:"24px", boxShadow:"0 1px 6px rgba(0,0,0,0.06)", marginBottom:"24px" },
+  navItem: { display:"flex", alignItems:"center", gap:"10px", padding:"10px 12px", margin:"1px 8px", borderRadius:"10px", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"rgba(255,255,255,0.6)", border:"none", background:"transparent", width:"calc(100% - 16px)", textAlign:"left", transition:"all 0.15s" },
+  navItemActive: { background:"rgba(255,255,255,0.16)", color:"white", fontWeight:"700" },
 };
 
-// ─── LIVE QUEUE PANEL ─────────────────────────────────────────────────────────
-function LiveQueue({ appointments }) {
-  // /appointments/today already returns only today's non-cancelled data
-  // sorted by tokenNumber — no client-side date filter needed
-  const todayApts = appointments; // server pre-filters: tokenDate=today, status≠Cancelled
-
-  const serving = todayApts.find(a => a.status === "Confirmed") || todayApts.find(a => a.status === "Pending");
-  const next5   = todayApts.filter(a => a !== serving && (a.status === "Pending" || a.status === "Confirmed")).slice(0, 5);
-  const total   = todayApts.length;
-
-  return (
-    <div style={lq.wrap}>
-      <div style={lq.title}>
-        <span style={{ fontSize: "18px" }}>🎫</span>
-        Live Queue
-        <span style={lq.badge}>{total} today</span>
-      </div>
-
-      <div style={lq.section}>
-        <div style={lq.sectionLabel}>NOW SERVING</div>
-        {serving ? (
-          <div style={lq.serving}>
-            <div style={lq.servingToken}>{serving.tokenStr || "—"}</div>
-            <div style={lq.servingName}>{serving.name || "Patient"}</div>
-          </div>
-        ) : (
-          <div style={{ color: "#bbb", fontSize: "14px", padding: "12px 0", textAlign: "center" }}>
-            Queue is empty
-          </div>
-        )}
-      </div>
-
-      {next5.length > 0 && (
-        <div style={lq.section}>
-          <div style={lq.sectionLabel}>NEXT IN QUEUE</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {next5.map((a, i) => (
-              <div key={a._id || a.id || i} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", background: i === 0 ? "#f0fdf4" : "#fafafa", borderRadius: "8px", border: `1px solid ${i === 0 ? "#bbf7d0" : "#f3f4f6"}` }}>
-                <span style={{ background: i === 0 ? "#166534" : "#e5e7eb", color: i === 0 ? "white" : "#555", padding: "2px 8px", borderRadius: "5px", fontSize: "11px", fontWeight: "700", minWidth: "58px", textAlign: "center" }}>
-                  {a.tokenStr || "—"}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: "13px", fontWeight: "600", color: "#222", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{a.name || "Patient"}</div>
-                  {a.contact && <div style={{ fontSize: "11px", color: "#aaa" }}>{a.contact}</div>}
-                </div>
-                <span style={{ fontSize: "11px", color: "#bbb" }}>#{i + 2}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {total === 0 && (
-        <div style={{ textAlign: "center", padding: "24px 0", color: "#ccc" }}>
-          <div style={{ fontSize: "32px" }}>🌿</div>
-          <div style={{ fontSize: "13px", marginTop: "8px" }}>No patients yet today</div>
-        </div>
-      )}
-
-      <div style={{ fontSize: "11px", color: "#ccc", textAlign: "center", marginTop: "12px", paddingTop: "10px", borderTop: "1px solid #f3f4f6" }}>
-        Auto-refreshes every 5 seconds
-      </div>
-    </div>
-  );
-}
-
-const lq = {
-  wrap:         { background: "white", borderRadius: "16px", padding: "20px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)", position: "sticky", top: "20px" },
-  title:        { display: "flex", alignItems: "center", gap: "8px", fontWeight: "700", fontSize: "16px", color: "#111", marginBottom: "16px", paddingBottom: "14px", borderBottom: "1px solid #f3f4f6" },
-  badge:        { marginLeft: "auto", background: "#f0fdf4", color: "#166534", padding: "2px 10px", borderRadius: "12px", fontSize: "12px", fontWeight: "700" },
-  section:      { marginBottom: "16px" },
-  sectionLabel: { fontSize: "10px", fontWeight: "700", color: "#888", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: "8px" },
-  serving:      { background: "linear-gradient(135deg,#f0fdf4,#dcfce7)", border: "1px solid #86efac", borderRadius: "12px", padding: "16px", textAlign: "center" },
-  servingToken: { fontSize: "40px", fontWeight: "900", color: "#166534", lineHeight: 1 },
-  servingName:  { fontSize: "14px", fontWeight: "600", color: "#333", marginTop: "6px" },
+const aptStatusColors = {
+  Pending:   { bg:"#fef3c7", color:"#92400e" },
+  Confirmed: { bg:"#dbeafe", color:"#1e40af" },
+  Completed: { bg:"#dcfce7", color:"#166534" },
+  Cancelled: { bg:"#fee2e2", color:"#991b1b" },
 };
 
-// ─── MAIN COMPONENT ───────────────────────────────────────────────────────────
-export default function ReceptionDesk() {
+export default function Receptiondesk() {
   const navigate = useNavigate();
 
-  // ─── AUTH GUARD — reception OR admin ────────────────────────────────────
+  // ── AUTH ────────────────────────────────────────────────────────────────────
+  const [authChecked, setAuthChecked] = useState(false);
   useEffect(() => {
-    const isLoggedIn = localStorage.getItem("isLoggedIn");
-    const role       = (localStorage.getItem("role") || "").toLowerCase().trim();
-    if (isLoggedIn !== "true" || (role !== "reception" && role !== "admin")) {
+    const role = (localStorage.getItem("role") || "").toLowerCase().trim();
+    const ok   = localStorage.getItem("isLoggedIn") === "true";
+    if (!ok || !["reception","admin","staff"].includes(role)) {
       navigate("/login", { replace: true });
+    } else {
+      setAuthChecked(true);
     }
   }, [navigate]);
 
-  const receptionistName = localStorage.getItem("name") || "Reception";
+  // ── STATE ───────────────────────────────────────────────────────────────────
+  const [activeTab,     setActiveTab]     = useState("queue");
+  const [sidebarOpen,   setSidebarOpen]   = useState(false);
+  const [queueStatus,   setQueueStatus]   = useState({});
+  const [queueLoading,  setQueueLoading]  = useState({});
+  const [appointments,  setAppointments]  = useState([]);
+  const [aptSearch,     setAptSearch]     = useState("");
+  const [aptLoading,    setAptLoading]    = useState(false);
+  const [notification,  setNotification]  = useState({ open:false, message:"", ok:true });
+  const [selectedApt,   setSelectedApt]   = useState(null);
+  const [aptDialogOpen, setAptDialogOpen] = useState(false);
+  const staffName = localStorage.getItem("name") || "Reception";
 
-  const [form, setForm]               = useState({ name: "", contact: "", age: "", notes: "" });
-  const [errors, setErrors]           = useState({});
-  const [submitting, setSubmitting]   = useState(false);
-  const [result, setResult]           = useState(null);
-  const [appointments, setAppointments] = useState([]);
-  const [loadingQueue, setLoadingQueue] = useState(true);
-
-  // Fetch today's queue — uses the public /appointments/today endpoint
-  // No auth cookie needed: only returns today's data with limited fields
-  const fetchQueue = useCallback(async () => {
-    try {
-      const res = await fetch(`${BASE_URL}/appointments/today`);
-      if (res.ok) {
-        const data = await res.json();
-        setAppointments(Array.isArray(data) ? data : []);
-      }
-    } catch { /* silent */ }
-    finally { setLoadingQueue(false); }
+  // ── KEEP-ALIVE ──────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const ping = () => fetch(`${BASE_URL}/ping`,{cache:"no-store"}).catch(()=>{});
+    ping();
+    const t = setInterval(ping, 8*60*1000);
+    return () => clearInterval(t);
   }, []);
 
-  useEffect(() => {
-    fetchQueue();
-    const iv = setInterval(fetchQueue, 5000);
-    return () => clearInterval(iv);
-  }, [fetchQueue]);
-
-  const validate = () => {
-    const e = {};
-    if (!form.name.trim())    e.name    = "Patient name is required";
-    if (!form.contact.trim()) e.contact = "Phone number is required";
-    else if (!/^\d{7,15}$/.test(form.contact.replace(/\s/g, "")))
-      e.contact = "Enter a valid phone number (7-15 digits)";
-    return e;
+  // ── FETCH QUEUE STATUS ──────────────────────────────────────────────────────
+  const fetchQueue = async (type) => {
+    try {
+      const r = await axios.get(`${BASE_URL}/queue/status?type=${type}`,{withCredentials:true});
+      setQueueStatus(p => ({...p,[type]:r.data}));
+    } catch {}
   };
 
-  const handleSubmit = async () => {
-    const e = validate();
-    if (Object.keys(e).length) { setErrors(e); return; }
-    setErrors({});
-    setSubmitting(true);
+  useEffect(() => {
+    if (!authChecked) return;
+    fetchQueue("appointment");
+    fetchQueue("order");
+    fetchQueue("walkin");
+    const interval = setInterval(() => {
+      fetchQueue("appointment");
+      fetchQueue("order");
+      fetchQueue("walkin");
+    }, 8000);
 
+    // Socket.io
+    import("socket.io-client").then(({io}) => {
+      const socket = io(BASE_URL,{withCredentials:true});
+      socket.on("queue:update", d => setQueueStatus(p => ({...p,[d.type]:d})));
+      return () => socket.disconnect();
+    }).catch(()=>{});
+
+    return () => clearInterval(interval);
+  }, [authChecked]);
+
+  // ── FETCH APPOINTMENTS ──────────────────────────────────────────────────────
+  const fetchAppointments = async () => {
+    setAptLoading(true);
     try {
-      const today = new Date();
-      const payload = {
-        name:    form.name.trim(),
-        contact: form.contact.trim(),
-        age:     form.age.trim() || "",
-        problem: form.notes.trim() || "Walk-in registration",
-        date:    today.toISOString().split("T")[0],
-        time:    today.toTimeString().slice(0, 5),
-        bookedAt: today.toISOString(),
-        source:  "reception",
-      };
+      const r = await fetch(`${BASE_URL}/appointments`, {credentials:"include"});
+      if (r.ok) {
+        const data = await r.json();
+        setAppointments(Array.isArray(data) ? data : []);
+      }
+    } catch {}
+    finally { setAptLoading(false); }
+  };
 
-      const res  = await fetch(`${BASE_URL}/appointment`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
+  useEffect(() => {
+    if (authChecked && activeTab === "appointments") fetchAppointments();
+  }, [authChecked, activeTab]);
 
-      if (!res.ok) throw new Error(data.message || "Booking failed");
-
-      setResult({ ...data, name: form.name.trim(), contact: form.contact.trim(), age: form.age.trim() });
-      setForm({ name: "", contact: "", age: "", notes: "" });
-      fetchQueue(); // immediate refresh
+  // ── QUEUE ACTIONS ───────────────────────────────────────────────────────────
+  const callNext = async (type) => {
+    setQueueLoading(p => ({...p,[type]:true}));
+    try {
+      const r = await axios.post(`${BASE_URL}/queue/next`,{type},{withCredentials:true});
+      setQueueStatus(p => ({...p,[type]:r.data}));
+      notify(`Now serving ${type} #${r.data.currentServing}`, true);
     } catch (err) {
-      setErrors({ submit: err.message || "Something went wrong. Please try again." });
+      notify(err?.response?.data?.message || "Failed to advance queue", false);
     } finally {
-      setSubmitting(false);
+      setQueueLoading(p => ({...p,[type]:false}));
     }
   };
 
-  const handleKeyDown = (e) => {
-    if (e.key === "Enter") handleSubmit();
+  const resetQueue = async (type) => {
+    if (!window.confirm(`Reset ${type} queue? This cannot be undone.`)) return;
+    try {
+      await axios.post(`${BASE_URL}/queue/reset`,{type},{withCredentials:true});
+      setQueueStatus(p => ({...p,[type]:{...p[type],currentServing:0,totalIssued:0}}));
+      notify(`${type} queue reset`, true);
+    } catch {
+      notify("Failed to reset queue", false);
+    }
   };
 
-  const handleLogout = async () => {
-    await fetch(`${BASE_URL}/logout`, { method: "POST", credentials: "include" }).catch(() => {});
+  // ── APPOINTMENT STATUS ──────────────────────────────────────────────────────
+  const updateAptStatus = async (aptId, newStatus) => {
+    try {
+      await axios.patch(`${BASE_URL}/appointments/${aptId}/status`, {status:newStatus}, {withCredentials:true});
+      setAppointments(p => p.map(a => String(a._id)===String(aptId) ? {...a,status:newStatus} : a));
+      notify(`Appointment updated to ${newStatus}`, true);
+      setAptDialogOpen(false);
+      setSelectedApt(null);
+    } catch (err) {
+      notify(err?.response?.data?.message || "Failed to update appointment", false);
+    }
+  };
+
+  // ── HELPERS ─────────────────────────────────────────────────────────────────
+  const notify = (message, ok) => {
+    setNotification({open:true,message,ok});
+    setTimeout(() => setNotification(n => ({...n,open:false})), 3500);
+  };
+
+  const handleLogout = () => {
     ["isLoggedIn","role","email","name","phone","userId"].forEach(k => localStorage.removeItem(k));
-    navigate("/login", { replace: true });
+    window.location.href = "/";
   };
 
-  const today = new Date().toLocaleDateString("en-IN", {
-    weekday: "long", day: "numeric", month: "long", year: "numeric",
+  const filteredApts = appointments.filter(a => {
+    const q = aptSearch.toLowerCase().trim();
+    if (!q) return true;
+    return [a.name,a.contact,a.problem,a.status,a.date].some(f => String(f||"").toLowerCase().includes(q));
   });
 
-  return (
-    <div style={r.page}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} input:focus{outline:none;border-color:#166534!important;box-shadow:0 0 0 3px rgba(22,101,52,0.1);}`}</style>
+  const todayApts     = appointments.filter(a => a.date === new Date().toISOString().split("T")[0]);
+  const pendingCount  = appointments.filter(a => a.status === "Pending").length;
+  const confirmedCount = appointments.filter(a => a.status === "Confirmed").length;
 
-      {/* TOKEN CARD MODAL */}
-      {result && <TokenCard result={result} onDismiss={() => setResult(null)} />}
+  const NAV = [
+    { id:"queue",        label:"Queue",        icon:"🎫" },
+    { id:"appointments", label:"Appointments", icon:"📅" },
+  ];
 
-      {/* HEADER */}
-      <div style={r.header}>
-        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
-          <div style={r.logo}>🏥</div>
-          <div>
-            <h1 style={r.headerTitle}>Reception Desk</h1>
-            <p style={r.headerSub}>Digital Clinic · {today}</p>
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={r.receptionBadge}>🖥️ {receptionistName}</div>
-          <button onClick={handleLogout} style={{ background: "rgba(220,38,38,0.2)", color: "white", border: "1px solid rgba(220,38,38,0.4)", borderRadius: "8px", padding: "6px 14px", cursor: "pointer", fontSize: "12px", fontWeight: "600" }}>
-            Logout
-          </button>
-        </div>
-      </div>
-
-      {/* BODY */}
-      <div style={r.body}>
-
-        {/* LEFT: REGISTRATION FORM */}
-        <div style={r.formCard}>
-          <div style={r.formHeader}>
-            <span style={{ fontSize: "28px" }}>👤</span>
-            <div>
-              <div style={r.formTitle}>Register Patient</div>
-              <div style={r.formSub}>Fill in patient details and generate a queue token instantly</div>
-            </div>
-          </div>
-
-          {/* NAME */}
-          <div style={r.fieldWrap}>
-            <label style={r.label}>Patient Name <span style={{ color: "#dc2626" }}>*</span></label>
-            <input
-              type="text"
-              placeholder="Enter full name"
-              value={form.name}
-              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-              onKeyDown={handleKeyDown}
-              style={{ ...r.input, borderColor: errors.name ? "#dc2626" : "#d1d5db" }}
-              autoFocus
-            />
-            {errors.name && <div style={r.err}>⚠ {errors.name}</div>}
-          </div>
-
-          {/* PHONE */}
-          <div style={r.fieldWrap}>
-            <label style={r.label}>Phone Number <span style={{ color: "#dc2626" }}>*</span></label>
-            <input
-              type="tel"
-              placeholder="e.g. 9876543210"
-              value={form.contact}
-              onChange={e => setForm(f => ({ ...f, contact: e.target.value }))}
-              onKeyDown={handleKeyDown}
-              style={{ ...r.input, borderColor: errors.contact ? "#dc2626" : "#d1d5db" }}
-            />
-            {errors.contact && <div style={r.err}>⚠ {errors.contact}</div>}
-          </div>
-
-          {/* AGE + NOTES */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 2fr", gap: "12px" }}>
-            <div style={r.fieldWrap}>
-              <label style={r.label}>Age <span style={{ color: "#aaa", fontSize: "11px" }}>(optional)</span></label>
-              <input
-                type="number" placeholder="Age" min="1" max="120"
-                value={form.age}
-                onChange={e => setForm(f => ({ ...f, age: e.target.value }))}
-                onKeyDown={handleKeyDown}
-                style={r.input}
-              />
-            </div>
-            <div style={r.fieldWrap}>
-              <label style={r.label}>Reason / Notes <span style={{ color: "#aaa", fontSize: "11px" }}>(optional)</span></label>
-              <input
-                type="text" placeholder="Brief reason for visit"
-                value={form.notes}
-                onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                onKeyDown={handleKeyDown}
-                style={r.input}
-              />
-            </div>
-          </div>
-
-          {/* SERVER ERROR */}
-          {errors.submit && (
-            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "8px", padding: "10px 14px", color: "#dc2626", fontSize: "13px" }}>
-              ⚠️ {errors.submit}
-            </div>
-          )}
-
-          {/* SUBMIT */}
-          <button
-            onClick={handleSubmit}
-            disabled={submitting}
-            style={{ ...r.submitBtn, opacity: submitting ? 0.7 : 1, cursor: submitting ? "not-allowed" : "pointer" }}
-            onMouseEnter={e => { if (!submitting) e.currentTarget.style.background = "#14532d"; }}
-            onMouseLeave={e => { e.currentTarget.style.background = "#166534"; }}>
-            {submitting ? (
-              <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}>
-                <span style={r.spinnerBtn} />
-                Generating Token…
-              </span>
-            ) : "🎫 Generate Queue Token"}
-          </button>
-
-          <div style={{ textAlign: "center", fontSize: "11px", color: "#aaa", marginTop: "6px" }}>
-            Press <strong>Enter</strong> on any field to generate token
-          </div>
-
-          {/* Quick instructions */}
-          <div style={{ background: "#f8fafc", borderRadius: "10px", padding: "14px 16px", border: "1px solid #e5e7eb" }}>
-            <div style={{ fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "8px" }}>📋 How to use</div>
-            <div style={{ fontSize: "12px", color: "#6b7280", lineHeight: 1.8 }}>
-              1. Enter patient name + phone (required)<br />
-              2. Click "Generate Queue Token" or press Enter<br />
-              3. Print the token slip and give to patient<br />
-              4. Patient waits and will be called by token number
-            </div>
-          </div>
-        </div>
-
-        {/* RIGHT: LIVE QUEUE */}
-        <div style={{ width: "310px", flexShrink: 0 }}>
-          {loadingQueue ? (
-            <div style={{ background: "white", borderRadius: "16px", padding: "40px", textAlign: "center", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}>
-              <div style={r.spinner} />
-              <div style={{ color: "#aaa", fontSize: "13px", marginTop: "12px" }}>Loading queue…</div>
-            </div>
-          ) : (
-            <LiveQueue appointments={appointments} />
-          )}
-        </div>
-      </div>
-
-      {/* FOOTER BAR */}
-      <div style={r.shortcutBar}>
-        <span>⌨️ <strong>Enter</strong> — Generate token</span>
-        <span>🔄 Queue refreshes every <strong>5 seconds</strong></span>
-        <span>🏥 Reception mode — patient registration only</span>
+  // ─── LOADING ───────────────────────────────────────────────────────────────
+  if (!authChecked) return (
+    <div style={{minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"#f8fafc"}}>
+      <div style={{textAlign:"center"}}>
+        <div style={{width:"44px",height:"44px",border:"4px solid #dcfce7",borderTop:"4px solid #166534",borderRadius:"50%",animation:"spin 0.8s linear infinite",margin:"0 auto 14px"}} />
+        <p style={{color:"#166534",fontWeight:"600"}}>Loading reception desk...</p>
+        <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
       </div>
     </div>
   );
-}
 
-const r = {
-  page:           { minHeight: "100vh", background: "#f0f4f0", fontFamily: "'Segoe UI', system-ui, sans-serif", display: "flex", flexDirection: "column" },
-  header:         { background: "linear-gradient(135deg,#14532d,#166534)", padding: "16px 28px", display: "flex", justifyContent: "space-between", alignItems: "center" },
-  logo:           { width: "44px", height: "44px", background: "rgba(255,255,255,0.15)", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", flexShrink: 0 },
-  headerTitle:    { margin: 0, color: "white", fontSize: "22px", fontWeight: "800" },
-  headerSub:      { margin: "3px 0 0", color: "rgba(255,255,255,0.75)", fontSize: "12px" },
-  receptionBadge: { background: "rgba(255,255,255,0.2)", color: "white", padding: "5px 14px", borderRadius: "12px", fontSize: "12px", fontWeight: "600" },
-  body:           { flex: 1, display: "flex", gap: "24px", padding: "24px 28px", alignItems: "flex-start" },
-  formCard:       { flex: 1, background: "white", borderRadius: "16px", padding: "28px 32px", boxShadow: "0 2px 8px rgba(0,0,0,0.08)", display: "flex", flexDirection: "column", gap: "20px" },
-  formHeader:     { display: "flex", alignItems: "center", gap: "12px", paddingBottom: "18px", borderBottom: "1px solid #f3f4f6" },
-  formTitle:      { fontSize: "20px", fontWeight: "800", color: "#111" },
-  formSub:        { fontSize: "13px", color: "#888", marginTop: "2px" },
-  fieldWrap:      { display: "flex", flexDirection: "column", gap: "6px" },
-  label:          { fontSize: "14px", fontWeight: "600", color: "#374151" },
-  input:          { padding: "12px 16px", border: "1.5px solid #d1d5db", borderRadius: "10px", fontSize: "15px", outline: "none", transition: "border-color 0.15s, box-shadow 0.15s", fontFamily: "inherit" },
-  err:            { fontSize: "12px", color: "#dc2626", marginTop: "2px" },
-  submitBtn:      { padding: "16px", background: "#166534", color: "white", border: "none", borderRadius: "12px", fontSize: "17px", fontWeight: "800", cursor: "pointer", transition: "background 0.15s" },
-  spinner:        { width: "28px", height: "28px", border: "3px solid #e5e7eb", borderTop: "3px solid #166534", borderRadius: "50%", animation: "spin 0.8s linear infinite", margin: "0 auto" },
-  spinnerBtn:     { width: "18px", height: "18px", border: "2px solid rgba(255,255,255,0.4)", borderTop: "2px solid white", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" },
-  shortcutBar:    { background: "white", borderTop: "1px solid #e5e7eb", padding: "10px 28px", display: "flex", gap: "28px", justifyContent: "center", fontSize: "12px", color: "#888", flexWrap: "wrap" },
-};
+  // ─── RENDER ────────────────────────────────────────────────────────────────
+  return (
+    <div style={S.page}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        @keyframes spin    {to{transform:rotate(360deg)}}
+        @keyframes slideIn {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        * {box-sizing:border-box}
+        .nav-btn:hover{background:rgba(255,255,255,0.12)!important;color:white!important}
+        @media(max-width:860px){.rd-sidebar{display:none!important}.rd-ham{display:flex!important}.rd-main{margin-left:0!important}}
+        @media(min-width:861px){.rd-ham{display:none!important}}
+      `}</style>
+
+      {/* Mobile overlay */}
+      {sidebarOpen && <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:40}} onClick={() => setSidebarOpen(false)} />}
+
+      {/* Sidebar */}
+      <aside className="rd-sidebar" style={S.sidebar}>
+        <div style={{display:"flex",alignItems:"center",gap:"10px",padding:"20px 14px 16px",borderBottom:"1px solid rgba(255,255,255,0.09)"}}>
+          <div style={{width:"36px",height:"36px",background:"rgba(255,255,255,0.14)",borderRadius:"10px",display:"flex",alignItems:"center",justifyContent:"center",fontSize:"17px",flexShrink:0}}>🖥️</div>
+          <div>
+            <div style={{color:"white",fontWeight:"800",fontSize:"13px"}}>Reception</div>
+            <div style={{color:"rgba(255,255,255,0.4)",fontSize:"10px",marginTop:"1px"}}>Desk</div>
+          </div>
+        </div>
+        <div style={{flex:1,padding:"4px 0",overflowY:"auto"}}>
+          {NAV.map(n => (
+            <button key={n.id} className="nav-btn" onClick={() => { setActiveTab(n.id); setSidebarOpen(false); }}
+              style={{...S.navItem,...( activeTab===n.id ? S.navItemActive : {})}}>
+              <span style={{fontSize:"16px",width:"20px",textAlign:"center"}}>{n.icon}</span>
+              <span>{n.label}</span>
+              {n.id==="appointments" && pendingCount>0 && (
+                <span style={{background:"#ef4444",color:"white",borderRadius:"10px",padding:"1px 7px",fontSize:"10px",fontWeight:"700",marginLeft:"auto"}}>{pendingCount}</span>
+              )}
+            </button>
+          ))}
+        </div>
+        <div style={{padding:"12px 8px",borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+          <button className="nav-btn" onClick={handleLogout} style={{...S.navItem,background:"rgba(239,68,68,0.15)",color:"#fca5a5"}}>
+            <span style={{fontSize:"15px",width:"20px",textAlign:"center"}}>🚪</span>
+            <span>Logout</span>
+          </button>
+          <div style={{display:"flex",alignItems:"center",gap:"8px",padding:"10px 6px 4px"}}>
+            <div style={{width:"28px",height:"28px",borderRadius:"50%",background:"rgba(255,255,255,0.18)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:"700",fontSize:"11px"}}>{staffName.charAt(0).toUpperCase()}</div>
+            <div>
+              <div style={{color:"white",fontWeight:"600",fontSize:"11px"}}>{staffName}</div>
+              <div style={{color:"rgba(255,255,255,0.4)",fontSize:"10px"}}>Reception Staff</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Mobile sidebar */}
+      {sidebarOpen && (
+        <aside style={{...S.sidebar,zIndex:50}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 14px 14px",borderBottom:"1px solid rgba(255,255,255,0.09)"}}>
+            <div style={{color:"white",fontWeight:"700",fontSize:"14px"}}>Reception Desk</div>
+            <button onClick={() => setSidebarOpen(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:"20px"}}>✕</button>
+          </div>
+          <div style={{flex:1,padding:"4px 0"}}>
+            {NAV.map(n => (
+              <button key={n.id} className="nav-btn" onClick={() => { setActiveTab(n.id); setSidebarOpen(false); }}
+                style={{...S.navItem,...(activeTab===n.id?S.navItemActive:{})}}>
+                <span>{n.icon}</span><span>{n.label}</span>
+              </button>
+            ))}
+          </div>
+          <div style={{padding:"12px 8px",borderTop:"1px solid rgba(255,255,255,0.08)"}}>
+            <button className="nav-btn" onClick={handleLogout} style={{...S.navItem,background:"rgba(239,68,68,0.15)",color:"#fca5a5"}}>
+              <span>🚪</span><span>Logout</span>
+            </button>
+          </div>
+        </aside>
+      )}
+
+      {/* Main area */}
+      <div className="rd-main" style={S.main}>
+
+        {/* Topbar */}
+        <div style={S.topbar}>
+          <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+            <button className="rd-ham" onClick={() => setSidebarOpen(true)}
+              style={{width:"36px",height:"36px",background:"#f1f5f9",border:"none",borderRadius:"9px",cursor:"pointer",fontSize:"17px",display:"none",alignItems:"center",justifyContent:"center"}}>
+              ☰
+            </button>
+            <div>
+              <h1 style={{margin:0,fontSize:"17px",fontWeight:"800",color:"#1e293b"}}>
+                {NAV.find(n => n.id===activeTab)?.icon} {NAV.find(n => n.id===activeTab)?.label}
+              </h1>
+              <p style={{margin:0,fontSize:"11px",color:"#94a3b8"}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
+            </div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+            {pendingCount > 0 && (
+              <div style={{padding:"6px 12px",background:"#fef3c7",color:"#92400e",borderRadius:"8px",fontSize:"12px",fontWeight:"700",border:"1px solid #fcd34d"}}>
+                ⏳ {pendingCount} pending apts
+              </div>
+            )}
+            <div style={{padding:"6px 13px",background:"#f0fdf4",color:"#166534",borderRadius:"9px",fontSize:"12px",fontWeight:"700",border:"1px solid #bbf7d0"}}>
+              🖥️ Reception
+            </div>
+          </div>
+        </div>
+
+        <div style={S.content}>
+
+          {/* ═══ QUEUE TAB ═══ */}
+          {activeTab === "queue" && (
+            <div style={{animation:"slideIn 0.3s ease"}}>
+              <div style={{marginBottom:"24px"}}>
+                <h2 style={{fontSize:"20px",fontWeight:"800",color:"#1e293b",margin:"0 0 4px"}}>🎫 Queue Management</h2>
+                <p style={{fontSize:"13px",color:"#9ca3af",margin:0}}>Call the next patient or walk-in customer. Queue updates in real-time for all staff.</p>
+              </div>
+
+              {/* Stats strip */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(130px,1fr))",gap:"12px",marginBottom:"24px"}}>
+                {[
+                  { label:"Today's Apts",  value:todayApts.length,   color:"#166534" },
+                  { label:"Pending",        value:pendingCount,        color:"#92400e" },
+                  { label:"Confirmed",      value:confirmedCount,      color:"#1e40af" },
+                ].map(({label,value,color}) => (
+                  <div key={label} style={{background:"white",borderRadius:"12px",padding:"16px",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",borderLeft:`4px solid ${color}`,display:"flex",alignItems:"center",gap:"12px"}}>
+                    <div><div style={{fontSize:"22px",fontWeight:"700",color}}>{value}</div><div style={{fontSize:"11px",color:"#6b7280"}}>{label}</div></div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Queue cards */}
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:"20px"}}>
+                {[
+                  {type:"appointment",label:"Appointments",icon:"📅",color:"#166534",bg:"#f0fdf4",border:"#bbf7d0"},
+                  {type:"order",      label:"Online Orders",icon:"📦",color:"#1e40af",bg:"#eff6ff",border:"#bfdbfe"},
+                  {type:"walkin",     label:"Walk-in",      icon:"🏪",color:"#92400e",bg:"#fffbeb",border:"#fde68a"},
+                ].map(({type,label,icon,color,bg,border}) => {
+                  const q      = queueStatus[type] || {};
+                  const total  = q.totalIssued    || 0;
+                  const serving = q.currentServing || 0;
+                  const waiting = Math.max(0, total - serving);
+                  const isLoad  = queueLoading[type];
+                  const allDone = total > 0 && serving >= total;
+
+                  return (
+                    <div key={type} style={{background:"white",borderRadius:"16px",boxShadow:"0 2px 8px rgba(0,0,0,0.07)",overflow:"hidden"}}>
+                      {/* Header */}
+                      <div style={{background:color,padding:"16px 20px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                        <div>
+                          <div style={{color:"white",fontSize:"15px",fontWeight:"700"}}>{icon} {label}</div>
+                          <div style={{color:"rgba(255,255,255,0.7)",fontSize:"12px",marginTop:"2px"}}>{total} token{total!==1?"s":""} issued today</div>
+                        </div>
+                        {q.lastUpdated && <div style={{color:"rgba(255,255,255,0.5)",fontSize:"10px",textAlign:"right"}}>
+                          {new Date(q.lastUpdated).toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}
+                        </div>}
+                      </div>
+
+                      {/* Stats */}
+                      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:"1px",background:"#f3f4f6"}}>
+                        {[{l:"Now Serving",v:serving||"—",hi:true},{l:"Waiting",v:waiting},{l:"Total",v:total}].map(({l,v,hi}) => (
+                          <div key={l} style={{background:"white",padding:"14px 8px",textAlign:"center"}}>
+                            <div style={{fontSize:hi?"30px":"20px",fontWeight:"700",color:hi?color:"#374151",lineHeight:1}}>{v}</div>
+                            <div style={{fontSize:"10px",color:"#9ca3af",marginTop:"3px",fontWeight:"600",textTransform:"uppercase",letterSpacing:"0.04em"}}>{l}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Now calling badge */}
+                      {serving > 0 && (
+                        <div style={{margin:"14px 16px 0",background:bg,border:`1px solid ${border}`,borderRadius:"10px",padding:"10px 14px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+                          <span style={{fontSize:"12px",color,fontWeight:"600"}}>Now calling:</span>
+                          <span style={{fontSize:"18px",fontWeight:"800",color,letterSpacing:"0.06em"}}>
+                            {type==="appointment"?"APT":type==="walkin"?"WLK":"ORD"}-{String(serving).padStart(3,"0")}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Action buttons */}
+                      <div style={{padding:"14px 16px 18px",display:"flex",gap:"8px"}}>
+                        <button onClick={() => callNext(type)} disabled={isLoad || allDone}
+                          style={{flex:1,padding:"12px",background:(isLoad||allDone)?"#e5e7eb":color,color:(isLoad||allDone)?"#9ca3af":"white",border:"none",borderRadius:"10px",fontWeight:"700",fontSize:"13px",cursor:(isLoad||allDone)?"not-allowed":"pointer",transition:"all 0.15s"}}>
+                          {isLoad ? "⏳ Calling…" : allDone ? "✅ All Done" : "➡ Next"}
+                        </button>
+                        <button onClick={() => resetQueue(type)}
+                          style={{padding:"12px 14px",background:"#fee2e2",color:"#991b1b",border:"none",borderRadius:"10px",fontWeight:"600",fontSize:"12px",cursor:"pointer"}}>
+                          Reset
+                        </button>
+                        <button onClick={() => fetchQueue(type)}
+                          style={{padding:"12px 14px",background:"#f1f5f9",color:"#6b7280",border:"none",borderRadius:"10px",fontWeight:"600",fontSize:"12px",cursor:"pointer"}}>
+                          ↻
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ═══ APPOINTMENTS TAB ═══ */}
+          {activeTab === "appointments" && (
+            <div style={{animation:"slideIn 0.3s ease"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"20px",flexWrap:"wrap",gap:"12px"}}>
+                <div>
+                  <h2 style={{fontSize:"20px",fontWeight:"800",color:"#1e293b",margin:"0 0 3px"}}>📅 Appointments</h2>
+                  <p style={{fontSize:"13px",color:"#9ca3af",margin:0}}>{appointments.length} total · {pendingCount} pending · {confirmedCount} confirmed</p>
+                </div>
+                <div style={{display:"flex",gap:"10px",flexWrap:"wrap"}}>
+                  <input placeholder="Search name, contact, problem…" value={aptSearch} onChange={e => setAptSearch(e.target.value)}
+                    style={{padding:"9px 14px",border:"1px solid #e5e7eb",borderRadius:"9px",fontSize:"13px",outline:"none",minWidth:"240px"}} />
+                  <button onClick={fetchAppointments} style={{padding:"9px 16px",background:"#166534",color:"white",border:"none",borderRadius:"9px",cursor:"pointer",fontWeight:"600",fontSize:"13px"}}>
+                    ↻ Refresh
+                  </button>
+                </div>
+              </div>
+
+              {/* Today's appointments highlight */}
+              {todayApts.length > 0 && (
+                <div style={{background:"#f0fdf4",border:"1px solid #bbf7d0",borderRadius:"12px",padding:"14px 18px",marginBottom:"20px",display:"flex",alignItems:"center",gap:"12px",flexWrap:"wrap"}}>
+                  <span style={{fontSize:"20px"}}>📅</span>
+                  <div>
+                    <div style={{fontWeight:"700",fontSize:"14px",color:"#166534"}}>Today: {todayApts.length} appointment{todayApts.length!==1?"s":""}</div>
+                    <div style={{fontSize:"12px",color:"#4ade80",marginTop:"2px"}}>{todayApts.filter(a=>a.status==="Confirmed").length} confirmed · {todayApts.filter(a=>a.status==="Pending").length} pending</div>
+                  </div>
+                </div>
+              )}
+
+              {aptLoading ? (
+                <div style={{display:"flex",alignItems:"center",gap:"10px",padding:"40px",color:"#9ca3af"}}>
+                  <div style={{width:"20px",height:"20px",border:"3px solid #dcfce7",borderTop:"3px solid #166534",borderRadius:"50%",animation:"spin 0.8s linear infinite"}} />
+                  Loading appointments…
+                </div>
+              ) : filteredApts.length === 0 ? (
+                <div style={{textAlign:"center",padding:"60px",color:"#9ca3af"}}>
+                  <div style={{fontSize:"48px",marginBottom:"12px"}}>📅</div>
+                  <p>No appointments found</p>
+                </div>
+              ) : (
+                <div style={{display:"flex",flexDirection:"column",gap:"10px"}}>
+                  {filteredApts.map((apt) => {
+                    const sc = aptStatusColors[apt.status] || aptStatusColors.Pending;
+                    const isToday = apt.date === new Date().toISOString().split("T")[0];
+                    return (
+                      <div key={apt._id} style={{background:"white",borderRadius:"14px",padding:"16px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",border:isToday?"1px solid #bbf7d0":"1px solid #f3f4f6",display:"flex",alignItems:"center",gap:"16px",flexWrap:"wrap"}}>
+                        {/* Avatar */}
+                        <div style={{width:"44px",height:"44px",borderRadius:"50%",background:"linear-gradient(135deg,#166534,#4ade80)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:"700",fontSize:"16px",flexShrink:0}}>
+                          {(apt.name||"?").charAt(0).toUpperCase()}
+                        </div>
+                        {/* Info */}
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontWeight:"700",fontSize:"14px",color:"#111",marginBottom:"2px"}}>{apt.name||"-"}</div>
+                          <div style={{fontSize:"12px",color:"#6b7280",display:"flex",gap:"12px",flexWrap:"wrap"}}>
+                            <span>📞 {apt.contact||"-"}</span>
+                            <span>🗓 {apt.date||"-"} at <strong style={{color:"#166534"}}>{apt.time||"-"}</strong></span>
+                            {apt.age && <span>Age: {apt.age}</span>}
+                          </div>
+                          <div style={{fontSize:"12px",color:"#9ca3af",marginTop:"3px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"400px"}}>{apt.problem||""}</div>
+                        </div>
+                        {/* Status + action */}
+                        <div style={{display:"flex",alignItems:"center",gap:"10px",flexShrink:0}}>
+                          <span style={{padding:"4px 12px",background:sc.bg,color:sc.color,borderRadius:"20px",fontSize:"11px",fontWeight:"700"}}>{apt.status}</span>
+                          <button onClick={() => { setSelectedApt({...apt}); setAptDialogOpen(true); }}
+                            style={{padding:"7px 14px",background:"#166534",color:"white",border:"none",borderRadius:"8px",cursor:"pointer",fontWeight:"600",fontSize:"12px"}}>
+                            Update
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
+        </div>{/* end content */}
+      </div>{/* end main */}
+
+      {/* ── APPOINTMENT STATUS DIALOG ── */}
+      {aptDialogOpen && selectedApt && (
+        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
+          <div style={{background:"white",borderRadius:"20px",padding:"28px",maxWidth:"440px",width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+            <h3 style={{margin:"0 0 6px",fontSize:"18px",fontWeight:"800",color:"#111"}}>Update Appointment Status</h3>
+            <p style={{margin:"0 0 20px",fontSize:"13px",color:"#9ca3af"}}>
+              <strong style={{color:"#111"}}>{selectedApt.name}</strong> — {selectedApt.date} at {selectedApt.time}
+            </p>
+            <div style={{display:"flex",flexDirection:"column",gap:"8px",marginBottom:"24px"}}>
+              {["Pending","Confirmed","Completed","Cancelled"].map(status => (
+                <button key={status} onClick={() => setSelectedApt({...selectedApt,status})}
+                  style={{padding:"12px 16px",border:`2px solid ${selectedApt.status===status?"#166534":"#e5e7eb"}`,borderRadius:"10px",background:selectedApt.status===status?"#f0fdf4":"white",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"space-between",fontSize:"14px",fontWeight:"600",color:selectedApt.status===status?"#166534":"#374151",transition:"all 0.15s"}}>
+                  <span>{status}</span>
+                  {selectedApt.status===status && <span style={{color:"#22c55e"}}>✓</span>}
+                </button>
+              ))}
+            </div>
+            <div style={{display:"flex",gap:"10px"}}>
+              <button onClick={() => { setAptDialogOpen(false); setSelectedApt(null); }}
+                style={{flex:1,padding:"12px",background:"#f1f5f9",border:"none",borderRadius:"10px",cursor:"pointer",fontSize:"14px",fontWeight:"600",color:"#6b7280"}}>
+                Cancel
+              </button>
+              <button onClick={() => updateAptStatus(selectedApt._id, selectedApt.status)}
+                style={{flex:2,padding:"12px",background:"#166534",border:"none",borderRadius:"10px",cursor:"pointer",fontSize:"14px",fontWeight:"700",color:"white"}}>
+                Save Status
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── SNACKBAR ── */}
+      {notification.open && (
+        <div style={{position:"fixed",bottom:"24px",right:"24px",background:notification.ok?"#166534":"#dc2626",color:"white",padding:"12px 20px",borderRadius:"12px",fontSize:"14px",fontWeight:"600",boxShadow:"0 4px 20px rgba(0,0,0,0.2)",zIndex:200,fontFamily:"'Plus Jakarta Sans',sans-serif",maxWidth:"320px",animation:"slideIn 0.2s ease"}}>
+          {notification.ok ? "✅ " : "❌ "}{notification.message}
+        </div>
+      )}
+
+    </div>
+  );
+}

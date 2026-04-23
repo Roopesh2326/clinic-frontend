@@ -309,15 +309,28 @@ function Hero() {
                 fontFamily:"'Plus Jakarta Sans', sans-serif",
                 fontSize:"13px", color:"rgba(255,255,255,.7)",
               }}>BHMS · 20 Years in Homeopathy</div>
-              <div style={{ display:"flex", gap:"8px", marginTop:"14px", flexWrap:"wrap" }}>
-                {["Stress","Skin","Respiratory","Joints"].map(tag => (
-                  <span key={tag} style={{
-                    fontSize:"11px", padding:"4px 10px", borderRadius:"20px",
-                    background:"rgba(34,197,94,.2)", color:T.g4,
-                    fontFamily:"'Plus Jakarta Sans', sans-serif", fontWeight:"600",
-                  }}>{tag}</span>
-                ))}
-              </div>
+              {/* Updated Specialties Section for better visibility */}
+<div style={{ display: "flex", flexWrap: "wrap", gap: "8px", marginTop: "12px" }}>
+  {["Stress", "Skin", "Respiratory", "Joints"].map((spec) => (
+    <span
+      key={spec}
+      style={{
+        padding: "4px 12px",
+        borderRadius: "20px",
+        fontSize: "12px",
+        fontWeight: "600",
+        // The Fix: Darker background + blur for high contrast
+        background: "rgba(11, 61, 31, 0.5)", 
+        color: "#4ade80", 
+        border: "1px solid rgba(74, 222, 128, 0.3)",
+        backdropFilter: "blur(6px)",
+        display: "inline-block"
+      }}
+    >
+      {spec}
+    </span>
+  ))}
+</div>
             </div>
           </div>
           <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:"12px" }}>

@@ -1,319 +1,191 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 
-export default function Appointment() {
-  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
-  const savedName = localStorage.getItem("name") || "";
-  const savedPhone = localStorage.getItem("phone") || "";
-  const savedEmail = localStorage.getItem("email") || "";
+const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
-  const [form, setForm] = useState({
-    name: savedName,
-    age: "",
-    problem: "",
-    contact: savedPhone,
-    date: "",
-    time: "",
-    email: savedEmail,
-  });
-  const [loading, setLoading] = useState(false);
-  const [success, setSuccess] = useState(false);
-  const [bookedToken, setBookedToken] = useState(null);
+const T = {
+  g1: "#0b3d1f", g2: "#155231", g3: "#166534", g4: "#22c55e", g5: "#dcfce7", gold: "#b8955a",
+};
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-
-    try {
-      // ✅ Include userId if user is logged in so history can be fetched later
-      const userId = localStorage.getItem("userId") || null;
-
-      const payload = {
-        ...form,
-        userId,
-        bookedAt: new Date().toISOString(),
-      };
-
-      const res = await fetch(
-        "https://clinic-backend-mxto.onrender.com/appointment",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify(payload),
-        }
-      );
-
-      let data;
-      try { data = await res.json(); } catch { data = {}; }
-
-      if (!res.ok) {
-      alert(data?.message || data?.error || "Could not book appointment");
-  return;
+// ─── HELPERS ────────────────────────────────────────────────────────────────
+function generateSlots(startTime, endTime, durationMins, isToday) {
+  const slots = [];
+  const now = new Date();
+  const currentTotalMins = now.getHours() * 60 + now.getMinutes();
+  const [sh, sm] = startTime.split(":").map(Number);
+  const [eh, em] = endTime.split(":").map(Number);
+  let cur = sh * 60 + sm;
+  const end = eh * 60 + em;
+  while (cur + durationMins <= end) {
+    if (!isToday || cur > currentTotalMins + 20) {
+      const h = Math.floor(cur / 60);
+      const m = cur % 60;
+      const label = `${h % 12 === 0 ? 12 : h % 12}:${m.toString().padStart(2, "0")} ${h < 12 ? "AM" : "PM"}`;
+      slots.push(label);
+    }
+    cur += durationMins;
+  }
+  return slots;
 }
 
-// NEW: save token from response
-      setBookedToken(data.tokenStr || null);
-      setSuccess(true);
-      setForm({ name: savedName, age: "", problem: "", contact: savedPhone, date: "", time: "", email: savedEmail });
-      setTimeout(() => { setSuccess(false); setBookedToken(null); }, 6000);
+function toDateStr(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
 
-    } catch (error) {
-      console.error(error);
-      alert("Error submitting form. Please try again.");
-    } finally {
-      setLoading(false);
+export default function Appointment() {
+  const navigate = useNavigate();
+  const isLoggedIn = localStorage.getItem("isLoggedIn") === "true";
+  const [settings, setSettings] = useState(null);
+  const [form, setForm] = useState({
+    name: localStorage.getItem("name") || "",
+    age: "",
+    contact: localStorage.getItem("phone") || "",
+    problem: "",
+    date: toDateStr(new Date()),
+    time: "",
+  });
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    fetch(`${BASE_URL}/appointment-settings/public`)
+      .then(r => r.json())
+      .then(data => setSettings(data))
+      .catch(() => setSettings({ defaultStartTime: "09:00", defaultEndTime: "18:00", slotDurationMins: 20 }));
+  }, []);
+
+  useEffect(() => {
+    if (settings && form.date) {
+      const isToday = form.date === toDateStr(new Date());
+      setAvailableSlots(generateSlots(settings.defaultStartTime || "09:00", settings.defaultEndTime || "18:00", settings.slotDurationMins || 20, isToday));
     }
+  }, [form.date, settings]);
+
+  // ─── HANDLERS ─────────────────────────────────────────────────────────────
+  const handlePhoneChange = (e) => {
+    const val = e.target.value.replace(/\D/g, ""); // Remove non-numeric characters
+    if (val.length <= 10) setForm({ ...form, contact: val });
   };
 
-  // Get tomorrow as min date
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const minDate = tomorrow.toISOString().split("T")[0];
+  const handleSubmit = async () => {
+    if (!form.name || !form.time || !form.contact || !form.problem || !form.age) {
+      setError("Please fill all mandatory fields (*)");
+      return;
+    }
+    if (form.contact.length !== 10) {
+      setError("Please enter a valid 10-digit phone number.");
+      return;
+    }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`${BASE_URL}/appointments`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...form, source: isLoggedIn ? "online" : "guest" }),
+      });
+      if (res.ok) {
+        window.__appointmentCompleted = true;
+        setSubmitted(true);
+        setTimeout(() => navigate("/"), 3000);
+      }
+    } catch { setError("Booking failed. Please try again."); }
+    finally { setSubmitting(false); }
+  };
+
+  if (submitted) return <div style={{ height: "100vh", background: T.g1, display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}><h1>✅ Appointment Confirmed!</h1></div>;
 
   return (
-    <div id="appointment" style={styles.wrapper}>
-      <div style={styles.container}>
+    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.g1} 0%, ${T.g2} 100%)`, padding: "100px 20px 60px", color: "white" }}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+        .layout-grid { display: grid; grid-template-columns: 1fr 360px; gap: 30px; max-width: 1200px; margin: 0 auto; }
+        @media (max-width: 950px) { 
+          .layout-grid { grid-template-columns: 1fr; } 
+          .preview-sidebar { position: static !important; order: 2; } 
+          .hero-title { font-size: 42px !important; margin-top: 10px !important; }
+          .breadcrumb-wrap { display: none !important; }
+        }
+        .slot-btn:hover { border-color: ${T.g4}; background: rgba(34,197,94,0.15); }
+        .slot-btn.active { background: ${T.g4} !important; border-color: ${T.g4} !important; color: white !important; font-weight: 800 !important; }
+        input, textarea { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif !important; }
+      `}</style>
 
-        {/* HEADER */}
-        <div style={styles.header}>
-          <h2 style={styles.title}>📅 Book an Appointment</h2>
-          <p style={styles.subtitle}>
-            Fill in your details and we'll confirm your appointment shortly.
-          </p>
-          {isLoggedIn && (
-            <div style={styles.loggedInBadge}>
-              ✅ Logged in — your appointment will be saved to your account
-            </div>
-          )}
+      {/* ── HEADER ── */}
+      <div style={{ textAlign: "center", marginBottom: "50px" }}>
+        <div className="breadcrumb-wrap" style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "50px", padding: "8px 18px", marginBottom: "20px" }}>
+          <span style={{ fontSize: "16px" }}>🌿</span>
+          <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "11px", color: "white", fontWeight: "800", letterSpacing: "0.15em", textTransform: "uppercase" }}>Dr. Somnath Clinic</span>
         </div>
+        <h1 className="hero-title" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "64px", fontWeight: "700", color: "white", margin: "0 auto 15px", lineHeight: 1.1 }}>Book an <span style={{ color: T.g4, fontStyle: "italic" }}>Appointment</span></h1>
+        <p style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "16px", color: "rgba(255,255,255,0.6)", maxWidth: "550px", margin: "0 auto 30px", lineHeight: 1.6 }}>Natural healing begins with a conversation. Choose your preferred day and time below.</p>
+        
+        <div style={{ display: "inline-flex", gap: "25px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "12px 28px", flexWrap: "wrap", justifyContent: "center" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "rgba(255,255,255,0.8)", fontWeight: "600" }}><span style={{color: T.g4}}>📞</span> +91 97524 40622</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "rgba(255,255,255,0.8)", fontWeight: "600" }}><span style={{color: T.g4}}>🕐</span> 09:00 AM – 06:00 PM</div>
+          <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "rgba(255,255,255,0.8)", fontWeight: "600" }}><span style={{color: T.g4}}>📅</span> Mon – Sat</div>
+        </div>
+      </div>
 
-        {/* SUCCESS MESSAGE */}
-        {success && (
-          <div style={styles.successBox}>
-            <div style={{ fontSize: "16px", marginBottom: "8px" }}>✅ Appointment booked successfully!</div>
-            {bookedToken && (
-              <div style={{ marginTop: "10px", display: "inline-block", background: "white", border: "2px solid #166534", borderRadius: "10px", padding: "10px 24px" }}>
-                <div style={{ fontSize: "11px", color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "4px" }}>Your Queue Token</div>
-                <div style={{ fontSize: "32px", fontWeight: "700", color: "#166534", letterSpacing: "0.05em" }}>{bookedToken}</div>
-                <div style={{ fontSize: "12px", color: "#888", marginTop: "4px" }}>Show this token at the clinic</div>
-              </div>
-            )}
-            <div style={{ fontSize: "13px", color: "#555", marginTop: "10px" }}>We'll contact you to confirm your appointment.</div>
+      <div className="layout-grid">
+        {/* FORM SECTION */}
+        <div style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderRadius: "28px", border: "1px solid rgba(255,255,255,0.12)", padding: "clamp(20px, 5vw, 40px)" }}>
+          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: "white", fontSize: "36px", fontWeight: "700", marginBottom: "40px", textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "20px" }}>Appointment Details</h2>
+          
+          <h3 style={{ color: T.gold, fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: "25px" }}>Personal Information</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+            <div><label style={S.label}>Full Name *</label><input style={S.input} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Patient's Name" /></div>
+            <div><label style={S.label}>Age *</label><input style={S.input} type="number" value={form.age} onChange={e => setForm({...form, age: e.target.value})} placeholder="Age" /></div>
           </div>
-)}
-        {/* FORM */}
-        <form onSubmit={handleSubmit} style={styles.form}>
+          <div style={{ marginBottom: "20px" }}>
+            <label style={S.label}>Phone Number *</label>
+            <input style={S.input} type="tel" value={form.contact} onChange={handlePhoneChange} placeholder="10-digit mobile number" maxLength="10" />
+          </div>
+          <div style={{ marginBottom: "30px" }}><label style={S.label}>Describe Health Concern *</label><textarea style={{ ...S.input, height: "110px", resize: "none" }} value={form.problem} onChange={e => setForm({...form, problem: e.target.value})} placeholder="Describe your symptoms..." /></div>
 
-          {/* Row 1 */}
-          <div style={styles.row}>
-            <div style={styles.field}>
-              <label style={styles.label}>Full Name *</label>
-              <input
-                type="text" name="name" placeholder="Enter your full name"
-                value={form.name} onChange={handleChange} required
-                style={styles.input}
-              />
-            </div>
-            <div style={styles.field}>
-              <label style={styles.label}>Age *</label>
-              <input
-                type="number" name="age" placeholder="Your age"
-                value={form.age} onChange={handleChange} required min="1" max="120"
-                style={styles.input}
-              />
-            </div>
+          <div style={{ marginBottom: "30px", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "30px" }}>
+            <label style={S.label}>Select Date *</label>
+            <input type="date" style={{ ...S.input, width: "auto" }} value={form.date} min={toDateStr(new Date())} onChange={e => setForm({...form, date: e.target.value})} />
           </div>
-
-          {/* Row 2 */}
-          <div style={styles.row}>
-            <div style={styles.field}>
-              <label style={styles.label}>Contact Number *</label>
-              <input
-                type="tel" name="contact" placeholder="Your phone number"
-                value={form.contact} onChange={handleChange} required
-                style={styles.input}
-              />
-            </div>
-            <div style={styles.field}>
-              <label style={styles.label}>Email (optional)</label>
-              <input
-                type="email" name="email" placeholder="Your email address"
-                value={form.email} onChange={handleChange}
-                style={styles.input}
-              />
-            </div>
-          </div>
-
-          {/* Row 3 */}
-          <div style={styles.row}>
-            <div style={styles.field}>
-              <label style={styles.label}>Preferred Date *</label>
-              <input
-                type="date" name="date" value={form.date}
-                onChange={handleChange} required min={minDate}
-                style={styles.input}
-              />
-            </div>
-            <div style={styles.field}>
-              <label style={styles.label}>Preferred Time *</label>
-              <select name="time" value={form.time} onChange={handleChange} required style={styles.input}>
-                <option value="">Select a time slot</option>
-                <option value="09:00">9:00 AM</option>
-                <option value="09:30">9:30 AM</option>
-                <option value="10:00">10:00 AM</option>
-                <option value="10:30">10:30 AM</option>
-                <option value="11:00">11:00 AM</option>
-                <option value="11:30">11:30 AM</option>
-                <option value="12:00">12:00 PM</option>
-                <option value="14:00">2:00 PM</option>
-                <option value="14:30">2:30 PM</option>
-                <option value="15:00">3:00 PM</option>
-                <option value="15:30">3:30 PM</option>
-                <option value="16:00">4:00 PM</option>
-                <option value="16:30">4:30 PM</option>
-                <option value="17:00">5:00 PM</option>
-              </select>
-            </div>
-          </div>
-
-          {/* Problem */}
-          <div style={{ ...styles.field, gridColumn: "span 2" }}>
-            <label style={styles.label}>Describe Your Problem *</label>
-            <textarea
-              name="problem" placeholder="Please describe your symptoms or reason for visit..."
-              value={form.problem} onChange={handleChange} required rows={4}
-              style={{ ...styles.input, resize: "vertical" }}
-            />
-          </div>
-
-          {/* Submit */}
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              ...styles.submitBtn,
-              opacity: loading ? 0.7 : 1,
-              cursor: loading ? "not-allowed" : "pointer",
-            }}
-          >
-            {loading ? "⏳ Booking..." : "📅 Book Appointment"}
-          </button>
-        </form>
-
-        {/* INFO */}
-        <div style={styles.infoRow}>
-          <div style={styles.infoBox}>
-            <span style={{ fontSize: "20px" }}>📞</span>
-            <div>
-              <div style={styles.infoTitle}>Call us directly</div>
-              <div style={styles.infoText}>+91 97524 40622</div>
-            </div>
-          </div>
-          <div style={styles.infoBox}>
-            <span style={{ fontSize: "20px" }}>🕐</span>
-            <div>
-              <div style={styles.infoTitle}>Clinic hours</div>
-              <div style={styles.infoText}>Mon–Sat: 9 AM – 6 PM</div>
-            </div>
-          </div>
-          <div style={styles.infoBox}>
-            <span style={{ fontSize: "20px" }}>📍</span>
-            <div>
-              <div style={styles.infoTitle}>Location</div>
-              <div style={styles.infoText}>Visit us at the clinic</div>
-            </div>
+          <label style={S.label}>Select Time Slot *</label>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "12px" }}>
+            {availableSlots.length > 0 ? availableSlots.map(slot => (
+              <button key={slot} className={`slot-btn ${form.time === slot ? "active" : ""}`} onClick={() => setForm({...form, time: slot})} style={S.slotBtn}>{slot}</button>
+            )) : <p style={{ fontSize: "14px", color: "#fca5a5", fontWeight: "600" }}>No remaining slots for today.</p>}
           </div>
         </div>
 
+        {/* SIDEBAR PREVIEW */}
+        <aside className="preview-sidebar" style={{ position: "sticky", top: "100px", height: "fit-content" }}>
+          <div style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(30px)", borderRadius: "28px", border: "1px solid rgba(255,255,255,0.18)", padding: "30px" }}>
+            <h3 style={{ color: T.gold, fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "25px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "12px" }}>Live Preview</h3>
+            
+            <div style={S.previewItem}><div style={S.prevLabel}>Patient</div><div style={S.prevVal}>{form.name || "—"}</div></div>
+            <div style={S.previewItem}><div style={S.prevLabel}>Age & Contact</div><div style={S.prevVal}>{form.age ? `${form.age} Yrs` : "—"} · {form.contact || "—"}</div></div>
+            <div style={S.previewItem}><div style={S.prevLabel}>Health Concern</div><div style={{ ...S.prevVal, fontSize: '13px', fontWeight: '400', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>{form.problem || "Not described yet"}</div></div>
+            <div style={S.previewItem}><div style={S.prevLabel}>Scheduled</div><div style={{ ...S.prevVal, color: T.g4, fontWeight: "800" }}>{form.date} {form.time ? `@ ${form.time}` : ""}</div></div>
+
+            {error && <div style={{ color: "#fca5a5", fontSize: "13px", marginBottom: "15px", fontWeight: "700", textAlign: "center" }}>{error}</div>}
+
+            <button onClick={handleSubmit} disabled={submitting} style={{ width: "100%", padding: "16px", background: (form.time && form.name && form.contact.length === 10) ? `linear-gradient(135deg, ${T.g3}, ${T.g4})` : "rgba(255,255,255,0.1)", border: "none", borderRadius: "14px", color: "white", fontWeight: "800", cursor: (form.time && form.name && form.contact.length === 10) ? "pointer" : "not-allowed", transition: "0.4s" }}>
+              {submitting ? "Booking..." : "Confirm & Book Now"}
+            </button>
+          </div>
+        </aside>
       </div>
     </div>
   );
 }
 
-const styles = {
-  wrapper: {
-    padding: "60px 20px",
-    background: "linear-gradient(135deg, #f0fdf4 0%, #f8fafc 100%)",
-  },
-  container: {
-    maxWidth: "760px",
-    margin: "0 auto",
-    background: "white",
-    borderRadius: "16px",
-    padding: "40px",
-    boxShadow: "0 4px 24px rgba(22,101,52,0.1)",
-  },
-  header: { textAlign: "center", marginBottom: "32px" },
-  title: { color: "#166534", fontSize: "28px", fontWeight: "700", margin: "0 0 8px" },
-  subtitle: { color: "#6b7280", fontSize: "15px", margin: "0 0 12px" },
-  loggedInBadge: {
-    display: "inline-block",
-    background: "#dcfce7", color: "#166534",
-    padding: "6px 16px", borderRadius: "20px",
-    fontSize: "13px", fontWeight: "600",
-  },
-  successBox: {
-    background: "#dcfce7", color: "#166534",
-    border: "1px solid #86efac",
-    borderRadius: "10px", padding: "14px 20px",
-    marginBottom: "24px", textAlign: "center",
-    fontWeight: "600", fontSize: "15px",
-  },
-  form: {
-    display: "grid",
-    gridTemplateColumns: "1fr 1fr",
-    gap: "16px",
-  },
-  row: {
-    display: "contents",
-  },
-  field: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "6px",
-  },
-  label: {
-    fontSize: "13px", fontWeight: "600",
-    color: "#374151",
-  },
-  input: {
-    padding: "10px 14px",
-    borderRadius: "8px",
-    border: "1.5px solid #d1d5db",
-    fontSize: "14px",
-    outline: "none",
-    width: "100%",
-    boxSizing: "border-box",
-    fontFamily: "inherit",
-  },
-  submitBtn: {
-    gridColumn: "span 2",
-    padding: "14px",
-    background: "linear-gradient(135deg, #166534, #16a34a)",
-    color: "white",
-    border: "none",
-    borderRadius: "10px",
-    fontSize: "16px",
-    fontWeight: "700",
-    marginTop: "8px",
-  },
-  infoRow: {
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: "16px",
-    marginTop: "32px",
-    borderTop: "1px solid #e5e7eb",
-    paddingTop: "24px",
-  },
-  infoBox: {
-    display: "flex", alignItems: "center", gap: "10px",
-    padding: "12px", background: "#f8fafc",
-    borderRadius: "10px",
-  },
-  infoTitle: { fontSize: "12px", color: "#888", fontWeight: "600" },
-  infoText: { fontSize: "13px", color: "#111", fontWeight: "600" },
+const S = {
+  label: { display: "block", fontSize: "11px", fontWeight: "800", color: "rgba(255,255,255,0.5)", textTransform: "uppercase", marginBottom: "8px", letterSpacing: "0.08em" },
+  input: { width: "100%", padding: "16px", background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "14px", color: "white", outline: "none", fontSize: "14px" },
+  slotBtn: { padding: "14px", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: "12px", color: "white", cursor: "pointer", fontSize: "12px", fontWeight: "700" },
+  previewItem: { marginBottom: "20px", borderBottom: "1px solid rgba(255,255,255,0.05)", paddingBottom: "12px" },
+  prevLabel: { fontSize: "9px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase", fontWeight: "800" },
+  prevVal: { fontSize: "15px", color: "white", fontWeight: "700", marginTop: "4px" }
 };
