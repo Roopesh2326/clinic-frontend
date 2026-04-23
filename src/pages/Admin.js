@@ -391,7 +391,6 @@ if (!token) return;
 
   setAnalyticsLoading(true);
   axios.get(`${BASE_URL}/analytics/sales`, {
-    withCredentials: true,
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   })
   .then((res) => setAnalytics(res.data))
