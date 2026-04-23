@@ -19,10 +19,10 @@ import {
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
-const getAuthHeader = () => {
-  const token = localStorage.getItem("token");
-  return token ? { "Authorization": `Bearer ${token}` } : {};
-};
+// const getAuthHeader = () => {
+//   const token = localStorage.getItem("token");
+//   return token ? { "Authorization": `Bearer ${token}` } : {};
+// };
 
 const sanitizeObjectArray = (items) => {
   if (!Array.isArray(items)) return [];
