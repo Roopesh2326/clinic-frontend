@@ -881,10 +881,28 @@ export default function Admin() {
     fetchActivityLogs(1, activityFilter);
   }, [activeTab, authChecked, activityFilter]); // eslint-disable-line
 
-  const handleLogout = () => {
-    ["isLoggedIn","role","email","name","phone","userId"].forEach(k => localStorage.removeItem(k));
-    window.location.href = "/";
-  };
+  // FIND this:
+const handleLogout = () => {
+  ["isLoggedIn","role","email","name","phone","userId"].forEach(k => localStorage.removeItem(k));
+  window.location.href = "/";
+};
+
+// REPLACE with:
+const handleLogout = async () => {
+  try {
+    const token = localStorage.getItem("token");
+    await fetch(`${BASE_URL}/logout`, {
+      method: "POST",
+      credentials: "include",
+      headers: token ? { "Authorization": `Bearer ${token}` } : {},
+    });
+  } catch {}
+  // Clear ALL auth keys including token
+  ["isLoggedIn","role","email","name","phone","userId","token"].forEach(k => 
+    localStorage.removeItem(k)
+  );
+  window.location.href = "/login";
+};;
 
   // ─── LOADING SCREEN ───────────────────────────────────────────────────────
   if (!authChecked) return (
