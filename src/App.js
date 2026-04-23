@@ -108,17 +108,17 @@ function App() {
     AOS.init({ duration: 1000 });
   }, []);
 
-  // useEffect(() => {
-  //   fetch("https://clinic-backend-mxto.onrender.com/ping")
-  //   .catch(() => {});
+  useEffect(() => {
+    fetch("https://clinic-backend-mxto.onrender.com/ping")
+    .catch(() => {});
 
-  //   const interval = setInterval(() => {
-  //     fetch("https://clinic-backend-mxto.onrender.com/ping")
-  //     .catch(() => {});
-  //   }, 10 * 60 * 1000);
+    const interval = setInterval(() => {
+      fetch("https://clinic-backend-mxto.onrender.com/ping")
+      .catch(() => {});
+    }, 10 * 60 * 1000);
 
-  //   return () => clearInterval(interval);
-  // }, []);
+    return () => clearInterval(interval);
+  }, []);
   
   return (
     <Router>
