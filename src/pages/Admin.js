@@ -322,11 +322,11 @@ export default function Admin() {
       const headers = getAuthHeaders();
       try {
         const [aptsR, usersR, ordersR, medsR, lowR] = await Promise.allSettled([
-          fetch(`${BASE_URL}/appointments`,        { credentials: "include", headers }),
-          fetch(`${BASE_URL}/users`,               { credentials: "include", headers }),
-          fetch(`${BASE_URL}/orders`,              { credentials: "include", headers }),
-          fetch(`${BASE_URL}/medicines/all`,       { credentials: "include", headers }),
-          fetch(`${BASE_URL}/medicines/low-stock`, { credentials: "include", headers }),
+          fetchWithRetry(`${BASE_URL}/appointments`,        { credentials: "include", headers }),
+          fetchWithRetry(`${BASE_URL}/users`,               { credentials: "include", headers }),
+          fetchWithRetry(`${BASE_URL}/orders`,              { credentials: "include", headers }),
+          fetchWithRetry(`${BASE_URL}/medicines/all`,       { credentials: "include", headers }),
+          fetchWithRetry(`${BASE_URL}/medicines/low-stock`, { credentials: "include", headers }),
         ]);
 
         let newApts, newUsers, newOrders, newMeds, newLow;
