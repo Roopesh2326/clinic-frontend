@@ -14,7 +14,7 @@ import {
 } from "@mui/icons-material";
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ReTooltip,
-  ResponsiveContainer, Cell, PieChart, Pie
+  ResponsiveContainer, Cell,
 } from "recharts";
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
@@ -543,16 +543,16 @@ export default function Admin() {
     const priorWk = prior / Math.max(1, analytics.allTime.orders - analytics.week.orders) * analytics.week.orders;
     return priorWk > 0 ? Math.round(((weekRev - priorWk) / priorWk) * 100) : 0;
   })();
-  const trendUp = trendPct >= 0;
+  // const trendUp = trendPct >= 0;
 
   const BAR_COLORS = analytics
     ? analytics.dailyChart.map((_, i) => i === analytics.dailyChart.length - 1 ? "#166534" : "#86efac")
     : [];
 
-  const pieData = analytics ? [
-    { name: "Online",  value: analytics.today.onlineOrders, fill: "#3b82f6" },
-    { name: "Walk-in", value: analytics.today.walkinOrders, fill: "#f59e0b" },
-  ] : [];
+  // const pieData = analytics ? [
+  //   { name: "Online",  value: analytics.today.onlineOrders, fill: "#3b82f6" },
+  //   { name: "Walk-in", value: analytics.today.walkinOrders, fill: "#f59e0b" },
+  // ] : [];
 
   // ─── APPOINTMENT FUNCTIONS ─────────────────────────────────────────────────
   // ✅ FIX 2 & 3: Use apt._id everywhere (was apt.id which is undefined in MongoDB docs)
