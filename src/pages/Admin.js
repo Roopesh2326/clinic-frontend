@@ -325,7 +325,7 @@ export default function Admin() {
 
   try {
     const [aptsR, usersR, ordersR, medsR, lowR] = await Promise.allSettled([
-      fetch(`${BASE_URL}/appointments`,        { headers }),
+      fetch(`${BASE_URL}/appointments`,        {  headers }),
       fetch(`${BASE_URL}/users`,               {  headers }),
       fetch(`${BASE_URL}/orders`,              {  headers }),
       fetch(`${BASE_URL}/medicines/all`,       {  headers }),
@@ -380,7 +380,7 @@ export default function Admin() {
     };
 
     fetchAll();
-    const interval = setInterval(fetchAll, 15000);
+    const interval = setInterval(fetchAll, 60000);
     return () => clearInterval(interval);
   }, [authChecked]); // eslint-disable-line
 
@@ -555,7 +555,7 @@ export default function Admin() {
   const updateAptStatus = async (aptId, newStatus) => {
     try {
       await axios.patch(`${BASE_URL}/appointments/${aptId}/status`, { status: newStatus }, { withCredentials: true });
-      setAppointments((prev) => prev.map((a) => String(a.id) === String(aptId) ? { ...a, status: newStatus } : a));
+      setAppointments((prev) => prev.map((a) => String(a._id) === String(aptId) ? { ...a, status: newStatus } : a));
       setNotification({ open: true, message: "Appointment updated to " + newStatus, severity: "success" });
       setAptStatusDialogOpen(false);
       setSelectedApt(null);
@@ -2245,7 +2245,7 @@ const handleLogout = async () => {
         </DialogContent>
         <DialogActions style={{ padding: "16px" }}>
           <Button onClick={() => setAptStatusDialogOpen(false)} style={{ color: "#888" }}>Cancel</Button>
-          <Button onClick={() => updateAptStatus(selectedApt.id, selectedApt.status)} variant="contained" style={{ background: "#166534", color: "white" }}>Update Status</Button>
+          <Button onClick={() => updateAptStatus(selectedApt._id, selectedApt.status)} variant="contained" style={{ background: "#166534", color: "white" }}>Update Status</Button>
         </DialogActions>
       </Dialog>
 
