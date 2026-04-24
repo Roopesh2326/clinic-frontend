@@ -319,68 +319,56 @@ export default function Admin() {
       }
     } catch { /* ignore cache errors */ }
 
-    const fetchAll = async () => {
-      const headers = getAuthHeaders();
-      try {
-        const [aptsR, usersR, ordersR, medsR, lowR] = await Promise.allSettled([
-          fetch(`${BASE_URL}/appointments`,        { credentials: "include", headers }),
-          fetch(`${BASE_URL}/users`,               { credentials: "include", headers }),
-          fetch(`${BASE_URL}/orders`,              { credentials: "include", headers }),
-          fetch(`${BASE_URL}/medicines/all`,       { credentials: "include", headers }),
-          fetch(`${BASE_URL}/medicines/low-stock`, { credentials: "include", headers }),
-        ]);
+   const fetchAll = async () => {
+  const creds = { credentials: "include" };
+  try {
+    const aptsR = await fetch(`${BASE_URL}/appointments`, creds);
+    if (aptsR.ok) setAppointments(sanitizeObjectArray(await aptsR.json()));
 
-        let newApts, newUsers, newOrders, newMeds, newLow;
+    await new Promise(r => setTimeout(r, 500));
 
-        if (aptsR.status === "fulfilled" && aptsR.value.ok) {
-          newApts = sanitizeObjectArray(await aptsR.value.json());
-          setAppointments(newApts);
-        }
-        if (usersR.status === "fulfilled" && usersR.value.ok) {
-          newUsers = sanitizeObjectArray(await usersR.value.json());
-          setUsers(newUsers);
-        }
-        if (ordersR.status === "fulfilled" && ordersR.value.ok) {
-          const fetched = sanitizeObjectArray(await ordersR.value.json());
-          if (prevOrdersRef.current.length > 0 && fetched.length > prevOrdersRef.current.length) {
-            const diff = fetched.length - prevOrdersRef.current.length;
-            setNewOrdersCount((prev) => prev + diff);
-            setNotification({ open: true, message: `${diff} new order${diff > 1 ? "s" : ""} received!`, severity: "info" });
-          }
-          prevOrdersRef.current = fetched;
-          newOrders = fetched;
-          setOrders(fetched);
-        }
-        if (medsR.status === "fulfilled" && medsR.value.ok) {
-          newMeds = sanitizeObjectArray(await medsR.value.json());
-          setMedicines(newMeds);
-        }
-        if (lowR.status === "fulfilled" && lowR.value.ok) {
-          newLow = sanitizeObjectArray(await lowR.value.json());
-          setLowStockMeds(newLow);
-        }
+    const usersR = await fetch(`${BASE_URL}/users`, creds);
+    if (usersR.ok) setUsers(sanitizeObjectArray(await usersR.json()));
 
-        try {
-          localStorage.setItem("admin_cache", JSON.stringify({
-            appointments: newApts   || [],
-            users:        newUsers  || [],
-            orders:       newOrders || [],
-            medicines:    newMeds   || [],
-            lowStock:     newLow    || [],
-            ts: Date.now(),
-          }));
-        } catch { /* storage full */ }
+    await new Promise(r => setTimeout(r, 500));
 
-      } catch (err) {
-        console.error("[Admin] fetchAll error:", err);
+    const ordersR = await fetch(`${BASE_URL}/orders`, creds);
+    if (ordersR.ok) {
+      const fetched = sanitizeObjectArray(await ordersR.json());
+      if (prevOrdersRef.current.length > 0 &&
+          fetched.length > prevOrdersRef.current.length) {
+        const diff = fetched.length - prevOrdersRef.current.length;
+        setNewOrdersCount(prev => prev + diff);
+        setNotification({
+          open: true,
+          message: `${diff} new order${diff > 1 ? "s" : ""} received!`,
+          severity: "info",
+        });
       }
-    };
+      prevOrdersRef.current = fetched;
+      setOrders(fetched);
+    }
+
+    await new Promise(r => setTimeout(r, 500));
+
+    const medsR = await fetch(`${BASE_URL}/medicines/all`, creds);
+    if (medsR.ok) setMedicines(sanitizeObjectArray(await medsR.json()));
+
+    await new Promise(r => setTimeout(r, 500));
+
+    const lowR = await fetch(`${BASE_URL}/medicines/low-stock`, creds);
+    if (lowR.ok) setLowStockMeds(sanitizeObjectArray(await lowR.json()));
+
+  } catch (err) {
+    console.error("[Admin] fetchAll error:", err);
+  }
+};
 
     fetchAll();
     // ✅ FIX 1: Changed from 15000 to 60000ms
     // Old: 15s × 5 endpoints × 4 polls/min = 300 req/15min → OVER 200 limit → 503
     // New: 60s × 5 endpoints = 75 req/15min → safe
-    const interval = setInterval(fetchAll, 60000);
+    const interval = setInterval(fetchAll, 120000);
     return () => clearInterval(interval);
   }, [authChecked]); // eslint-disable-line
 
