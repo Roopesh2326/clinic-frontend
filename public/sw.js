@@ -44,6 +44,13 @@ self.addEventListener("install", (event) => {
   );
 });
 
+self.addEventListener('fetch', (event) => {
+  const url = new URL(event.request.url);
+  if (url.hostname === 'clinic-backend-mxto.onrender.com') {
+    return;
+  }
+});
+
 // ─── ACTIVATE ─────────────────────────────────────────────────────────────────
 self.addEventListener("activate", (event) => {
   console.log("[SW] Activating…");
