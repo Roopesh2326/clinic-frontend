@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import api from "../utils/api";
+import api, { BASE_URL } from "../utils/api";
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const safeReadArray = (key) => {
