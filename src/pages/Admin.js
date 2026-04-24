@@ -212,6 +212,29 @@ const getAuthHeaders = () => ({
   // };
 });
 
+// Add this helper function at the top of Admin.jsx
+const fetchWithRetry = async (url, options = {}, retries = 3, backoff = 1000) => {
+  try {
+    const response = await fetch(url, options);
+    if (!response.ok) {
+      // If we hit a Rate Limit (429) or Server Busy (503), retry
+      if (retries > 0 && (response.status === 429 || response.status === 503)) {
+        console.warn(`Retry attempt ${4 - retries} for ${url} due to status ${response.status}`);
+        await new Promise(resolve => setTimeout(resolve, backoff));
+        return fetchWithRetry(url, options, retries - 1, backoff * 2);
+      }
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return await response.json();
+  } catch (error) {
+    if (retries > 0) {
+      await new Promise(resolve => setTimeout(resolve, backoff));
+      return fetchWithRetry(url, options, retries - 1, backoff * 2);
+    }
+    throw error;
+  }
+};
+
 export default function Admin() {
   const navigate = useNavigate();
 
@@ -319,58 +342,40 @@ export default function Admin() {
       }
     } catch { /* ignore cache errors */ }
 
-   const fetchAll = async () => {
-  const creds = { credentials: "include" };
-  try {
-    const aptsR = await fetch(`${BASE_URL}/appointments`, creds);
-    if (aptsR.ok) setAppointments(sanitizeObjectArray(await aptsR.json()));
+  const fetchAll = async () => {
+    const creds = { credentials: "include" };
+    try {
+      // Fetch data one by one with 500ms gaps
+      const aptsData = await fetchWithRetry(`${BASE_URL}/appointments`, creds);
+      setAppointments(sanitizeObjectArray(aptsData));
+      await new Promise(r => setTimeout(r, 500)); 
 
-    await new Promise(r => setTimeout(r, 500));
+      const usersData = await fetchWithRetry(`${BASE_URL}/users`, creds);
+      setUsers(sanitizeObjectArray(usersData));
+      await new Promise(r => setTimeout(r, 500));
 
-    const usersR = await fetch(`${BASE_URL}/users`, creds);
-    if (usersR.ok) setUsers(sanitizeObjectArray(await usersR.json()));
+      const ordersData = await fetchWithRetry(`${BASE_URL}/orders`, creds);
+      const fetchedOrders = sanitizeObjectArray(ordersData);
+      // ... keep your existing logic for prevOrdersRef and Notifications ...
+      setOrders(fetchedOrders);
+      await new Promise(r => setTimeout(r, 500));
 
-    await new Promise(r => setTimeout(r, 500));
+      const medsData = await fetchWithRetry(`${BASE_URL}/medicines/all`, creds);
+      setMedicines(sanitizeObjectArray(medsData));
+      await new Promise(r => setTimeout(r, 500));
 
-    const ordersR = await fetch(`${BASE_URL}/orders`, creds);
-    if (ordersR.ok) {
-      const fetched = sanitizeObjectArray(await ordersR.json());
-      if (prevOrdersRef.current.length > 0 &&
-          fetched.length > prevOrdersRef.current.length) {
-        const diff = fetched.length - prevOrdersRef.current.length;
-        setNewOrdersCount(prev => prev + diff);
-        setNotification({
-          open: true,
-          message: `${diff} new order${diff > 1 ? "s" : ""} received!`,
-          severity: "info",
-        });
-      }
-      prevOrdersRef.current = fetched;
-      setOrders(fetched);
+      const lowR = await fetchWithRetry(`${BASE_URL}/medicines/low-stock`, creds);
+      setLowStockMeds(sanitizeObjectArray(lowR));
+
+    } catch (err) {
+      console.error("[Admin] fetchAll error:", err);
     }
+  };
 
-    await new Promise(r => setTimeout(r, 500));
-
-    const medsR = await fetch(`${BASE_URL}/medicines/all`, creds);
-    if (medsR.ok) setMedicines(sanitizeObjectArray(await medsR.json()));
-
-    await new Promise(r => setTimeout(r, 500));
-
-    const lowR = await fetch(`${BASE_URL}/medicines/low-stock`, creds);
-    if (lowR.ok) setLowStockMeds(sanitizeObjectArray(await lowR.json()));
-
-  } catch (err) {
-    console.error("[Admin] fetchAll error:", err);
-  }
-};
-
-    fetchAll();
-    // ✅ FIX 1: Changed from 15000 to 60000ms
-    // Old: 15s × 5 endpoints × 4 polls/min = 300 req/15min → OVER 200 limit → 503
-    // New: 60s × 5 endpoints = 75 req/15min → safe
-    const interval = setInterval(fetchAll, 120000);
-    return () => clearInterval(interval);
-  }, [authChecked]); // eslint-disable-line
+  fetchAll();
+  const interval = setInterval(fetchAll, 60000); // 60s is safer than 15s
+  return () => clearInterval(interval);
+}, [authChecked]);
 
   // ─── ANALYTICS ─────────────────────────────────────────────────────────────
   const fetchAnalytics = () => {
