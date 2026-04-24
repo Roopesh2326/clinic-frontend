@@ -322,11 +322,11 @@ export default function Admin() {
       const headers = getAuthHeaders();
       try {
         const [aptsR, usersR, ordersR, medsR, lowR] = await Promise.allSettled([
-          fetchWithRetry(`${BASE_URL}/appointments`,        { credentials: "include", headers }),
-          fetchWithRetry(`${BASE_URL}/users`,               { credentials: "include", headers }),
-          fetchWithRetry(`${BASE_URL}/orders`,              { credentials: "include", headers }),
-          fetchWithRetry(`${BASE_URL}/medicines/all`,       { credentials: "include", headers }),
-          fetchWithRetry(`${BASE_URL}/medicines/low-stock`, { credentials: "include", headers }),
+          fetch(`${BASE_URL}/appointments`,        { credentials: "include", headers }),
+          fetch(`${BASE_URL}/users`,               { credentials: "include", headers }),
+          fetch(`${BASE_URL}/orders`,              { credentials: "include", headers }),
+          fetch(`${BASE_URL}/medicines/all`,       { credentials: "include", headers }),
+          fetch(`${BASE_URL}/medicines/low-stock`, { credentials: "include", headers }),
         ]);
 
         let newApts, newUsers, newOrders, newMeds, newLow;
@@ -918,15 +918,6 @@ export default function Admin() {
     { id: "notices",      icon: "🔔", label: "Notices"      },
     { id: "activity",     icon: "🕵️", label: "Activity Log" },
   ];
-
-  async function fetchWithRetry(url, retries = 3) {
-  const response = await fetch(url);
-  if (response.status === 503 && retries > 0) {
-    await new Promise(res => setTimeout(res, 2000));
-    return fetchWithRetry(url, retries - 1);
-  }
-  return response;
-}
 
   const adminName = localStorage.getItem("name") || "Admin";
   const initials  = adminName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
