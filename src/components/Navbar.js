@@ -1,10 +1,9 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
 import { clearAuth } from "../utils/auth"; 
 import api from "../utils/api";
 
-const BASE_URL = "https://clinic-backend-mxto.onrender.com";
+// const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
 const T = {
   g1:  "#0b3d1f",

@@ -414,7 +414,7 @@ export default function Admin() {
   const callNextPatient = async (type) => {
     setQueueLoading((prev) => ({ ...prev, [type]: true }));
     try {
-      const token = localStorage.getItem("token");
+      // const token = localStorage.getItem("token");
       const res = await axios.post(`${BASE_URL}/queue/next`, { type }, {
         withCredentials: true,
         // headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -559,7 +559,7 @@ export default function Admin() {
   // ✅ FIX 2 & 3: Use apt._id everywhere (was apt.id which is undefined in MongoDB docs)
   const updateAptStatus = async (aptId, newStatus) => {
     try {
-      const token = localStorage.getItem("token");
+      // const token = localStorage.getItem("token");
       await axios.patch(`${BASE_URL}/appointments/${aptId}/status`, { status: newStatus }, {
         withCredentials: true,
         // headers: token ? { Authorization: `Bearer ${token}` } : {},
