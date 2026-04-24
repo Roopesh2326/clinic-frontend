@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import axios from "axios";
-import { clearAuth } from "../utils/auth"; // ← add this
+import { clearAuth } from "../utils/auth"; 
+import api from "../utils/api";
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
@@ -52,7 +53,6 @@ export default function Navbar() {
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
-      import api from "../utils/api";
       await api.post("/logout");
     } catch {
       // silent — clear local state regardless
