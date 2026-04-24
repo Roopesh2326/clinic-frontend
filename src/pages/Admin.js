@@ -343,34 +343,34 @@ export default function Admin() {
     } catch { /* ignore cache errors */ }
 
   const fetchAll = async () => {
-    const creds = { credentials: "include" };
-    try {
-      // Fetch data one by one with 500ms gaps
-      const aptsData = await fetchWithRetry(`${BASE_URL}/appointments`, creds);
-      setAppointments(sanitizeObjectArray(aptsData));
-      await new Promise(r => setTimeout(r, 500)); 
+  const creds = { credentials: "include" };
+  try {
+    // 1. Get Appointments
+    const apts = await fetchWithRetry(`${BASE_URL}/appointments`, creds);
+    setAppointments(sanitizeObjectArray(apts));
+    
+    await new Promise(r => setTimeout(r, 800)); // 🛑 WAIT 800ms before next call
 
-      const usersData = await fetchWithRetry(`${BASE_URL}/users`, creds);
-      setUsers(sanitizeObjectArray(usersData));
-      await new Promise(r => setTimeout(r, 500));
+    // 2. Get Users
+    const users = await fetchWithRetry(`${BASE_URL}/users`, creds);
+    setUsers(sanitizeObjectArray(users));
 
-      const ordersData = await fetchWithRetry(`${BASE_URL}/orders`, creds);
-      const fetchedOrders = sanitizeObjectArray(ordersData);
-      // ... keep your existing logic for prevOrdersRef and Notifications ...
-      setOrders(fetchedOrders);
-      await new Promise(r => setTimeout(r, 500));
+    await new Promise(r => setTimeout(r, 800)); // 🛑 WAIT again
 
-      const medsData = await fetchWithRetry(`${BASE_URL}/medicines/all`, creds);
-      setMedicines(sanitizeObjectArray(medsData));
-      await new Promise(r => setTimeout(r, 500));
+    // 3. Get Orders
+    const orders = await fetchWithRetry(`${BASE_URL}/orders`, creds);
+    setOrders(sanitizeObjectArray(orders));
 
-      const lowR = await fetchWithRetry(`${BASE_URL}/medicines/low-stock`, creds);
-      setLowStockMeds(sanitizeObjectArray(lowR));
+    await new Promise(r => setTimeout(r, 800)); // 🛑 WAIT again
 
-    } catch (err) {
-      console.error("[Admin] fetchAll error:", err);
-    }
-  };
+    // 4. Get Medicines
+    const meds = await fetchWithRetry(`${BASE_URL}/medicines/all`, creds);
+    setMedicines(sanitizeObjectArray(meds));
+
+  } catch (err) {
+    console.error("[Admin] fetchAll error:", err);
+  }
+};
 
   fetchAll();
   const interval = setInterval(fetchAll, 60000); // 60s is safer than 15s
