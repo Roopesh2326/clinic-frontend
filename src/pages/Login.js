@@ -31,7 +31,7 @@ export default function Login() {
 
       // ✅ Save auth properly
       saveAuth({
-        token:  token || `session_${Date.now()}`,
+        token:  token, //  || `session_${Date.now()}`,
         role:   normalizedRole,
         name:   name   || "",
         userId: userId || "",
