@@ -344,35 +344,82 @@ useEffect(() => {
   } catch { /* ignore cache errors */ }
 
   const fetchAll = async () => {
-  const creds = { credentials: "include" };
-  try {
-    // 1. Medicines
-    console.log("[Admin] Fetching medicines...");
-    const meds = await fetch(`${BASE_URL}/medicines/all`, creds).then(r => r.json());
-    setMedicines(sanitizeObjectArray(meds));
-    
-    await new Promise(r => setTimeout(r, 1000)); // 🛑 Wait 1 second
+    const creds = { credentials: "include" };
+    try {
+      // ── Phase 1: Appointments ──────────────────────────────────────────
+      console.log("[Admin] Fetching appointments...");
+      const aptsRes = await fetch(`${BASE_URL}/appointments`, creds);
+      console.log("[Admin] /appointments status:", aptsRes.status);
+      if (aptsRes.ok) {
+        const data = sanitizeObjectArray(await aptsRes.json());
+        setAppointments(data);
+      }
 
-    // 2. Appointments
-    console.log("[Admin] Fetching appointments...");
-    const apts = await fetch(`${BASE_URL}/appointments`, creds).then(r => r.json());
-    setAppointments(sanitizeObjectArray(apts));
+      await new Promise(r => setTimeout(r, 1000));
 
-    await new Promise(r => setTimeout(r, 1000)); // 🛑 Wait 1 second
+      // ── Phase 2: Users ─────────────────────────────────────────────────
+      console.log("[Admin] Fetching users...");
+      const usersRes = await fetch(`${BASE_URL}/users`, creds);
+      console.log("[Admin] /users status:", usersRes.status);
+      if (usersRes.ok) {
+        const data = sanitizeObjectArray(await usersRes.json());
+        setUsers(data);
+      }
 
-    // 3. Orders (The heavy one)
-    console.log("[Admin] Fetching orders...");
-    const ordersRes = await fetch(`${BASE_URL}/orders`, creds);
-    if (ordersRes.ok) {
-      const ordersData = await ordersRes.json();
-      setOrders(sanitizeObjectArray(ordersData));
+      await new Promise(r => setTimeout(r, 1000));
+
+      // ── Phase 3: Orders ────────────────────────────────────────────────
+      console.log("[Admin] Fetching orders...");
+      const ordersRes = await fetch(`${BASE_URL}/orders`, creds);
+      console.log("[Admin] /orders status:", ordersRes.status);
+      if (!ordersRes.ok) {
+        const errText = await ordersRes.text();
+        console.error("[Admin] /orders error:", ordersRes.status, errText);
+      } else {
+        const fetched = sanitizeObjectArray(await ordersRes.json());
+        if (prevOrdersRef.current.length > 0 &&
+            fetched.length > prevOrdersRef.current.length) {
+          const diff = fetched.length - prevOrdersRef.current.length;
+          setNewOrdersCount(prev => prev + diff);
+          setNotification({
+            open: true,
+            message: `${diff} new order${diff > 1 ? "s" : ""} received!`,
+            severity: "info",
+          });
+        }
+        prevOrdersRef.current = fetched;
+        setOrders(fetched);
+      }
+
+      await new Promise(r => setTimeout(r, 1000));
+
+      // ── Phase 4: All Medicines ─────────────────────────────────────────
+      console.log("[Admin] Fetching medicines...");
+      const medsRes = await fetch(`${BASE_URL}/medicines/all`, creds);
+      console.log("[Admin] /medicines/all status:", medsRes.status);
+      if (medsRes.ok) {
+        const data = sanitizeObjectArray(await medsRes.json());
+        setMedicines(data);
+      }
+
+      await new Promise(r => setTimeout(r, 1000));
+
+      // ── Phase 5: Low Stock ─────────────────────────────────────────────
+      console.log("[Admin] Fetching low stock...");
+      const lowRes = await fetch(`${BASE_URL}/medicines/low-stock`, creds);
+      console.log("[Admin] /medicines/low-stock status:", lowRes.status);
+      if (lowRes.ok) {
+        const data = sanitizeObjectArray(await lowRes.json());
+        setLowStockMeds(data);
+      }
+
+      console.log("[Admin] fetchAll complete ✅");
+
+    } catch (err) {
+      console.error("[Admin] fetchAll crashed:", err);
     }
+  };
 
-    console.log("[Admin] fetchAll complete ✅");
-  } catch (err) {
-    console.error("[Admin] Sync error:", err);
-  }
-};
   fetchAll();
   const interval = setInterval(fetchAll, 120000); // every 2 minutes
   return () => clearInterval(interval);
