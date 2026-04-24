@@ -535,14 +535,14 @@ export default function Admin() {
     return { revenue: analytics.month.revenue, orders: analytics.month.orders, label: "This month" };
   })();
 
-  const trendPct = (() => {
-    if (!analytics) return 0;
-    const weekRev = analytics.week.revenue;
-    const allRev  = analytics.allTime.revenue;
-    const prior   = allRev - weekRev;
-    const priorWk = prior / Math.max(1, analytics.allTime.orders - analytics.week.orders) * analytics.week.orders;
-    return priorWk > 0 ? Math.round(((weekRev - priorWk) / priorWk) * 100) : 0;
-  })();
+  // const trendPct = (() => {
+  //   if (!analytics) return 0;
+  //   const weekRev = analytics.week.revenue;
+  //   const allRev  = analytics.allTime.revenue;
+  //   const prior   = allRev - weekRev;
+  //   const priorWk = prior / Math.max(1, analytics.allTime.orders - analytics.week.orders) * analytics.week.orders;
+  //   return priorWk > 0 ? Math.round(((weekRev - priorWk) / priorWk) * 100) : 0;
+  // })();
   // const trendUp = trendPct >= 0;
 
   const BAR_COLORS = analytics
