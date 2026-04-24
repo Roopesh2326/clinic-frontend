@@ -345,30 +345,30 @@ export default function Admin() {
   const fetchAll = async () => {
   const creds = { credentials: "include" };
   try {
-    // 1. Get Appointments
+    // Phase 1: Core Data
     const apts = await fetchWithRetry(`${BASE_URL}/appointments`, creds);
     setAppointments(sanitizeObjectArray(apts));
     
-    await new Promise(r => setTimeout(r, 800)); // 🛑 WAIT 800ms before next call
+    await new Promise(r => setTimeout(r, 1000)); // 1 Full Second Gap
 
-    // 2. Get Users
+    // Phase 2: User Data
     const users = await fetchWithRetry(`${BASE_URL}/users`, creds);
     setUsers(sanitizeObjectArray(users));
 
-    await new Promise(r => setTimeout(r, 800)); // 🛑 WAIT again
+    await new Promise(r => setTimeout(r, 1000)); // 1 Full Second Gap
 
-    // 3. Get Orders
+    // Phase 3: Business Logic
     const orders = await fetchWithRetry(`${BASE_URL}/orders`, creds);
     setOrders(sanitizeObjectArray(orders));
 
-    await new Promise(r => setTimeout(r, 800)); // 🛑 WAIT again
+    await new Promise(r => setTimeout(r, 1000)); // 1 Full Second Gap
 
-    // 4. Get Medicines
+    // Phase 4: Inventory
     const meds = await fetchWithRetry(`${BASE_URL}/medicines/all`, creds);
     setMedicines(sanitizeObjectArray(meds));
 
   } catch (err) {
-    console.error("[Admin] fetchAll error:", err);
+    console.error("[Admin] dashboard sync failed:", err);
   }
 };
 
