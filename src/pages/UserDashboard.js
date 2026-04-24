@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
-
-const BASE_URL = "https://clinic-backend-mxto.onrender.com";
+import api from "../utils/api";
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 const safeReadArray = (key) => {
@@ -181,7 +179,7 @@ export default function UserDashboard() {
   // PROFILE
   useEffect(() => {
     if (!authChecked || localStorage.getItem("name")) return;
-    axios.get(`${BASE_URL}/profile`, { withCredentials: true })
+    api.get("/profile")
       .then((res) => {
         const { name, email, phone } = res.data;
         localStorage.setItem("name", name || ""); localStorage.setItem("email", email || ""); localStorage.setItem("phone", phone || "");
@@ -191,7 +189,7 @@ export default function UserDashboard() {
 
   // ORDERS
   const fetchOrders = useCallback(() => {
-    axios.get(`${BASE_URL}/orders/my`, { withCredentials: true })
+    api.get("/order/my")
       .then((res) => { if (Array.isArray(res.data)) setOrders(res.data); })
       .catch(() => setOrders(safeReadArray("orders")))
       .finally(() => setOrdersLoading(false));
@@ -207,7 +205,7 @@ export default function UserDashboard() {
   // APPOINTMENTS
   useEffect(() => {
     if (!authChecked) return;
-    axios.get(`${BASE_URL}/appointments/my`, { withCredentials: true })
+    api.get("/appointments/my")
       .then((res) => { if (Array.isArray(res.data)) setAppointments(res.data); })
       .catch(() => setAppointments([]))
       .finally(() => setAptsLoading(false));
@@ -244,7 +242,7 @@ export default function UserDashboard() {
       if(editForm.email) payload.email=editForm.email;
       if(editForm.phone) payload.phone=editForm.phone;
       if(editForm.password) payload.password=editForm.password;
-      await axios.patch(`${BASE_URL}/profile`,payload,{withCredentials:true});
+      await api.patch("/profile",payload)
       if(editForm.name){localStorage.setItem("name",editForm.name);setUserInfo(u=>({...u,name:editForm.name}));}
       if(editForm.email){localStorage.setItem("email",editForm.email);setUserInfo(u=>({...u,email:editForm.email}));}
       if(editForm.phone){localStorage.setItem("phone",editForm.phone);setUserInfo(u=>({...u,phone:editForm.phone}));}

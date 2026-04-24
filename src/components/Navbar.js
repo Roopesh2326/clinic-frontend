@@ -52,7 +52,8 @@ export default function Navbar() {
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
-      await axios.post(`${BASE_URL}/logout`, {}, { withCredentials: true });
+      import api from "../utils/api";
+      await api.post("/logout");
     } catch {
       // silent — clear local state regardless
     } finally {

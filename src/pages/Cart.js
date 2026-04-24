@@ -2,9 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, Button, Box, Typography, Container, Grid } from "@mui/material";
 import PaymentGateway from "../components/PaymentGateway";
-import axios from "axios";
-
-const BASE_URL = "https://clinic-backend-mxto.onrender.com";
+import api from "../utils/api";
 
 const safeReadArray = (key) => {
   try {
@@ -54,15 +52,11 @@ export default function Cart() {
 
     try {
       // 1️⃣ Save order to backend FIRST
-      const res = await axios.post(
-        `${BASE_URL}/orders`,
-        {
+      const res = await api.post("/orders", {
           items: cart,
           total: getTotal(),
           paymentMethod: paymentInfo.method, // ✅ was missing before
-        },
-        { withCredentials: true }
-      );
+        });
 
       console.log("Order saved ✅", res.data);
 

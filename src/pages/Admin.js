@@ -203,13 +203,14 @@ const getExpiryStatus = (expiryDate) => {
 };
 
 // ─── AUTH HEADER HELPER ───────────────────────────────────────────────────────
-const getAuthHeaders = () => {
-  const token = localStorage.getItem("token");
-  return {
+const getAuthHeaders = () => ({
     "Content-Type": "application/json",
-    ...(token ? { "Authorization": `Bearer ${token}` } : {}),
-  };
-};
+  // const token = localStorage.getItem("token");
+  // return {
+  
+  //   ...(token ? { "Authorization": `Bearer ${token}` } : {}),
+  // };
+});
 
 export default function Admin() {
   const navigate = useNavigate();
@@ -390,7 +391,7 @@ export default function Admin() {
     setAnalyticsLoading(true);
     axios.get(`${BASE_URL}/analytics/sales`, {
       withCredentials: true,
-      headers: { Authorization: `Bearer ${token}` },
+      // headers: { Authorization: `Bearer ${token}` },
     })
     .then((res) => setAnalytics(res.data))
     .catch(() => setNotification({ open: true, message: "Failed to load analytics", severity: "error" }))
@@ -416,7 +417,7 @@ export default function Admin() {
       const token = localStorage.getItem("token");
       const res = await axios.post(`${BASE_URL}/queue/next`, { type }, {
         withCredentials: true,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        // headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       setQueueStatus((prev) => ({ ...prev, [type]: res.data }));
       setNotification({ open: true, message: `Now serving ${type} #${res.data.currentServing}`, severity: "success" });
@@ -561,7 +562,7 @@ export default function Admin() {
       const token = localStorage.getItem("token");
       await axios.patch(`${BASE_URL}/appointments/${aptId}/status`, { status: newStatus }, {
         withCredentials: true,
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        // headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       // FIX 3: a._id instead of a.id
       setAppointments((prev) => prev.map((a) => String(a._id) === String(aptId) ? { ...a, status: newStatus } : a));
