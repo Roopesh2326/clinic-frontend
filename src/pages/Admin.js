@@ -919,6 +919,15 @@ export default function Admin() {
     { id: "activity",     icon: "🕵️", label: "Activity Log" },
   ];
 
+  async function fetchWithRetry(url, retries = 3) {
+  const response = await fetch(url);
+  if (response.status === 503 && retries > 0) {
+    await new Promise(res => setTimeout(res, 2000));
+    return fetchWithRetry(url, retries - 1);
+  }
+  return response;
+}
+
   const adminName = localStorage.getItem("name") || "Admin";
   const initials  = adminName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
   const curTab    = tabs.find(t => t.id === activeTab) || tabs[0];
