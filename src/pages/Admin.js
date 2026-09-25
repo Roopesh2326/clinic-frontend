@@ -473,8 +473,8 @@ useEffect(() => {
       await axios.post(`${BASE_URL}/queue/reset`, { type }, {
         withCredentials: true,
       });
-      setQueueStatus((prev) => ({ ...prev, [type]: { ...prev[type], currentServing: 0 } }));
-      setNotification({ open: true, message: `${type} queue reset`, severity: "info" });
+      setQueueStatus((prev) => ({ ...prev, [type]: { ...prev[type], currentServing: prev[type]?.totalIssued || 0, waiting: 0 } }));
+      setNotification({ open: true, message: `${type} queue cleared for today`, severity: "info" });
     } catch {
       setNotification({ open: true, message: "Failed to reset queue", severity: "error" });
     }
@@ -483,20 +483,19 @@ useEffect(() => {
   // ─── SOCKET.IO ─────────────────────────────────────────────────────────────
   useEffect(() => {
     if (!authChecked) return;
+    let socket;
     import("socket.io-client").then(({ io }) => {
-      const socket = io(BASE_URL, { withCredentials: true });
+      socket = io(BASE_URL, { withCredentials: true });
       socket.on("queue:update", (data) => {
-        setQueueStatus((prev) => ({ ...prev, [data.type]: data }));
+        if (data?.type) setQueueStatus((prev) => ({ ...prev, [data.type]: data }));
       });
-      fetchQueueStatus("appointment");
-      fetchQueueStatus("order");
-      fetchQueueStatus("walkin");
-      return () => socket.disconnect();
-    }).catch(() => {
-      fetchQueueStatus("appointment");
-      fetchQueueStatus("order");
-      fetchQueueStatus("walkin");
-    });
+    }).catch(() => {});
+    fetchQueueStatus("appointment");
+    fetchQueueStatus("order");
+    fetchQueueStatus("walkin");
+    return () => {
+      if (socket) socket.disconnect();
+    };
   }, [authChecked]); // eslint-disable-line
 
   // ─── COMPUTED ──────────────────────────────────────────────────────────────
@@ -1328,7 +1327,7 @@ useEffect(() => {
                         style={{flex:1,padding:"12px",background:(isLoading||(total>0&&serving>=total))?"#e5e7eb":color,color:(isLoading||(total>0&&serving>=total))?"#9ca3af":"white",border:"none",borderRadius:"10px",fontWeight:"700",fontSize:"14px",cursor:(isLoading||(total>0&&serving>=total))?"not-allowed":"pointer"}}>
                         {isLoading?"⏳ Calling...":serving>=total&&total>0?"✅ All Served":"➡ Next Patient"}
                       </button>
-                      <button onClick={()=>resetQueue(type)} style={{padding:"12px 14px",background:"#fee2e2",color:"#991b1b",border:"none",borderRadius:"10px",fontWeight:"600",fontSize:"13px",cursor:"pointer"}}>Reset</button>
+                      <button onClick={()=>resetQueue(type)} style={{padding:"12px 14px",background:"#fee2e2",color:"#991b1b",border:"none",borderRadius:"10px",fontWeight:"600",fontSize:"13px",cursor:"pointer"}}>Clear Queue</button>
                     </div>
                     {serving>0&&(
                       <div style={{margin:"0 20px 20px",background:bg,border:`1px solid ${border}`,borderRadius:"10px",padding:"12px 16px",display:"flex",alignItems:"center",justifyContent:"space-between"}}>
