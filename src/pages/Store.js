@@ -20,8 +20,10 @@ const SkCard = () => (
 
 // ─── MEDICINE CARD ─────────────────────────────────────────────────────────────
 function MedCard({ med, qty, onAdd, onChangeQty, justAdded }) {
-  const oos = med.stock <= 0;
-  const low = !oos && med.stock <= (med.lowStockThreshold || 10);
+  const stock = Math.max(0, Number(med.stock) || 0);
+  const oos = stock <= 0;
+  const low = !oos && stock <= (med.lowStockThreshold || 10);
+  const atStockLimit = qty >= stock;
 
   const expiryInfo = () => {
     if (!med.expiryDate) return null;
@@ -66,7 +68,7 @@ function MedCard({ med, qty, onAdd, onChangeQty, justAdded }) {
             <span style={{ fontSize: "21px", fontWeight: "800", color: "#166534" }}>₹{med.price}</span>
             <span style={{ fontSize: "10px", color: "#94a3b8", marginLeft: "3px" }}>/{med.unit || "unit"}</span>
           </div>
-          {!oos && <div style={{ fontSize: "10px", color: low ? "#f59e0b" : "#94a3b8", fontWeight: "600" }}>{med.stock} left</div>}
+          {!oos && <div style={{ fontSize: "10px", color: low ? "#f59e0b" : "#94a3b8", fontWeight: "600" }}>{stock} left</div>}
         </div>
 
         {oos ? (
@@ -77,9 +79,9 @@ function MedCard({ med, qty, onAdd, onChangeQty, justAdded }) {
           </button>
         ) : (
           <div style={{ display: "flex", alignItems: "center", marginTop: "10px", background: "#f0fdf4", borderRadius: "10px", border: "1.5px solid #bbf7d0", overflow: "hidden" }}>
-            <button onClick={() => onChangeQty(med._id, -1)} className="qty-btn" style={{ flex: 1, padding: "10px", background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#166534", fontWeight: "700" }}>−</button>
-            <span style={{ fontWeight: "800", color: "#166534", fontSize: "15px", minWidth: "28px", textAlign: "center" }}>{qty}</span>
-            <button onClick={() => onAdd(med)} className="qty-btn" style={{ flex: 1, padding: "10px", background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#166534", fontWeight: "700" }}>+</button>
+            <button onClick={() => onChangeQty(med._id, -1)} className="qty-btn" type="button" aria-label={`Decrease ${med.name} quantity`} style={{ flex: 1, padding: "10px", minHeight: "44px", background: "none", border: "none", cursor: "pointer", fontSize: "18px", color: "#166534", fontWeight: "700" }}>−</button>
+            <span aria-live="polite" style={{ fontWeight: "800", color: "#166534", fontSize: "15px", minWidth: "28px", textAlign: "center" }}>{qty}</span>
+            <button onClick={() => !atStockLimit && onAdd(med)} className="qty-btn" type="button" aria-label={atStockLimit ? `${med.name} is at maximum stock quantity` : `Increase ${med.name} quantity`} disabled={atStockLimit} style={{ flex: 1, padding: "10px", minHeight: "44px", background: "none", border: "none", cursor: atStockLimit ? "not-allowed" : "pointer", opacity: atStockLimit ? 0.4 : 1, fontSize: "18px", color: "#166534", fontWeight: "700" }}>+</button>
           </div>
         )}
       </div>
@@ -101,7 +103,7 @@ function CartDrawer({ cart, onClose, onChangeQty, onRemove, navigate }) {
             <div style={{ fontWeight: "800", fontSize: "16px" }}>🛒 Your Cart</div>
             <div style={{ fontSize: "12px", opacity: 0.75, marginTop: "2px" }}>{count} item{count !== 1 ? "s" : ""}</div>
           </div>
-          <button onClick={onClose} style={{ background: "rgba(255,255,255,.15)", border: "none", borderRadius: "10px", padding: "8px 12px", color: "white", cursor: "pointer", fontSize: "18px" }}>✕</button>
+          <button type="button" aria-label="Close cart" onClick={onClose} style={{ background: "rgba(255,255,255,.15)", border: "none", borderRadius: "10px", padding: "8px 12px", color: "white", cursor: "pointer", fontSize: "18px" }}>✕</button>
         </div>
         <div style={{ flex: 1, overflowY: "auto", padding: "16px" }}>
           {cart.length === 0 ? (
@@ -192,8 +194,16 @@ export default function Store() {
   const addToCart = (med) => {
     const c = [...cart];
     const idx = c.findIndex(i => (i._id && i._id === med._id) || i.name === med.name);
-    if (idx >= 0) c[idx] = { ...c[idx], quantity: (c[idx].quantity || 1) + 1 };
-    else c.push({ _id: med._id, name: med.name, price: med.price, img: med.img || "", stock: med.stock, unit: med.unit || "unit", quantity: 1 });
+    if (idx >= 0) {
+      const currentQty = c[idx].quantity || 1;
+      const stock = Math.max(0, Number(med.stock) || 0);
+      if (currentQty >= stock) return;
+      c[idx] = { ...c[idx], quantity: currentQty + 1, stock };
+    } else {
+      const stock = Math.max(0, Number(med.stock) || 0);
+      if (stock <= 0) return;
+      c.push({ _id: med._id, name: med.name, price: med.price, img: med.img || "", stock, unit: med.unit || "unit", quantity: 1 });
+    }
     setCart(c); saveArr("cart", c);
     setJustAdded(p => ({ ...p, [med._id]: true }));
     setTimeout(() => setJustAdded(p => ({ ...p, [med._id]: false })), 1200);
@@ -203,6 +213,8 @@ export default function Store() {
     const c = cart.map(i => {
       if ((i._id && i._id === id) || i.name === id) {
         const q = (i.quantity || 1) + delta;
+        const stock = Math.max(0, Number(i.stock) || 0);
+        if (q > stock) return i;
         return q <= 0 ? null : { ...i, quantity: q };
       }
       return i;
@@ -237,12 +249,12 @@ export default function Store() {
   });
 
   return (
-    <div style={{
+    <div className="store-shell" style={{
       minHeight: "100vh",
       background: "#f8fafc",
       fontFamily: "'Plus Jakarta Sans','Nunito',system-ui,sans-serif",
-      // Push content below global fixed Navbar
-      paddingTop: "45px",
+      // Keep the store header fully below the fixed global Navbar.
+      paddingTop: "52px",
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -254,7 +266,9 @@ export default function Store() {
         @keyframes pulse      { 0%,100%{opacity:1} 50%{opacity:.5} }
         ::-webkit-scrollbar{width:5px;height:5px}
         ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
-        .med-card:hover { transform:translateY(-5px); box-shadow:0 16px 40px rgba(0,0,0,.1); border-color:#86efac !important; }
+        .med-card:hover { transform:translateY(-4px); box-shadow:0 18px 42px rgba(15,60,35,.11); border-color:#a7d8b8 !important; }
+        .med-card:focus-within { border-color:#7ac493 !important; box-shadow:0 0 0 3px rgba(34,197,94,.10),0 14px 34px rgba(15,60,35,.09); }
+        .add-btn:focus-visible,.qty-btn:focus-visible,.cat-pill:focus-visible,.cart-action:focus-visible { outline:3px solid rgba(34,197,94,.25); outline-offset:2px; }
         .add-btn:hover  { background:#15803d !important; transform:scale(1.02); }
         .qty-btn:hover  { background:#dcfce7 !important; }
         .cat-pill       { border:1.5px solid #e2e8f0; border-radius:20px; padding:7px 16px; font-size:13px; font-weight:600; cursor:pointer; background:white; color:#64748b; transition:all .15s; white-space:nowrap; }
@@ -265,7 +279,8 @@ export default function Store() {
         .med-grid { display:grid; gap:18px; grid-template-columns:repeat(3,1fr); }
         @media(max-width:1100px){ .med-grid{grid-template-columns:repeat(3,1fr)} }
         @media(max-width:860px) { .med-grid{grid-template-columns:repeat(2,1fr)} }
-        @media(max-width:500px) { .med-grid{grid-template-columns:repeat(2,1fr)!important} .filter-scroll{gap:6px!important} }
+        @media(max-width:860px) { .store-shell{padding-top:36px!important} }
+        @media(max-width:500px) { .store-shell{padding-top:36px!important} .med-grid{grid-template-columns:repeat(2,1fr)!important} .filter-scroll{gap:6px!important} .store-header{padding-top:18px!important} }
         @media(max-width:380px) { .med-grid{grid-template-columns:1fr!important} }
       `}</style>
 
@@ -277,7 +292,7 @@ export default function Store() {
       )}
 
       {/* ── STORE HEADER — search only, no duplicate nav ── */}
-      <header style={{ background: "linear-gradient(135deg,#071810 0%,#0d3320 50%,#166534 100%)", padding: "24px 24px 28px" }}>
+      <header className="store-header" style={{ background: "linear-gradient(135deg,#071810 0%,#0d3320 50%,#166534 100%)", padding: "24px 24px 28px" }}>
         <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
 
           {/* Title row */}
@@ -312,7 +327,7 @@ export default function Store() {
                 {cartCount > 0
                   ? ( <> 
                   <span>₹{cartTotal.toLocaleString()}</span>
-                  <span styles={{
+                  <span style={{
                     background: "rgba(0,0,0,0.2)",
                     borderRadius: "10px",
                     padding: "2px 8px",
@@ -334,7 +349,7 @@ export default function Store() {
               ref={searchRef}
               className="sb-input"
               type="text"
-              placeholder="Search medicines, conditions, brands…"
+              aria-label="Search medicines, conditions and brands" placeholder="Search medicines, conditions, brands…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
@@ -361,11 +376,11 @@ export default function Store() {
           <div className="filter-scroll" style={{ display: "flex", gap: "7px", overflowX: "auto", paddingBottom: "2px", scrollbarWidth: "none", marginBottom: "10px" }}>
             <style>{`.filter-scroll::-webkit-scrollbar{display:none}`}</style>
             {cats.slice(0, 10).map(c => (
-              <button key={c} className={`cat-pill${cat === c ? " active" : ""}`} onClick={() => setCat(c)}>{c}</button>
+              <button key={c} className={`cat-pill${cat === c ? " active" : ""}`} type="button" aria-pressed={cat === c} onClick={() => setCat(c)}>{c}</button>
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
-            <button className={`cat-pill${stockFilter === "in-stock" ? " active" : ""}`} onClick={() => setStockFilter(s => s === "in-stock" ? "all" : "in-stock")}>
+            <button type="button" aria-pressed={stockFilter === "in-stock"} className={`cat-pill${stockFilter === "in-stock" ? " active" : ""}`} onClick={() => setStockFilter(s => s === "in-stock" ? "all" : "in-stock")}>
               ✓ In Stock Only
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -394,7 +409,7 @@ export default function Store() {
             <div style={{ fontSize: "56px", marginBottom: "16px" }}>🔍</div>
             <h3 style={{ fontSize: "20px", fontWeight: "800", color: "#1e293b", margin: "0 0 8px" }}>No medicines found</h3>
             <p style={{ color: "#64748b", marginBottom: "24px", fontSize: "14px" }}>Try different search terms or clear your filters</p>
-            <button onClick={() => { setSearch(""); setCat("All"); setStockFilter("all"); }} style={{ padding: "12px 28px", background: "#166534", color: "white", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>
+            <button type="button" onClick={() => { setSearch(""); setCat("All"); setStockFilter("all"); }} style={{ padding: "12px 28px", background: "#166534", color: "white", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>
               Clear All Filters
             </button>
           </div>
@@ -418,7 +433,7 @@ export default function Store() {
       {/* ── FLOATING CART BUTTON ── */}
       {cartCount > 0 && (
         <div style={{ position: "fixed", bottom: "24px", left: "50%", transform: "translateX(-50%)", zIndex: 50 }}>
-          <button onClick={() => setCartOpen(true)} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 28px", background: "#166534", color: "white", border: "none", borderRadius: "50px", boxShadow: "0 8px 32px rgba(22,101,52,.5)", cursor: "pointer", fontSize: "14px", fontWeight: "800", whiteSpace: "nowrap", animation: "fadeUp .3s ease" }}>
+          <button type="button" aria-label={cartCount > 0 ? `Open cart, ${cartCount} items` : "Open cart"} onClick={() => setCartOpen(true)} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "14px 28px", background: "#166534", color: "white", border: "none", borderRadius: "50px", boxShadow: "0 8px 32px rgba(22,101,52,.5)", cursor: "pointer", fontSize: "14px", fontWeight: "800", whiteSpace: "nowrap", animation: "fadeUp .3s ease" }}>
             <span style={{ fontSize: "18px" }}>🛒</span>
             <span>{cartCount} item{cartCount !== 1 ? "s" : ""}</span>
             <span style={{ background: "rgba(255,255,255,.2)", padding: "3px 12px", borderRadius: "20px", fontWeight: "800" }}>₹{cartTotal.toLocaleString()}</span>

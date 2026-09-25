@@ -1,214 +1,116 @@
 import React, { useState } from "react";
-import { Box, Button, Typography, TextField, RadioGroup, FormControlLabel, Radio, Card, Alert } from "@mui/material";
-import axios from "axios";
+import { Box, Button, Typography, RadioGroup, FormControlLabel, Radio, Card, Alert, Divider } from "@mui/material";
 
-export default function PaymentGateway({ total, onSuccess }) {
-  const [paymentMethod, setPaymentMethod] = useState("card");
-  const [loading, setLoading] = useState(false);
+export default function PaymentGateway({ total, onSuccess, disabled = false }) {
+  const [paymentMethod, setPaymentMethod] = useState("cash");
   const [error, setError] = useState("");
-  const [cardDetails, setCardDetails] = useState({ number: "", expiry: "", cvv: "", name: "" });
-  const [upiId, setUpiId] = useState("");
 
-  const validateCardNumber = (num) => num.replace(/\s/g, "").length === 16;
-  const validateExpiry = (exp) => /^\d{2}\/\d{2}$/.test(exp);
-  const validateCVV = (cvv) => /^\d{3,4}$/.test(cvv);
-  const validateUPI = (id) => /^[a-zA-Z0-9.-]{3,}@[a-zA-Z]{3,}$/.test(id);
-
-  const handleCardPayment = async () => {
-    if (!validateCardNumber(cardDetails.number)) {
-      setError("Invalid card number");
+  const placeOrder = () => {
+    if (disabled) return;
+    if (paymentMethod !== "cash") {
+      setError("Online payment is shown for preview only. Connect the verified payment gateway before enabling it.");
       return;
     }
-    if (!validateExpiry(cardDetails.expiry)) {
-      setError("Invalid expiry (MM/YY)");
-      return;
-    }
-    if (!validateCVV(cardDetails.cvv)) {
-      setError("Invalid CVV");
-      return;
-    }
-
-    setLoading(true);
-    try {
-      // Backend should process card via Stripe
-      const response = await axios.post(
-        "https://clinic-backend-mxto.onrender.com/payment/card",
-        {
-          amount: total,
-          cardNumber: cardDetails.number,
-          cardName: cardDetails.name,
-        }
-      );
-
-      if (response.data.success) {
-        onSuccess({ method: "card", transactionId: response.data.id });
-      }
-    } catch (err) {
-      setError("Card payment failed. Try again.");
-    }
-    setLoading(false);
-  };
-
-  const handleUPIPayment = () => {
-    if (!validateUPI(upiId)) {
-      setError("Invalid UPI ID format");
-      return;
-    }
-
-    // Simulate successful UPI payment before redirect
-    onSuccess({ method: "upi", upiId, transactionId: `UPI-${Date.now()}` });
-    
-    // Optionally open UPI app after success callback
-    setTimeout(() => {
-      // const upiUrl = `upi://pay?pa=${upiId}&pn=DrLoknathClinic&am=${total}&tn=MedicineOrder&tr=${Date.now()}`;
-      // For production, uncomment to open the UPI app
-      // window.location.href = upiUrl;
-    }, 500);
-  };
-
-  const handleStripePayment = async () => {
-    setLoading(true);
-    try {
-      const response = await axios.post(
-        "https://clinic-backend-mxto.onrender.com/payment/stripe",
-        { amount: total }
-      );
-
-      // Redirect to Stripe checkout
-      if (response.data.checkoutUrl) {
-        window.location.href = response.data.checkoutUrl;
-      }
-    } catch (err) {
-      setError("Stripe payment failed. Try again.");
-    }
-    setLoading(false);
+    setError("");
+    onSuccess({ method: "cash" });
   };
 
   return (
     <Card style={styles.card}>
-      <Typography variant="h6" style={styles.title}>
-        💳 Payment Details
-      </Typography>
+      <Typography variant="h6" style={styles.title}>💳 Payment & Order</Typography>
 
-      {error && <Alert severity="error" style={{ marginBottom: "15px" }}>{error}</Alert>}
+      {error && <Alert severity="info" style={{ marginBottom: 15 }}>{error}</Alert>}
 
       <Typography variant="body1" style={styles.total}>
-        Total Amount: <strong>₹{total}</strong>
+        Total Amount: <strong>₹{Number(total || 0).toLocaleString()}</strong>
       </Typography>
 
-      <Typography variant="subtitle2" style={styles.label}>
-        Select Payment Method:
-      </Typography>
+      <Typography variant="subtitle2" style={styles.label}>Choose how you want to pay</Typography>
 
-      <RadioGroup value={paymentMethod} onChange={(e) => { setPaymentMethod(e.target.value); setError(""); }}>
-        <FormControlLabel value="card" control={<Radio />} label="💳 Debit/Credit Card" />
-        <FormControlLabel value="upi" control={<Radio />} label="📱 UPI (Google Pay, PhonePe, Paytm)" />
-        <FormControlLabel value="stripe" control={<Radio />} label="🔐 Stripe (Recommended)" />
+      <RadioGroup
+        value={paymentMethod}
+        onChange={(e) => {
+          setPaymentMethod(e.target.value);
+          setError("");
+        }}
+      >
+        <Box style={styles.methodBox}>
+          <FormControlLabel
+            value="cash"
+            control={<Radio />}
+            label={
+              <Box>
+                <Typography fontWeight={700}>🏥 Pay at Clinic / Cash</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  Offline payment — pay at the clinic counter
+                </Typography>
+              </Box>
+            }
+          />
+          <Typography style={styles.available}>AVAILABLE</Typography>
+        </Box>
+
+        <Box style={{ ...styles.methodBox, ...styles.onlineBox }}>
+          <FormControlLabel
+            value="online"
+            control={<Radio />}
+            label={
+              <Box>
+                <Typography fontWeight={700}>💳 Online Payment</Typography>
+                <Typography variant="caption" color="text.secondary">
+                  UPI / Card / Net Banking
+                </Typography>
+              </Box>
+            }
+          />
+          <Typography style={styles.comingSoon}>COMING SOON</Typography>
+        </Box>
       </RadioGroup>
 
-      {/* CARD PAYMENT FORM */}
-      {paymentMethod === "card" && (
+      <Divider style={{ margin: "18px 0" }} />
+
+      {paymentMethod === "cash" ? (
         <Box style={styles.formSection}>
-          <TextField
-            fullWidth
-            label="Cardholder Name"
-            value={cardDetails.name}
-            onChange={(e) => setCardDetails({ ...cardDetails, name: e.target.value })}
-            margin="normal"
-            size="small"
-          />
-          <TextField
-            fullWidth
-            label="Card Number"
-            placeholder="1234 5678 9012 3456"
-            value={cardDetails.number}
-            onChange={(e) => setCardDetails({ ...cardDetails, number: e.target.value.replace(/\D/g, "").slice(0, 16) })}
-            margin="normal"
-            size="small"
-          />
-          <Box style={{ display: "flex", gap: "10px", marginTop: "10px" }}>
-            <TextField
-              label="Expiry"
-              placeholder="MM/YY"
-              value={cardDetails.expiry}
-              onChange={(e) => setCardDetails({ ...cardDetails, expiry: e.target.value })}
-              size="small"
-              style={{ flex: 1 }}
-            />
-            <TextField
-              label="CVV"
-              placeholder="123"
-              value={cardDetails.cvv}
-              onChange={(e) => setCardDetails({ ...cardDetails, cvv: e.target.value.replace(/\D/g, "").slice(0, 4) })}
-              size="small"
-              style={{ flex: 1 }}
-              type="password"
-            />
-          </Box>
+          <Typography variant="body2" style={styles.description}>
+            Place your medicine order now and complete payment at the clinic counter.
+          </Typography>
 
           <Button
             fullWidth
             variant="contained"
             color="success"
             style={styles.payBtn}
-            onClick={handleCardPayment}
-            disabled={loading}
+            onClick={placeOrder}
+            disabled={disabled}
           >
-            {loading ? "Processing..." : `Pay ₹${total} with Card`}
+            {disabled ? "Placing Order..." : `Place Order · ₹${Number(total || 0).toLocaleString()}`}
           </Button>
         </Box>
-      )}
-
-      {/* UPI PAYMENT FORM */}
-      {paymentMethod === "upi" && (
-        <Box style={styles.formSection}>
-          <Typography variant="caption" style={{ color: "#666", marginBottom: "10px" }}>
-            Enter your UPI ID (e.g., yourname@upi, yourname@paytm, yourname@googlepay)
+      ) : (
+        <Box style={styles.onlinePreview}>
+          <Typography style={{ fontSize: 28, marginBottom: 6 }}>🔒</Typography>
+          <Typography fontWeight={700} color="#166534">
+            Secure Online Payment
           </Typography>
-          <TextField
-            fullWidth
-            label="UPI ID"
-            placeholder="name@upi"
-            value={upiId}
-            onChange={(e) => setUpiId(e.target.value)}
-            margin="normal"
-            size="small"
-          />
-
+          <Typography variant="body2" color="text.secondary" style={{ marginTop: 6 }}>
+            This section is ready for the real payment gateway. UPI, card and net-banking
+            processing will be connected before production deployment.
+          </Typography>
           <Button
             fullWidth
-            variant="contained"
-            color="info"
+            variant="outlined"
+            color="success"
             style={styles.payBtn}
-            onClick={handleUPIPayment}
+            onClick={placeOrder}
+            disabled
           >
-            Pay ₹{total} with UPI
+            Pay Online · ₹{Number(total || 0).toLocaleString()}
           </Button>
         </Box>
       )}
 
-      {/* STRIPE PAYMENT */}
-      {paymentMethod === "stripe" && (
-        <Box style={styles.formSection}>
-          <Typography variant="body2" style={{ color: "#666", marginBottom: "15px" }}>
-            You will be redirected to Stripe's secure checkout page.
-          </Typography>
-
-          <Button
-            fullWidth
-            variant="contained"
-            color="primary"
-            style={styles.payBtn}
-            onClick={handleStripePayment}
-            disabled={loading}
-          >
-            {loading ? "Redirecting..." : `Pay ₹${total} with Stripe`}
-          </Button>
-        </Box>
-      )}
-
-      <Typography variant="caption" style={{ color: "#999", marginTop: "20px", display: "block", textAlign: "center" }}>
-        🔒 Your payment information is secure and encrypted.
+      <Typography variant="caption" style={styles.note}>
+        No card, UPI or banking credentials are collected in this preview flow.
       </Typography>
     </Card>
   );
@@ -217,7 +119,8 @@ export default function PaymentGateway({ total, onSuccess }) {
 const styles = {
   card: {
     padding: "20px",
-    boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+    boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
+    borderRadius: "16px",
   },
   title: {
     fontWeight: "700",
@@ -225,9 +128,9 @@ const styles = {
     color: "#166534",
   },
   total: {
-    padding: "10px",
+    padding: "12px",
     backgroundColor: "#f0fdf4",
-    borderRadius: "5px",
+    borderRadius: "10px",
     marginBottom: "15px",
   },
   label: {
@@ -235,14 +138,56 @@ const styles = {
     marginBottom: "10px",
     fontWeight: "600",
   },
+  methodBox: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "8px",
+    padding: "10px 12px",
+    marginBottom: "10px",
+    border: "1px solid #dbe5df",
+    borderRadius: "12px",
+    background: "#f8faf9",
+  },
+  onlineBox: {
+    background: "#f8fafc",
+  },
+  available: {
+    fontSize: "10px",
+    fontWeight: "800",
+    color: "#166534",
+    whiteSpace: "nowrap",
+  },
+  comingSoon: {
+    fontSize: "10px",
+    fontWeight: "800",
+    color: "#64748b",
+    whiteSpace: "nowrap",
+  },
   formSection: {
-    marginTop: "20px",
-    paddingTop: "20px",
-    borderTop: "1px solid #eee",
+    marginTop: "4px",
+  },
+  description: {
+    color: "#64748b",
+    lineHeight: 1.6,
+  },
+  onlinePreview: {
+    padding: "18px",
+    textAlign: "center",
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "12px",
   },
   payBtn: {
-    marginTop: "15px",
-    padding: "10px",
-    fontWeight: "600",
+    marginTop: "18px",
+    padding: "12px",
+    fontWeight: "700",
+    borderRadius: "10px",
+  },
+  note: {
+    color: "#94a3b8",
+    marginTop: "18px",
+    display: "block",
+    textAlign: "center",
   },
 };

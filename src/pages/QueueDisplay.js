@@ -106,6 +106,7 @@ export default function QueueDisplayPage() {
   const next        = activeData.next || [];
   const total       = activeData.totalIssued || 0;
   const serving     = current?.number || 0;
+  const waiting     = Number.isFinite(Number(activeData.waiting)) ? Number(activeData.waiting) : Math.max(0, total - serving);
 
   if (loading) {
     return (
@@ -132,10 +133,41 @@ export default function QueueDisplayPage() {
         @keyframes tokenPop { 0% { transform: scale(0.8); opacity: 0.3; } 100% { transform: scale(1); opacity: 1; } }
         @keyframes flash { 0%,100% { background: #050f0a; } 50% { background: rgba(0,200,83,0.08); } }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .qd-main{min-height:0}
+        .qd-header-actions{display:flex;align-items:center;gap:20px}
+        .qd-token-card{max-width:100%}
+        .qd-token-number{font-size:140px}
+        .qd-footer-message{min-width:0}
+        @media(max-width:900px){
+          .qd-main{grid-template-columns:1fr!important}
+          .qd-divider{display:none}
+          .qd-now{padding:28px 18px!important}
+          .qd-upnext{padding:22px 18px!important;max-height:none!important}
+          .qd-token-card{width:min(100%,520px)!important;padding:30px 28px!important}
+          .qd-token-number{font-size:96px}
+        }
+        @media(max-width:600px){
+          .qd-header{padding:10px 14px!important}
+          .qd-brand-sub{display:none}
+          .qd-clock{display:none}
+          .qd-header-actions{gap:8px}
+          .qd-fullscreen{padding:7px 9px!important;font-size:11px!important}
+          .qd-now{padding:22px 12px!important}
+          .qd-tabs{width:100%;overflow-x:auto;padding-bottom:4px}
+          .qd-tabs button{flex:1;white-space:nowrap;padding:8px 12px!important}
+          .qd-token-card{padding:26px 16px!important;border-radius:16px!important}
+          .qd-token-number{font-size:68px}
+          .qd-token-label{font-size:11px!important}
+          .qd-token-str{font-size:18px!important}
+          .qd-upnext{padding:18px 14px!important}
+          .qd-footer{padding:9px 14px!important;gap:8px}
+          .qd-footer-message{font-size:10px!important}
+          .qd-footer-shortcuts{display:none}
+        }
       `}</style>
 
       {/* ── HEADER ── */}
-      <div style={{ background: "#0c1f13", borderBottom: "1px solid #1a3d24", padding: "14px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+      <div className="qd-header" style={{ background: "#0c1f13", borderBottom: "1px solid #1a3d24", padding: "14px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
           <div style={{ width: "36px", height: "36px", background: "#00c853", borderRadius: "8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px" }}>🏥</div>
           <div>
@@ -144,16 +176,17 @@ export default function QueueDisplayPage() {
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
+        <div className="qd-header-actions" style={{ display: "flex", alignItems: "center", gap: "20px" }}>
           {/* Clock */}
-          <Clock />
+          <div className="qd-clock"><Clock /></div>
           {/* Online dot */}
           <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12px", color: online ? "#00c853" : "#ef4444" }}>
             <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: online ? "#00c853" : "#ef4444", boxShadow: online ? "0 0 8px #00c853" : "none", animation: online ? "pulse 2s ease-in-out infinite" : "none" }} />
             {online ? "LIVE" : "OFFLINE"}
           </div>
           {/* Fullscreen */}
-          <button
+          <button className="qd-fullscreen"
+            aria-label="Toggle fullscreen queue display"
             onClick={() => {
               if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(() => {});
               else document.exitFullscreen().catch(() => {});
@@ -165,16 +198,16 @@ export default function QueueDisplayPage() {
       </div>
 
       {/* ── MAIN ── */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1px 380px", animation: flashing ? "flash 0.6s ease" : "none" }}>
+      <div className="qd-main" style={{ display: "grid", gridTemplateColumns: "1fr 1px 380px", animation: flashing ? "flash 0.6s ease" : "none" }}>
 
         {/* LEFT: NOW SERVING */}
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px", position: "relative" }}>
+        <div className="qd-now" style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "40px", position: "relative" }}>
 
           {/* Ambient glow */}
           <div style={{ position: "absolute", width: "400px", height: "400px", borderRadius: "50%", background: "radial-gradient(circle, rgba(0,200,83,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
 
           {/* Queue type tabs */}
-          <div style={{ display: "flex", gap: "8px", marginBottom: "32px", position: "relative", zIndex: 1 }}>
+          <div className="qd-tabs" style={{ display: "flex", gap: "8px", marginBottom: "32px", position: "relative", zIndex: 1 }}>
             {QUEUE_TYPES.map(({ type, label }, i) => (
               <button
                 key={type}
@@ -198,7 +231,7 @@ export default function QueueDisplayPage() {
           </div>
 
           {/* BIG TOKEN */}
-          <div style={{
+          <div className="qd-token-card" style={{
             background: "#0c1f13",
             border: `2px solid ${flashing ? "#00c853" : "#1a3d24"}`,
             borderRadius: "20px",
@@ -214,7 +247,8 @@ export default function QueueDisplayPage() {
                 <div style={{ fontSize: "13px", fontWeight: "700", letterSpacing: "0.2em", color: "#5a8a68", marginBottom: "8px", textTransform: "uppercase" }}>
                   {activeMeta?.label}
                 </div>
-                <div style={{
+                <div className="qd-token-number"
+                  style={{
                   fontFamily: "monospace",
                   fontSize: "140px",
                   fontWeight: "900",
@@ -253,10 +287,10 @@ export default function QueueDisplayPage() {
         </div>
 
         {/* DIVIDER */}
-        <div style={{ background: "#1a3d24" }} />
+        <div className="qd-divider" style={{ background: "#1a3d24" }} />
 
         {/* RIGHT: UP NEXT */}
-        <div style={{ background: "#0c1f13", display: "flex", flexDirection: "column", padding: "28px 24px", overflow: "hidden" }}>
+        <div className="qd-upnext" style={{ background: "#0c1f13", display: "flex", flexDirection: "column", padding: "28px 24px", overflow: "hidden" }}>
           <div style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.2em", color: "#5a8a68", marginBottom: "18px", textTransform: "uppercase", display: "flex", alignItems: "center", gap: "10px" }}>
             Up Next
             <div style={{ flex: 1, height: "1px", background: "#1a3d24" }} />
@@ -297,7 +331,7 @@ export default function QueueDisplayPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "20px" }}>
             {[
               { label: "Issued Today", value: total },
-              { label: "Remaining",    value: Math.max(0, total - serving) },
+              { label: "Remaining",    value: waiting },
             ].map(({ label, value }) => (
               <div key={label} style={{ background: "#050f0a", borderRadius: "10px", padding: "12px", textAlign: "center", border: "1px solid #1a3d24" }}>
                 <div style={{ fontFamily: "monospace", fontSize: "24px", fontWeight: "700", color: "#00c853" }}>{value}</div>
@@ -309,12 +343,12 @@ export default function QueueDisplayPage() {
       </div>
 
       {/* ── FOOTER ── */}
-      <div style={{ background: "#0c1f13", borderTop: "1px solid #1a3d24", padding: "10px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ fontSize: "12px", color: "#5a8a68", display: "flex", alignItems: "center", gap: "8px" }}>
+      <div className="qd-footer" style={{ background: "#0c1f13", borderTop: "1px solid #1a3d24", padding: "10px 32px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div className="qd-footer-message" style={{ fontSize: "12px", color: "#5a8a68", display: "flex", alignItems: "center", gap: "8px" }}>
           <span style={{ fontSize: "14px" }}>💡</span>
           Please wait in the waiting area. You will be called when your token is announced.
         </div>
-        <div style={{ display: "flex", gap: "20px", alignItems: "center" }}>
+        <div className="qd-footer-shortcuts" style={{ display: "flex", gap: "20px", alignItems: "center" }}>
           <div style={{ fontSize: "11px", color: "#1a3d24", fontFamily: "monospace" }}>
             Refresh in <span style={{ color: "#5a8a68" }}>{countdown}s</span>
           </div>

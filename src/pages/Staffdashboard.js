@@ -1,7 +1,21 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { getToken } from "../utils/auth";
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
+
+// Send the JWT explicitly because cross-origin cookies can be unavailable on mobile browsers.
+const authFetch = (url, options = {}) => {
+  const token = getToken();
+  return fetch(url, {
+    ...options,
+    credentials: "include",
+    headers: {
+      ...(options.headers || {}),
+      ...(token ? { Authorization: "Bearer " + token } : {}),
+    },
+  });
+};
 
 // ─── STATUS CONFIG ────────────────────────────────────────────────────────────
 const NEXT_STATUS = { Pending: "Approved", Approved: "Completed" };
@@ -37,7 +51,7 @@ function ConfirmModal({ order, nextStatus, onConfirm, onCancel, loading }) {
   const meta = STATUS_META[nextStatus] || {};
   return (
     <div style={modal.overlay}>
-      <div style={modal.box}>
+      <div style={modal.box} className="staff-confirm-modal">
         <div style={modal.icon}>⚡</div>
         <h3 style={modal.title}>Confirm Status Update</h3>
         <p style={modal.sub}>Move <strong>{name}</strong>'s order to</p>
@@ -132,6 +146,59 @@ function OrderRow({ order, onAction, idx }) {
 }
 const td = { padding: "12px 14px", borderBottom: "1px solid #f3f4f6", verticalAlign: "middle" };
 
+
+function MobileOrderCard({ order, onAction, idx }) {
+  const name = order.orderType === "walk-in" ? (order.guestInfo?.name || "Walk-in") : (order.userId?.name || "Online");
+  const items = safeArray(order.items);
+  const nextSt = NEXT_STATUS[order.status];
+  return (
+    <article className="staff-mobile-order-card">
+      <div className="staff-mobile-order-top">
+        <div className="staff-mobile-order-person">
+          {order.tokenStr && <span className="staff-mobile-token">{order.tokenStr}</span>}
+          <div>
+            <div className="staff-mobile-order-name">{name}</div>
+            <div className="staff-mobile-order-time">{timeAgo(order.createdAt)}</div>
+          </div>
+        </div>
+        <StatusChip status={order.status} />
+      </div>
+
+      <div className="staff-mobile-order-meta">
+        <span className={order.orderType === "walk-in" ? "staff-mobile-type staff-mobile-type--walkin" : "staff-mobile-type"}>
+          {order.orderType === "walk-in" ? "🏪 Walk-in" : "🌐 Online"}
+        </span>
+        <strong className="staff-mobile-total">Rs.{fmt(order.total)}</strong>
+      </div>
+
+      <div className="staff-mobile-items">
+        <div className="staff-mobile-section-label">ITEMS</div>
+        {items.length > 0 ? items.map((item, i) => (
+          <div key={i} className="staff-mobile-item-row">
+            <span>{item.name || "Medicine"}</span>
+            <strong>× {item.quantity || 1}</strong>
+          </div>
+        )) : (
+          <div className="staff-mobile-empty-items">No items listed</div>
+        )}
+      </div>
+
+      {nextSt ? (
+        <button
+          className={nextSt === "Completed" ? "staff-mobile-action staff-mobile-action--complete" : "staff-mobile-action"}
+          onClick={() => onAction(order, nextSt)}
+        >
+          {nextSt === "Approved" ? "✓ Approve Order" : "✓ Complete Order"}
+        </button>
+      ) : (
+        <div className="staff-mobile-final-state">No further staff action</div>
+      )}
+    </article>
+  );
+}
+
+
+
 // ─── STATS BAR ────────────────────────────────────────────────────────────────
 function StatsBar({ orders }) {
   const today          = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
@@ -141,15 +208,15 @@ function StatsBar({ orders }) {
   const completedToday = todayOrders.filter(o => o.status === "Completed" || o.status === "Delivered").length;
   const revenueToday   = todayOrders.reduce((s, o) => s + Number(o.total || 0), 0);
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "12px", marginBottom: "20px" }}>
+    <div className="staff-stats-bar" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "12px", marginBottom: "20px" }}>
       {[
         { label: "Pending",       value: pending,                  color: "#92400e", bg: "#fef3c7", icon: "⏳" },
         { label: "In Progress",   value: approved,                 color: "#1e40af", bg: "#dbeafe", icon: "🔄" },
         { label: "Done Today",    value: completedToday,           color: "#166534", bg: "#dcfce7", icon: "✅" },
         { label: "Revenue Today", value: `Rs.${fmt(revenueToday)}`,color: "#6d28d9", bg: "#f5f3ff", icon: "💰" },
       ].map((s) => (
-        <div key={s.label} style={{ background: "white", borderRadius: "10px", padding: "14px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", borderLeft: `3px solid ${s.color}`, display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "20px" }}>{s.icon}</span>
+        <div key={s.label} className="staff-stat-card" style={{ background: "white", borderRadius: "10px", padding: "14px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", borderLeft: `3px solid ${s.color}`, display: "flex", alignItems: "center", gap: "10px" }}>
+          <span className="staff-stat-icon" style={{ fontSize: "20px" }}>{s.icon}</span>
           <div>
             <div style={{ fontSize: "18px", fontWeight: "700", color: s.color }}>{s.value}</div>
             <div style={{ fontSize: "11px", color: "#888" }}>{s.label}</div>
@@ -161,63 +228,99 @@ function StatsBar({ orders }) {
 }
 
 // ─── QUEUE PANEL ──────────────────────────────────────────────────────────────
-function QueuePanel({ orders }) {
+function QueuePanel({ orders, queueState }) {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-  const queue = orders
-    .filter(o => o.tokenDate === today && o.status !== "Cancelled")
-    .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
-  const serving  = queue.find(o => o.status === "Approved") || queue.find(o => o.status === "Pending");
-  const upcoming = queue.filter(o => o !== serving && o.status === "Pending").slice(0, 5);
+
+  const renderQueue = (type, label, icon) => {
+    const state = queueState?.[type];
+    const orderType = type === "walkin" ? "walk-in" : "online";
+    const serving = Number(state?.currentServing || 0);
+    const waiting = Number(state?.waiting || 0);
+    const totalIssued = Number(state?.totalIssued || 0);
+    const current = serving > 0 ? orders.find(o =>
+      o.tokenDate === today &&
+      o.orderType === orderType &&
+      Number(o.tokenNumber) === serving
+    ) : null;
+
+    const upcoming = orders
+      .filter(o =>
+        o.tokenDate === today &&
+        o.orderType === orderType &&
+        Number(o.tokenNumber) > serving &&
+        o.status !== "Cancelled"
+      )
+      .sort((a, b) => Number(a.tokenNumber) - Number(b.tokenNumber))
+      .slice(0, 5);
+
+    return (
+      <div style={qp.queueBlock}>
+        <div style={qp.queueTitle}>
+          <span>{icon}</span>
+          <span>{label}</span>
+          <span style={qp.waiting}>{waiting} waiting</span>
+        </div>
+        <div style={qp.nowWrap}>
+          <div style={qp.nowLabel}>NOW SERVING</div>
+          {serving > 0 ? (
+            <div style={qp.nowToken}>
+              <span style={qp.nowNum}>
+                {current?.tokenStr || (type === "walkin" ? "WLK-" : "ORD-") + String(serving).padStart(3, "0")}
+              </span>
+              <span style={qp.nowName}>
+                {current ? (current.guestInfo?.name || current.userId?.name || "Customer") : "Token in queue"}
+              </span>
+            </div>
+          ) : (
+            <div style={{ color: "#9ca3af", fontSize: "12px", padding: "8px 0", textAlign: "center" }}>Not started</div>
+          )}
+        </div>
+        {upcoming.length > 0 && (
+          <div>
+            <div style={qp.upLabel}>NEXT UP</div>
+            <div style={qp.upList}>
+              {upcoming.map(o => (
+                <div key={o._id} style={qp.upItem}>
+                  <span style={qp.upToken}>{o.tokenStr || "#" + Number(o.tokenNumber)}</span>
+                  <span style={qp.upName}>
+                    {o.orderType === "walk-in" ? (o.guestInfo?.name || "Walk-in") : (o.userId?.name || "Online")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {!state && <div style={qp.unavailable}>Queue status unavailable</div>}
+        {state && totalIssued === 0 && <div style={qp.unavailable}>No tokens issued today</div>}
+      </div>
+    );
+  };
+
   return (
     <div style={qp.wrap}>
       <div style={qp.header}>
         <span style={{ fontSize: "20px" }}>🎫</span>
         <div>
-          <div style={qp.headerTitle}>Queue Today</div>
-          <div style={qp.headerSub}>{queue.length} tokens issued</div>
+          <div style={qp.headerTitle}>Order Queues</div>
+          <div style={qp.headerSub}>Live token pointers for today</div>
         </div>
       </div>
-      <div style={qp.nowWrap}>
-        <div style={qp.nowLabel}>NOW SERVING</div>
-        {serving ? (
-          <div style={qp.nowToken}>
-            <span style={qp.nowNum}>{serving.tokenStr || "—"}</span>
-            <span style={qp.nowName}>{serving.orderType === "walk-in" ? (serving.guestInfo?.name || "Walk-in") : (serving.userId?.name || "Online")}</span>
-            <StatusChip status={serving.status} />
-          </div>
-        ) : (
-          <div style={{ color: "#9ca3af", fontSize: "13px", padding: "10px 0", textAlign: "center" }}>No active order</div>
-        )}
-      </div>
-      {upcoming.length > 0 && (
-        <div>
-          <div style={qp.upLabel}>NEXT UP</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {upcoming.map((o, i) => (
-              <div key={o._id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", background: i === 0 ? "#f0fdf4" : "#f9fafb", borderRadius: "8px", border: `1px solid ${i === 0 ? "#86efac" : "#f3f4f6"}` }}>
-                <span style={{ background: "#166534", color: "white", padding: "2px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "700", minWidth: "60px", textAlign: "center" }}>
-                  {o.tokenStr || `#${i + 2}`}
-                </span>
-                <span style={{ fontSize: "13px", fontWeight: "500", color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {o.orderType === "walk-in" ? (o.guestInfo?.name || "Walk-in") : (o.userId?.name || "Online")}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {queue.length === 0 && (
-        <div style={{ textAlign: "center", padding: "24px", color: "#d1d5db" }}>
-          <div style={{ fontSize: "28px" }}>🕐</div>
-          <div style={{ fontSize: "13px", marginTop: "6px" }}>No orders in queue today</div>
-        </div>
-      )}
+      {renderQueue("order", "Online Orders", "🌐")}
+      {renderQueue("walkin", "Walk-ins", "🏪")}
     </div>
   );
 }
 
 const qp = {
   wrap:        { background: "white", borderRadius: "12px", padding: "18px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", position: "sticky", top: "20px" },
+  queueBlock:  { padding: "12px 0", borderTop: "1px solid #f3f4f6" },
+  queueTitle:  { display: "flex", alignItems: "center", gap: "7px", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "9px" },
+  waiting:     { marginLeft: "auto", fontSize: "10px", color: "#6b7280", fontWeight: "600" },
+  upList:      { display: "flex", flexDirection: "column", gap: "6px" },
+  upItem:      { display: "flex", alignItems: "center", gap: "8px", padding: "7px 8px", background: "#f9fafb", borderRadius: "7px" },
+  upToken:     { background: "#166534", color: "white", padding: "2px 7px", borderRadius: "5px", fontSize: "10px", fontWeight: "700", minWidth: "55px", textAlign: "center" },
+  upName:      { fontSize: "12px", color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  unavailable: { fontSize: "11px", color: "#9ca3af", textAlign: "center", padding: "8px 0" },
   header:      { display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px", paddingBottom: "12px", borderBottom: "1px solid #f3f4f6" },
   headerTitle: { fontWeight: "700", fontSize: "14px", color: "#111" },
   headerSub:   { fontSize: "11px", color: "#888" },
@@ -256,6 +359,7 @@ export default function StaffDashboard() {
   const [confirmData, setConfirmData]   = useState(null);
   const [updating, setUpdating]         = useState(false);
   const [toast, setToast]               = useState(null);
+  const [queueState, setQueueState] = useState({ order: null, walkin: null });
 
   // ─── POS STATE ───────────────────────────────────────────────────────────
   const [medicines, setMedicines]               = useState([]);
@@ -283,8 +387,9 @@ export default function StaffDashboard() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const res = await fetch(`${BASE_URL}/staff/orders`, { credentials: "include" });
-      if (res.status === 401 || res.status === 403) { navigate("/login", { replace: true }); return; }
+      const res = await authFetch(`${BASE_URL}/staff/orders`);
+      if (res.status === 401) { navigate("/login", { replace: true }); return; }
+      if (res.status === 403) { showToast("Staff permission denied for orders", false); return; }
       if (res.ok) {
         const data = await res.json();
         setOrders(Array.isArray(data) ? data : []);
@@ -294,18 +399,36 @@ export default function StaffDashboard() {
     finally { setLoading(false); setRefreshing(false); }
   }, [navigate]);
 
+  const fetchQueue = useCallback(async (silent = true) => {
+    try {
+      const [orderRes, walkinRes] = await Promise.all([
+        authFetch(`${BASE_URL}/queue/status?type=order`),
+        authFetch(`${BASE_URL}/queue/status?type=walkin`),
+      ]);
+      if (!orderRes.ok || !walkinRes.ok) throw new Error("Queue request failed");
+      const [order, walkin] = await Promise.all([orderRes.json(), walkinRes.json()]);
+      setQueueState({ order, walkin });
+    } catch {
+      if (!silent) showToast("Unable to refresh queue status", false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchOrders();
-    const iv = setInterval(() => fetchOrders(true), 15000);
+    fetchQueue();
+    const iv = setInterval(() => {
+      fetchOrders(true);
+      fetchQueue(true);
+    }, 15000);
     return () => clearInterval(iv);
-  }, [fetchOrders]);
+  }, [fetchOrders, fetchQueue]);
 
   // ─── FETCH MEDICINES ─────────────────────────────────────────────────────
   // ✅ FIX: was calling res.json() twice — second call returned empty stream
   const fetchMedicines = useCallback(async () => {
     setMedLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/medicines/all`, { credentials: "include" });
+      const res = await authFetch(`${BASE_URL}/medicines/all`);
       if (res.ok) {
         const data = await res.json(); // ✅ call ONCE, store in variable
         setMedicines(Array.isArray(data) ? data : []);
@@ -331,10 +454,9 @@ export default function StaffDashboard() {
     if (!confirmData) return;
     setUpdating(true);
     try {
-      const res = await fetch(`${BASE_URL}/staff/orders/${confirmData.order._id}/status`, {
+      const res = await authFetch(`${BASE_URL}/staff/orders/${confirmData.order._id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ status: confirmData.nextStatus }),
       });
       if (res.ok) {
@@ -353,7 +475,7 @@ export default function StaffDashboard() {
 
   // ─── LOGOUT ──────────────────────────────────────────────────────────────
   const handleLogout = async () => {
-    await fetch(`${BASE_URL}/logout`, { method: "POST", credentials: "include" }).catch(() => {});
+    await authFetch(`${BASE_URL}/logout`, { method: "POST" }).catch(() => {});
     ["isLoggedIn","role","email","name","phone","userId"].forEach(k => localStorage.removeItem(k));
     navigate("/login", { replace: true });
   };
@@ -378,7 +500,7 @@ export default function StaffDashboard() {
     if (!phone || phone.length < 5) { setPosMatchedUser(null); return; }
     setPosSearchingUser(true);
     try {
-      const res  = await fetch(`${BASE_URL}/users/search?phone=${phone}`, { credentials: "include" });
+      const res  = await authFetch(`${BASE_URL}/users/search?phone=${phone}`);
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         setPosMatchedUser(data[0]);
@@ -395,10 +517,17 @@ export default function StaffDashboard() {
   };
 
   const posAddToCart = (med) => {
-    if (med.stock <= 0) { showToast(med.name + " is out of stock", false); return; }
+    const stock = Math.max(0, Number(med.stock) || 0);
+    if (stock <= 0) { showToast(med.name + " is out of stock", false); return; }
     setPosCart(prev => {
       const ex = prev.find(i => i._id === med._id);
-      if (ex) return prev.map(i => i._id === med._id ? { ...i, quantity: (i.quantity || 1) + 1 } : i);
+      if (ex) {
+        if ((ex.quantity || 1) >= stock) {
+          showToast("Only " + stock + " unit" + (stock === 1 ? "" : "s") + " available", false);
+          return prev;
+        }
+        return prev.map(i => i._id === med._id ? { ...i, quantity: (i.quantity || 1) + 1 } : i);
+      }
       return [...prev, { ...med, quantity: 1 }];
     });
   };
@@ -409,8 +538,14 @@ export default function StaffDashboard() {
     setPosCart(prev =>
       prev.map(i => {
         if (i._id !== id) return i;
+        const stock = Math.max(0, Number(i.stock) || 0);
         const q = (i.quantity || 1) + delta;
-        return q <= 0 ? null : { ...i, quantity: q };
+        if (q <= 0) return null;
+        if (q > stock) {
+          showToast("Only " + stock + " unit" + (stock === 1 ? "" : "s") + " available", false);
+          return i;
+        }
+        return { ...i, quantity: q };
       }).filter(Boolean)
     );
 
@@ -425,46 +560,24 @@ export default function StaffDashboard() {
 
   const generateReceipt = (order) => {
     if (!order) return;
-    const w     = window.open("", "_blank");
+    const w = window.open("", "_blank");
+    if (!w) { showToast("Please allow pop-ups to print the receipt", false); return; }
     const items = Array.isArray(order.items) ? order.items : [];
-    const rows  = items.map(item =>
-      `<tr>
-        <td style="padding:8px;border-bottom:1px solid #eee;">${item.name || "-"}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;">Rs.${item.price || 0}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;">${item.quantity || 1}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;font-weight:700;">Rs.${Number(item.price || 0) * (item.quantity || 1)}</td>
-      </tr>`
-    ).join("");
-    const id   = order._id ? order._id.toString().slice(-6).toUpperCase() : "N/A";
-    const date = order.createdAt ? new Date(order.createdAt).toLocaleString() : new Date().toLocaleString();
+    const esc = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+    const rows = items.map(item => "<tr><td>" + esc(item.name || "-") + "</td><td>Rs." + Number(item.price || 0).toLocaleString("en-IN") + "</td><td>" + Number(item.quantity || 1) + "</td><td>Rs." + (Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString("en-IN") + "</td></tr>").join("");
+    const id = order._id ? order._id.toString().slice(-6).toUpperCase() : "N/A";
+    const date = order.createdAt ? new Date(order.createdAt).toLocaleString("en-IN") : new Date().toLocaleString("en-IN");
     const cust = order.guestInfo?.name || posCustomerName || "Walk-in Customer";
-    w.document.write(`
-      <html><head><title>Receipt #${id}</title></head>
-      <body style="font-family:Arial,sans-serif;padding:30px;max-width:580px;margin:auto;">
-        <h2 style="color:#166534;text-align:center;margin-bottom:4px;">Digital Clinic</h2>
-        <p style="text-align:center;color:#888;margin-top:0;">Walk-in Order Receipt</p>
-        <hr/>
-        <p><strong>Order ID:</strong> #${id}</p>
-        <p><strong>Date:</strong> ${date}</p>
-        <p><strong>Customer:</strong> ${cust}</p>
-        <p><strong>Payment:</strong> ${order.paymentMethod || "Cash"}</p>
-        <table style="width:100%;border-collapse:collapse;margin-top:12px;">
-          <thead>
-            <tr style="background:#f0fdf4;">
-              <th style="padding:8px;text-align:left;">Medicine</th>
-              <th style="padding:8px;text-align:left;">Price</th>
-              <th style="padding:8px;text-align:left;">Qty</th>
-              <th style="padding:8px;text-align:left;">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <h3 style="text-align:right;color:#166534;">Total: Rs.${order.total}</h3>
-        <hr/>
-        <p style="text-align:center;color:#888;font-size:12px;">Thank you for choosing Digital Clinic!</p>
-        <script>window.onload=function(){window.print();}</script>
-      </body></html>
-    `);
+    const payment = String(order.paymentMethod || "Cash").toUpperCase();
+    const html = "<html><head><title>Digital Clinic · Receipt #" + esc(id) + "</title><style>" +
+      "*{box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f3f7f4;color:#17231b;margin:0;padding:28px}" +
+      ".receipt{max-width:680px;margin:0 auto;background:#fff;padding:34px;border-radius:18px;box-shadow:0 8px 30px rgba(15,26,19,.10)}" +
+      ".brand{display:flex;align-items:center;gap:12px;padding-bottom:20px;border-bottom:1px solid #e4ece7}.logo{width:48px;height:48px;border-radius:14px;background:#166534;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800}.brand-name{font-size:22px;font-weight:800;color:#0b3d1f}.brand-sub{font-size:11px;color:#697a6e;margin-top:3px}.receipt-title{margin:22px 0 14px;font-size:20px;font-weight:800}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f7faf8;border:1px solid #e4ece7;border-radius:12px;padding:14px;font-size:12px}.meta span{color:#697a6e}.meta strong{display:block;color:#17231b;margin-top:3px}table{width:100%;border-collapse:collapse;margin-top:20px}th{text-align:left;background:#f0fdf4;color:#166534;font-size:11px;text-transform:uppercase;padding:10px}td{padding:11px 10px;border-bottom:1px solid #eef2ef;font-size:12px}.total{display:flex;justify-content:space-between;margin-top:18px;padding-top:16px;border-top:2px solid #166534;font-size:15px;font-weight:800}.total strong{font-size:20px;color:#166534}.footer{text-align:center;color:#697a6e;font-size:11px;margin-top:28px;padding-top:18px;border-top:1px solid #e4ece7}@media print{body{background:#fff;padding:0}.receipt{box-shadow:none;border-radius:0;max-width:none;padding:20px}}" +
+      "</style></head><body><div class='receipt'><div class='brand'><div class='logo'>DC</div><div><div class='brand-name'>Digital Clinic</div><div class='brand-sub'>Clinic &amp; Pharmacy Management</div></div></div>" +
+      "<div class='receipt-title'>Walk-in Order Receipt</div><div class='meta'><div><span>Order ID</span><strong>#" + esc(id) + "</strong></div><div><span>Date</span><strong>" + esc(date) + "</strong></div><div><span>Customer</span><strong>" + esc(cust) + "</strong></div><div><span>Payment</span><strong>" + esc(payment) + "</strong></div></div>" +
+      "<table><thead><tr><th>Medicine</th><th>Unit Price</th><th>Qty</th><th>Total</th></tr></thead><tbody>" + rows + "</tbody></table>" +
+      "<div class='total'><span>Total Amount</span><strong>Rs." + Number(order.total || 0).toLocaleString("en-IN") + "</strong></div><div class='footer'>Thank you for choosing Digital Clinic.<br/>Please retain this receipt for your records.</div></div><script>window.onload=function(){window.print();}</script></body></html>";
+    w.document.write(html);
     w.document.close();
   };
 
@@ -473,7 +586,7 @@ export default function StaffDashboard() {
     if (!posCustomerName.trim()) { showToast("Enter customer name", false); return; }
     setPosPlacing(true);
     try {
-      const res = await fetch(`${BASE_URL}/orders/walk-in`, {
+      const res = await authFetch(`${BASE_URL}/orders/walk-in`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
@@ -492,8 +605,9 @@ export default function StaffDashboard() {
       generateReceipt(data.order || data);
       setPosCart([]); setPosCustomerName(""); setPosCustomerPhone("");
       setPosPaymentMethod("cash"); setPosMatchedUser(null); setPosSearch("");
-      fetchMedicines(); // ✅ refresh stock counts after sale
+      fetchMedicines();
       fetchOrders(true);
+      fetchQueue(true);
     } catch (err) {
       showToast(err.message || "Failed to create order", false);
     } finally { setPosPlacing(false); }
@@ -506,12 +620,195 @@ export default function StaffDashboard() {
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
   return (
-    <div style={s.page}>
+    <div style={s.page} className="staff-dashboard">
       <style>{`
         @keyframes spin    { to { transform: rotate(360deg); } }
         @keyframes slideIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
         @keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:.4; } }
         input:focus, select:focus { outline:none; border-color:#166534 !important; box-shadow:0 0 0 3px rgba(22,101,52,0.1); }
+        .staff-orders-layout { min-width: 0; }
+        /* Product-wide visual language: patient dashboard spacing + staff operational density */
+        .staff-header { box-shadow: 0 8px 24px rgba(22,101,52,0.12); }
+        .staff-header .staffBadge { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
+        .staff-tabbar { background: #fff; border-bottom: 1px solid #e5e7eb !important; }
+        .staff-tabbar button { transition: color .15s ease, background .15s ease; }
+        .staff-body { background: #f3f7f5; }
+        .staff-stat-card { border: 1px solid #eef2f0; border-left-width: 3px !important; min-height: 74px; }
+        .staff-stat-card:nth-child(1) { background: #fffdf7 !important; }
+        .staff-stat-card:nth-child(2) { background: #f9fbff !important; }
+        .staff-stat-card:nth-child(3) { background: #f7fcf8 !important; }
+        .staff-stat-card:nth-child(4) { background: #fbf9ff !important; }
+        .staff-stat-icon { box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+        .staff-orders-card, .staff-pos-card { border: 1px solid #e8eeea !important; box-shadow: 0 4px 18px rgba(15,23,42,.06) !important; }
+        .staff-toolbar { border-bottom: 1px solid #eef2f0; }
+        .staff-toolbar-controls input, .staff-toolbar-controls select { min-height: 42px !important; }
+        .staff-pos-card-head h2 { letter-spacing: -.01em; }
+        .staff-pos-payment-options { flex-wrap: wrap; }
+        .staff-pos-payment-options button { min-width: 105px; }
+        .staff-pos-search { min-height: 42px; }
+        .staff-pos-medicine-section { border-top: 1px solid #f1f5f2; padding-top: 16px !important; }
+        .staff-pos-medicine-card { box-shadow: 0 1px 3px rgba(15,23,42,.03); }
+        .staff-pos-cart-card { border: 1px solid #e8eeea !important; box-shadow: 0 4px 18px rgba(15,23,42,.06) !important; }
+        .staff-side-column > div { border: 1px solid #e8eeea; }
+        .staff-orders-table thead th { background: #f7faf8 !important; }
+        .staff-orders-table-wrap { width: 100%; max-width: 100%; min-width: 0; overflow-x: scroll; overflow-y: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; touch-action: pan-x; scrollbar-gutter: stable; }
+        .staff-orders-mobile-list { display: none; }
+        .staff-mobile-order-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px; margin: 10px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .staff-mobile-order-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+        .staff-mobile-order-person { display: flex; align-items: center; gap: 9px; min-width: 0; }
+        .staff-mobile-token { display: inline-flex; align-items: center; background: #166534; color: #fff; padding: 4px 8px; border-radius: 7px; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+        .staff-mobile-order-name { font-size: 15px; font-weight: 700; color: #111827; overflow-wrap: anywhere; }
+        .staff-mobile-order-time { margin-top: 2px; color: #9ca3af; font-size: 11px; }
+        .staff-mobile-order-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 12px; padding: 9px 0; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
+        .staff-mobile-type { background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; }
+        .staff-mobile-type--walkin { background: #fef3c7; color: #92400e; }
+        .staff-mobile-total { color: #166534; font-size: 16px; }
+        .staff-mobile-items { padding-top: 11px; }
+        .staff-mobile-section-label { color: #9ca3af; font-size: 10px; font-weight: 800; letter-spacing: .08em; margin-bottom: 7px; }
+        .staff-mobile-item-row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; color: #4b5563; font-size: 12px; }
+        .staff-mobile-item-row span { min-width: 0; overflow-wrap: anywhere; }
+        .staff-mobile-item-row strong { color: #111827; white-space: nowrap; }
+        .staff-mobile-empty-items { color: #9ca3af; font-size: 12px; }
+        .staff-mobile-action { width: 100%; min-height: 44px; margin-top: 12px; border: 0; border-radius: 9px; background: #1e40af; color: #fff; font-size: 13px; font-weight: 700; }
+        .staff-mobile-action--complete { background: #166534; }
+        .staff-mobile-final-state { margin-top: 12px; padding: 9px; text-align: center; background: #f9fafb; color: #9ca3af; border-radius: 8px; font-size: 11px; }
+
+        .staff-orders-table { min-width: 760px; }
+
+        .staff-stats-bar > .staff-stat-card { min-width: 0; }
+        .staff-stat-icon { width: 38px; height: 38px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 38px; background: #f8fafc; }
+        .staff-pos-results-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 10px; padding: 0 2px; color: #6b7280; font-size: 11px; }
+        .staff-pos-results-meta strong { color: #166534; }
+        .staff-pos-medicine-card { min-width: 0; overflow: hidden; }
+        .staff-pos-medicine-card:hover { border-color: #86efac !important; box-shadow: 0 5px 16px rgba(22,101,52,0.08); transform: translateY(-1px); }
+        .staff-pos-medicine-card:focus-visible { outline: 3px solid rgba(34,197,94,.28); outline-offset: 2px; }
+        .staff-pos-add-button:focus-visible { outline: 3px solid rgba(34,197,94,.28); outline-offset: 2px; }
+        .staff-pos-medicine-image { width: 100%; height: 72px !important; object-fit: cover; border-radius: 8px !important; background: #f0fdf4; }
+        .staff-pos-medicine-image--empty { display: flex; align-items: center; justify-content: center; font-size: 28px; }
+        .staff-pos-medicine-name { line-height: 1.25; min-height: 32px; }
+        .staff-pos-medicine-stock { min-height: 16px; }
+        .staff-pos-add-button { width: 100%; min-height: 36px; margin-top: 9px; border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4; color: #166534; font-size: 12px; font-weight: 700; }
+        .staff-pos-add-button:disabled { border-color: #e5e7eb; background: #f9fafb; color: #9ca3af; cursor: not-allowed; }
+        .staff-pos-payment-options button { min-height: 40px; }
+        .staff-pos-cart-item > * { min-width: 0; }
+        .staff-pos-medicine-grid { min-width: 0; }
+        .staff-pos-medicine-grid > * { min-width: 0; }
+        .staff-pos-cart-card { min-width: 0; }
+        .staff-mobile-note { display: none; }
+        .staff-side-column { min-width: 0; }
+        .staff-pos-grid { min-width: 0; }
+        .staff-toolbar-summary { display: flex; align-items: center; gap: 5px; margin-top: 8px; color: #64748b; font-size: 11px; font-weight: 600; }
+        .staff-toolbar-controls { align-items: stretch !important; }
+        .staff-toolbar-controls .searchWrap { min-width: 220px; }
+        .staff-tabbar button:focus-visible, .staff-header button:focus-visible, .staff-toolbar-controls input:focus-visible, .staff-toolbar-controls select:focus-visible { outline: 3px solid rgba(34,197,94,.28); outline-offset: 2px; }
+        .staff-mobile-order-card { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+        .staff-mobile-order-card:focus-within { border-color: #86efac; box-shadow: 0 4px 16px rgba(22,101,52,.09); }
+        .staff-mobile-action { cursor: pointer; transition: filter .15s ease, transform .15s ease; }
+        .staff-mobile-action:hover { filter: brightness(.96); }
+        .staff-mobile-action:active { transform: translateY(1px); }
+        .staff-pos-cart-item button { touch-action: manipulation; }
+        .staff-pos-add-button { cursor: pointer; touch-action: manipulation; }
+        .staff-pos-add-button:hover:not(:disabled) { background: #dcfce7; border-color: #86efac; }
+        .staff-pos-payment-options button { touch-action: manipulation; }
+        @media (max-width: 1050px) {
+          .staff-header { flex-wrap: wrap; gap: 12px; }
+          .staff-orders-layout { flex-direction: column !important; }
+          .staff-side-column { width: 100% !important; }
+          .staff-pos-grid { grid-template-columns: minmax(0, 1fr) !important; }
+          .staff-pos-cart { position: static !important; }
+        }
+        @media (max-width: 700px) {
+          .staff-dashboard { width: 100%; overflow-x: hidden; }
+          .staff-body { padding: 12px !important; }
+          .staff-tabbar { scrollbar-width: none; }
+          .staff-tabbar::-webkit-scrollbar { display: none; }
+          .staff-header > div:first-child { min-width: 0; }
+          .staff-header > div:first-child > div:last-child { min-width: 0; }
+          .staff-header > div:last-child { gap: 6px !important; }
+          .staff-header > div:last-child span { display: none; }
+          .staff-header > div:last-child button, .staff-header > div:last-child > div { flex: 1 1 auto; }
+          .staff-header .staffBadge { padding: 6px 9px !important; }
+          .staff-toolbar { padding: 14px !important; }
+          .staff-orders-card, .staff-pos-card { border-radius: 14px !important; }
+          .staff-pos-payment-options button { flex: 1 1 0; min-width: 0; }
+          .staff-pos-search { min-height: 44px; }
+          .staff-stats-bar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; margin-bottom: 14px !important; }
+          .staff-stats-bar > div { min-width: 0; padding: 12px 12px !important; }
+          .staff-stats-bar > div > span { font-size: 18px !important; }
+          .staff-stats-bar > div > div > div:first-child { font-size: 16px !important; }
+          .staff-stats-bar > div > div > div:last-child { font-size: 10px !important; }
+          .staff-search-wrap { width: 100%; }
+          .staff-orders-table { min-width: 720px; }
+          .staff-orders-desktop { display: none; }
+          .staff-orders-mobile-list { display: block; padding: 4px 10px 10px; }
+
+          .staff-side-column { display: grid; grid-template-columns: 1fr; gap: 12px; }
+          .staff-side-column > div { margin-top: 0 !important; }
+          .staff-pos-medicine-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; max-height: none !important; overflow: visible !important; }
+          .staff-pos-results-meta { font-size: 10px; }
+          .staff-pos-medicine-card { padding: 10px !important; }
+          .staff-pos-medicine-image { height: 64px !important; }
+          .staff-pos-add-button { min-height: 40px; }
+          .staff-pos-cart-card { width: 100%; }
+          .staff-pos-cart-card > div { min-width: 0; }
+          .staff-pos-cart-item { flex-wrap: wrap; }
+          .staff-pos-cart-item > div:first-child { flex: 1 1 calc(100% - 40px); }
+          .staff-pos-cart-item > .staff-pos-qty-controls { margin-left: auto; }
+          .staff-pos-cart-head { padding: 13px 14px !important; }
+          .staff-pos-cart-body { padding: 12px 14px !important; }
+          .staff-pos-cart-item { align-items: center !important; gap: 7px !important; }
+          .staff-pos-cart-item > div:first-child { flex: 1 1 100%; }
+          .staff-pos-cart-item .staff-pos-qty-controls { order: 2; margin-left: 0 !important; }
+          .staff-pos-cart-item > div:nth-of-type(2) { order: 3; margin-left: auto; }
+          .staff-pos-cart-item > button { order: 4; }
+          .staff-pos-complete-button { min-height: 48px !important; font-size: 14px !important; }
+          .staff-pos-card-head { padding: 16px 14px 0 !important; }
+          .staff-pos-medicine-section { padding: 0 14px 14px !important; }
+          .staff-pos-payment-options button { min-height: 44px !important; }
+          .staff-pos-medicine-name { font-size: 12px !important; }
+          .staff-pos-medicine-price { font-size: 13px !important; }
+          .staff-pos-medicine-stock { font-size: 10px !important; }
+          .staff-pos-cart-item > div:nth-last-of-type(1) { }
+          .staff-pos-cart-card button { min-height: 40px; }
+          .staff-mobile-note { display: block; font-size: 11px; color: #6b7280; padding: 8px 14px; background: #f9fafb; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; white-space: nowrap; }
+
+          .staff-header { padding: 14px 16px !important; align-items: flex-start !important; }
+          .staff-header > div:last-child { width: 100%; flex-wrap: wrap; }
+          .staff-header > div:last-child button { min-height: 42px; }
+          .staff-header h1 { font-size: 18px !important; }
+          .staff-tabbar { padding: 0 12px !important; overflow-x: auto; }
+          .staff-tabbar button { min-height: 46px; white-space: nowrap; }
+        }
+        @media (max-width: 400px) {
+          .staff-confirm-modal { max-height: calc(100vh - 24px); overflow-y: auto; }
+          .staff-confirm-modal button { min-height: 44px; }
+        }
+        @media (max-width: 360px) {
+          .staff-pos-medicine-grid { grid-template-columns: 1fr !important; }
+          .staff-pos-results-meta span:last-child { display: none; }
+        }
+        @media (max-width: 560px) {
+          .staff-body { padding: 12px !important; }
+          .staff-toolbar-summary { margin-top: 4px; }
+          .staff-toolbar-controls { gap: 8px !important; }
+          .staff-toolbar-controls .searchWrap { min-width: 0 !important; width: 100%; }
+          .staff-header .staffBadge { display: inline-flex !important; align-items: center; justify-content: center; }
+          .staff-body > * { min-width: 0; }
+          .staff-mobile-order-card { margin: 8px 0; padding: 13px; }
+
+          .staff-toolbar-controls { width: 100%; }
+          .staff-toolbar-controls > * { flex: 1 1 100%; min-width: 0 !important; width: 100%; }
+          .staff-pos-customer-grid { grid-template-columns: 1fr !important; }
+          .staff-pos-cart { width: 100%; }
+          .staff-pos-payment-options { width: 100%; }
+          .staff-pos-payment-options button { flex: 1 1 0; padding-inline: 8px !important; min-width: 0; }
+          .staff-orders-table-wrap { border-left: 1px solid #f3f4f6; border-right: 1px solid #f3f4f6; }
+          .staff-confirm-modal { width: min(320px, calc(100vw - 32px)) !important; padding: 28px 20px !important; }
+          .staff-confirm-modal > div:last-child { flex-wrap: wrap; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .staff-dashboard * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
       `}</style>
 
       {/* TOAST */}
@@ -531,7 +828,7 @@ export default function StaffDashboard() {
       />
 
       {/* HEADER */}
-      <div style={s.header}>
+      <div style={s.header} className="staff-header">
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <div style={s.headerIcon}>🏥</div>
           <div>
@@ -542,19 +839,19 @@ export default function StaffDashboard() {
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           {refreshing && <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)" }}>Refreshing…</span>}
           {lastRefresh && <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.55)" }}>Updated {timeAgo(lastRefresh)}</span>}
-          <button onClick={() => fetchOrders(true)} style={s.refreshBtn}>⟳ Refresh</button>
+          <button onClick={() => { fetchOrders(true); fetchQueue(false); }} style={s.refreshBtn} aria-label="Refresh orders and queue">⟳ Refresh</button>
           <div style={s.staffBadge}>🏥 Staff</div>
           <button onClick={handleLogout} style={{ ...s.refreshBtn, background: "rgba(220,38,38,0.25)", borderColor: "rgba(220,38,38,0.4)" }}>Logout</button>
         </div>
       </div>
 
       {/* TAB BAR */}
-      <div style={s.tabBar}>
+      <div style={s.tabBar} className="staff-tabbar" role="tablist" aria-label="Staff dashboard sections">
         {[
           { id: "orders", label: "📦 Orders" },
           { id: "pos",    label: "🏪 Walk-in POS" },
         ].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+          <button key={tab.id} role="tab" aria-selected={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}
             style={{ ...s.tab, ...(activeTab === tab.id ? s.tabActive : {}) }}>
             {tab.label}
             {tab.id === "pos" && posCart.length > 0 && (
@@ -567,43 +864,48 @@ export default function StaffDashboard() {
       </div>
 
       {/* BODY */}
-      <div style={s.body}>
+      <div style={s.body} className="staff-body">
 
         {/* ═══════════════ ORDERS TAB ═══════════════ */}
         {activeTab === "orders" && (
           <>
             <StatsBar orders={safeArray(orders)} />
-            <div style={s.layout}>
+            <div style={s.layout} className="staff-orders-layout">
               {/* Orders table */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={s.card}>
-                  <div style={s.toolbar}>
+                <div style={s.card} className="staff-orders-card">
+                  <div style={s.toolbar} className="staff-toolbar">
                     <div>
                       <h2 style={s.cardTitle}>📦 Orders</h2>
                       <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#9ca3af" }}>
                         Staff view — approve and complete orders only
                       </p>
                     </div>
-                    <div style={s.controls}>
+                    <div style={s.controls} className="staff-toolbar-controls">
                       <div style={s.searchWrap}>
                         <span style={{ color: "#aaa", fontSize: "14px" }}>🔍</span>
-                        <input placeholder="Search name or token…" value={search} onChange={e => setSearch(e.target.value)} style={s.searchInput} />
+                        <input aria-label="Search orders by name or token" placeholder="Search name or token…" value={search} onChange={e => setSearch(e.target.value)} style={s.searchInput} />
                       </div>
-                      <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={s.select}>
+                      <select aria-label="Filter orders by status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={s.select}>
                         <option value="all">All Status</option>
                         <option value="Pending">Pending</option>
                         <option value="Approved">Approved</option>
                         <option value="Completed">Completed</option>
                         <option value="Cancelled">Cancelled</option>
                       </select>
-                      <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={s.select}>
+                      <select aria-label="Filter orders by type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={s.select}>
                         <option value="all">All Types</option>
                         <option value="online">Online</option>
                         <option value="walk-in">Walk-in</option>
                       </select>
                     </div>
+                    <div className="staff-toolbar-summary" aria-live="polite">
+                      <span>{sorted.length} order{sorted.length === 1 ? "" : "s"}</span>
+                      {statusFilter !== "all" && <span>· {statusFilter}</span>}
+                      {typeFilter !== "all" && <span>· {typeFilter === "walk-in" ? "Walk-in" : "Online"}</span>}
+                    </div>
                   </div>
-
+                  
                   {loading ? (
                     <div style={s.loading}>
                       <div style={s.spinner} />
@@ -623,22 +925,32 @@ export default function StaffDashboard() {
                       )}
                     </div>
                   ) : (
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
-                            {["Patient / Token", "Items", "Total", "Type", "Status", "Action"].map(h => (
-                              <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sorted.map((order, idx) => (
-                            <OrderRow key={order._id} order={order} idx={idx} onAction={handleAction} />
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
+                    <>
+                      <div className="staff-orders-desktop">
+                        <div className="staff-orders-table-wrap" role="region" aria-label="Orders table" tabIndex="0">
+                          <div className="staff-mobile-note">↔ Swipe left or right to view order details</div>
+                          <table className="staff-orders-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead>
+                              <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
+                                {["Patient / Token", "Items", "Total", "Type", "Status", "Action"].map(h => (
+                                  <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sorted.map((order, idx) => (
+                                <OrderRow key={order._id} order={order} idx={idx} onAction={handleAction} />
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                      <div className="staff-orders-mobile-list">
+                        {sorted.map((order, idx) => (
+                          <MobileOrderCard key={order._id} order={order} idx={idx} onAction={handleAction} />
+                        ))}
+                      </div>
+                    </>
                   )}
 
                   {!loading && (
@@ -651,8 +963,8 @@ export default function StaffDashboard() {
               </div>
 
               {/* Queue + permissions */}
-              <div style={{ width: "250px", flexShrink: 0 }}>
-                <QueuePanel orders={safeArray(orders)} />
+              <div style={{ width: "250px", flexShrink: 0 }} className="staff-side-column">
+                <QueuePanel orders={safeArray(orders)} queueState={queueState} />
                 <div style={{ background: "white", borderRadius: "12px", padding: "16px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", marginTop: "16px" }}>
                   <div style={{ fontSize: "12px", fontWeight: "700", color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>Staff Permissions</div>
                   {[
@@ -676,25 +988,25 @@ export default function StaffDashboard() {
 
         {/* ═══════════════ POS TAB ═══════════════ */}
         {activeTab === "pos" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "20px", alignItems: "start" }}>
+          <div className="staff-pos-grid" style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "20px", alignItems: "start" }}>
 
             {/* LEFT: Customer info + medicine grid */}
-            <div style={s.card}>
-              <div style={{ padding: "18px 18px 0" }}>
+            <div style={s.card} className="staff-pos-card">
+              <div className="staff-pos-card-head" style={{ padding: "18px 18px 0" }}>
                 <h2 style={{ ...s.cardTitle, marginBottom: "4px" }}>🏪 Walk-in Point of Sale</h2>
                 <p style={{ margin: "0 0 16px", fontSize: "12px", color: "#9ca3af" }}>
                   Create an in-person medicine order and print a receipt instantly
                 </p>
 
                 {/* Customer fields */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+                <div className="staff-pos-customer-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
                   <div>
                     <label style={s.fieldLabel}>Customer Name <span style={{ color: "#dc2626" }}>*</span></label>
-                    <input placeholder="Enter full name" value={posCustomerName} onChange={e => setPosCustomerName(e.target.value)} style={s.fieldInput} />
+                    <input aria-label="Customer name" placeholder="Enter full name" value={posCustomerName} onChange={e => setPosCustomerName(e.target.value)} style={s.fieldInput} />
                   </div>
                   <div>
                     <label style={s.fieldLabel}>Phone Number</label>
-                    <input placeholder="Phone to look up account" value={posCustomerPhone} onChange={e => handlePhoneChange(e.target.value)} style={s.fieldInput} />
+                    <input aria-label="Customer phone number" inputMode="numeric" type="tel" placeholder="Phone to look up account" value={posCustomerPhone} onChange={e => handlePhoneChange(e.target.value)} style={s.fieldInput} />
                     {posSearchingUser && <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "4px" }}>🔍 Looking up account…</p>}
                     {posMatchedUser && (
                       <div style={{ marginTop: "5px", padding: "6px 10px", background: "#dcfce7", borderRadius: "7px", fontSize: "12px", color: "#166534" }}>
@@ -712,7 +1024,7 @@ export default function StaffDashboard() {
                 {/* Payment method */}
                 <div style={{ marginBottom: "16px" }}>
                   <label style={s.fieldLabel}>Payment Method</label>
-                  <div style={{ display: "flex", gap: "8px" }}>
+                  <div className="staff-pos-payment-options" style={{ display: "flex", gap: "8px" }}>
                     {[["cash","💵 Cash"],["upi","📱 UPI"],["card","💳 Card"]].map(([method, label]) => (
                       <button key={method} onClick={() => setPosPaymentMethod(method)}
                         style={{ padding: "8px 16px", borderRadius: "8px", fontWeight: "600", fontSize: "13px", cursor: "pointer", transition: "all 0.15s",
@@ -728,9 +1040,9 @@ export default function StaffDashboard() {
                 {/* Medicine search */}
                 <div style={{ marginBottom: "14px" }}>
                   <label style={s.fieldLabel}>Search & Add Medicines</label>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "0 12px", height: "36px" }}>
+                  <div className="staff-pos-search" style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "0 12px", height: "36px" }}>
                     <span style={{ color: "#aaa" }}>🔍</span>
-                    <input placeholder="Search medicine name…" value={posSearch} onChange={e => setPosSearch(e.target.value)}
+                    <input aria-label="Search medicines" placeholder="Search medicine name…" value={posSearch} onChange={e => setPosSearch(e.target.value)}
                       style={{ border: "none", background: "transparent", outline: "none", fontSize: "13px", color: "#111", width: "100%" }} />
                     {posSearch && (
                       <button onClick={() => setPosSearch("")} style={{ border: "none", background: "none", cursor: "pointer", color: "#aaa", fontSize: "14px" }}>✕</button>
@@ -740,8 +1052,8 @@ export default function StaffDashboard() {
               </div>
 
               {/* Medicine grid */}
-              <div style={{ padding: "0 18px 18px" }}>
-                {/* ✅ Show loading skeleton while medicines fetch */}
+              <div className="staff-pos-medicine-section" style={{ padding: "0 18px 18px" }}>
+                {/* Show loading skeleton while medicines fetch */}
                 {medLoading ? (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(148px,1fr))", gap: "10px" }}>
                     {[1,2,3,4,5,6].map(i => (
@@ -765,12 +1077,15 @@ export default function StaffDashboard() {
                     )}
                   </div>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(148px,1fr))", gap: "10px", maxHeight: "420px", overflowY: "auto" }}>
+                  <div className="staff-pos-medicine-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(148px,1fr))", gap: "10px", maxHeight: "420px", overflowY: "auto" }}>
                     {posFilteredMedicines.map(m => {
                       const inCart = posCart.find(i => i._id === m._id);
                       const oos    = m.stock <= 0;
                       return (
-                        <div key={m._id} onClick={() => !oos && posAddToCart(m)}
+                        <div key={m._id} className="staff-pos-medicine-card" role="button" tabIndex={oos ? -1 : 0}
+                          aria-label={oos ? m.name + " is out of stock" : "Add " + m.name + " to order"}
+                          onClick={() => !oos && posAddToCart(m)}
+                          onKeyDown={e => { if (!oos && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); posAddToCart(m); } }}
                           style={{ border: inCart ? "2px solid #166534" : "1px solid #e5e7eb", borderRadius: "10px", padding: "12px",
                             cursor: oos ? "not-allowed" : "pointer",
                             background: oos ? "#f9fafb" : inCart ? "#f0fdf4" : "white",
@@ -780,12 +1095,15 @@ export default function StaffDashboard() {
                               {inCart.quantity}
                             </div>
                           )}
-                          {m.img && <img src={m.img} alt={m.name} style={{ width: "100%", height: "60px", objectFit: "cover", borderRadius: "6px", marginBottom: "8px" }} />}
-                          <div style={{ fontSize: "13px", fontWeight: "600", color: "#111", marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
-                          <div style={{ fontSize: "14px", fontWeight: "700", color: "#166534", marginBottom: "2px" }}>Rs.{m.price}</div>
-                          <div style={{ fontSize: "11px", color: oos ? "#dc2626" : m.stock <= (m.lowStockThreshold || 10) ? "#92400e" : "#9ca3af" }}>
+                          {m.img ? <img className="staff-pos-medicine-image" src={m.img} alt={m.name} style={{ width: "100%", height: "60px", objectFit: "cover", borderRadius: "6px", marginBottom: "8px" }} /> : <div className="staff-pos-medicine-image staff-pos-medicine-image--empty" aria-hidden="true">💊</div>}
+                          <div className="staff-pos-medicine-name" style={{ fontSize: "13px", fontWeight: "600", color: "#111", marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                          <div className="staff-pos-medicine-price" style={{ fontSize: "14px", fontWeight: "700", color: "#166534", marginBottom: "2px" }}>Rs.{m.price}</div>
+                          <div className="staff-pos-medicine-stock" style={{ fontSize: "11px", color: oos ? "#dc2626" : m.stock <= (m.lowStockThreshold || 10) ? "#92400e" : "#9ca3af" }}>
                             {oos ? "Out of stock" : `Stock: ${m.stock}`}
                           </div>
+                          <button type="button" className="staff-pos-add-button" disabled={oos} onClick={e => { e.stopPropagation(); if (!oos) posAddToCart(m); }}>
+                            {oos ? "Unavailable" : inCart ? `Add more · ${inCart.quantity}` : "＋ Add"}
+                          </button>
                         </div>
                       );
                     })}
@@ -795,16 +1113,16 @@ export default function StaffDashboard() {
             </div>
 
             {/* RIGHT: Cart */}
-            <div style={{ position: "sticky", top: "20px" }}>
+            <div className="staff-pos-cart staff-pos-cart-card" style={{ position: "sticky", top: "20px" }}>
               <div style={{ ...s.card, border: "2px solid #166534" }}>
-                <div style={{ padding: "14px 18px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="staff-pos-cart-head" style={{ padding: "14px 18px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#166534" }}>🛒 Order Summary</h3>
                   {posCart.length > 0 && (
                     <button onClick={posReset} style={{ border: "none", background: "none", cursor: "pointer", fontSize: "12px", color: "#9ca3af" }}>Clear all</button>
                   )}
                 </div>
 
-                <div style={{ padding: "14px 18px" }}>
+                <div className="staff-pos-cart-body" style={{ padding: "14px 18px" }}>
                   {posCart.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "32px 16px", color: "#9ca3af" }}>
                       <div style={{ fontSize: "36px", marginBottom: "8px" }}>🛒</div>
@@ -814,18 +1132,18 @@ export default function StaffDashboard() {
                     <>
                       <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxHeight: "260px", overflowY: "auto", marginBottom: "8px" }}>
                         {posCart.map(item => (
-                          <div key={item._id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0", borderBottom: "1px solid #f9fafb" }}>
+                          <div key={item._id} className="staff-pos-cart-item" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0", borderBottom: "1px solid #f9fafb" }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: "13px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</div>
                               <div style={{ fontSize: "11px", color: "#9ca3af" }}>Rs.{item.price} each</div>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                              <button onClick={() => posChangeQty(item._id, -1)} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                            <div className="staff-pos-qty-controls" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                              <button onClick={() => posChangeQty(item._id, -1)} aria-label={"Decrease " + item.name + " quantity"} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                               <span style={{ fontWeight: "700", minWidth: "20px", textAlign: "center", fontSize: "13px" }}>{item.quantity}</span>
-                              <button onClick={() => posChangeQty(item._id, 1)} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                              <button onClick={() => posChangeQty(item._id, 1)} aria-label={"Increase " + item.name + " quantity"} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                             </div>
                             <div style={{ fontWeight: "700", color: "#166534", minWidth: "54px", textAlign: "right", fontSize: "13px" }}>Rs.{Number(item.price) * item.quantity}</div>
-                            <button onClick={() => posRemoveFromCart(item._id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: "14px", padding: "0", flexShrink: 0 }}>✕</button>
+                            <button onClick={() => posRemoveFromCart(item._id)} aria-label={"Remove " + item.name} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: "14px", padding: "0", flexShrink: 0 }}>✕</button>
                           </div>
                         ))}
                       </div>
@@ -846,7 +1164,7 @@ export default function StaffDashboard() {
                         </div>
                       )}
 
-                      <button onClick={posPlaceOrder} disabled={posPlacing}
+                      <button className="staff-pos-complete-button" onClick={posPlaceOrder} disabled={posPlacing}
                         style={{ width: "100%", padding: "13px", background: posPlacing ? "#9ca3af" : "#166534", color: "white", border: "none", borderRadius: "10px", fontWeight: "700", fontSize: "14px", cursor: posPlacing ? "not-allowed" : "pointer", transition: "background 0.15s" }}>
                         {posPlacing ? "⏳ Creating order…" : "✅ Complete Sale & Print Receipt"}
                       </button>

@@ -127,15 +127,17 @@ export default function Navbar() {
         }
       `}</style>
 
-      <nav id="nav-root" style={{
+      <nav id="nav-root" aria-label="Primary navigation" style={{
         position:       "fixed",
         top: 0, left: 0, right: 0,
         zIndex:         1000,
         transition:     "background .35s, box-shadow .35s, padding .35s",
-        background:     isSolid ? "rgba(11,61,31,0.97)" : "transparent",
-        backdropFilter: isSolid ? "blur(18px)" : "none",
-        boxShadow:      isSolid ? "0 4px 32px rgba(0,0,0,0.22)" : "none",
-        padding:        isSolid ? "10px 0" : "18px 0",
+        background:     isSolid ? "rgba(11,61,31,0.96)" : "rgba(11,61,31,0.34)",
+        backdropFilter: "blur(18px)",
+        WebkitBackdropFilter: "blur(18px)",
+        borderBottom:  isSolid ? "1px solid rgba(255,255,255,0.10)" : "1px solid rgba(255,255,255,0.08)",
+        boxShadow:      isSolid ? "0 8px 32px rgba(0,0,0,0.18)" : "none",
+        padding:        isSolid ? "9px 0" : "14px 0",
       }}>
 
         <div style={{
@@ -145,7 +147,7 @@ export default function Navbar() {
         }}>
 
           {/* LOGO */}
-          <a href="/" style={{
+          <a href="/" aria-label="Clinic home" style={{
             textDecoration: "none",
             display: "flex", alignItems: "center", gap: "10px",
           }}>
@@ -308,7 +310,11 @@ export default function Navbar() {
             </div>
 
             <button
+              type="button"
               className="nav-burger"
+              aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-expanded={menuOpen}
+              aria-controls="mobile-navigation"
               onClick={() => setMenuOpen(m => !m)}
               style={{
                 background: "rgba(255,255,255,0.1)", border: "none",
@@ -336,9 +342,11 @@ export default function Navbar() {
 
         {/* ── MOBILE MENU ── */}
         {menuOpen && (
-          <div style={{
+          <div id="mobile-navigation" role="menu" style={{
             position: "absolute", top: "100%", left: 0, right: 0,
-            background: "rgba(11,61,31,0.98)", backdropFilter: "blur(18px)",
+            background: "rgba(11,61,31,0.98)", backdropFilter: "blur(20px)",
+            WebkitBackdropFilter: "blur(20px)",
+            borderTop: "1px solid rgba(255,255,255,0.08)",
             padding: "20px 24px 28px",
             animation: "menuDown .25s ease",
             boxShadow: "0 20px 40px rgba(0,0,0,0.3)",

@@ -54,9 +54,20 @@ export default function Appointment() {
 
   useEffect(() => {
     fetch(`${BASE_URL}/appointment-settings/public`)
-      .then(r => r.json())
-      .then(data => setSettings(data))
-      .catch(() => setSettings({ defaultStartTime: "09:00", defaultEndTime: "18:00", slotDurationMins: 20 }));
+      .then(r => {
+        if (!r.ok) throw new Error("Appointment settings unavailable");
+        return r.json();
+      })
+      .then(data => setSettings({
+        defaultStartTime: data.defaultStartTime || "09:00",
+        defaultEndTime: data.defaultEndTime || "18:00",
+        slotDurationMins: Number(data.slotDurationMins) || 20,
+      }))
+      .catch(() => setSettings({
+        defaultStartTime: "09:00",
+        defaultEndTime: "18:00",
+        slotDurationMins: 20,
+      }));
   }, []);
 
   useEffect(() => {
@@ -73,8 +84,14 @@ export default function Appointment() {
   };
 
   const handleSubmit = async () => {
-    if (!form.name || !form.time || !form.contact || !form.problem || !form.age) {
+    setError("");
+    const age = Number(form.age);
+    if (!form.name.trim() || !form.time || !form.contact || !form.problem.trim() || !form.age) {
       setError("Please fill all mandatory fields (*)");
+      return;
+    }
+    if (!Number.isInteger(age) || age < 1 || age > 120) {
+      setError("Please enter a valid age between 1 and 120.");
       return;
     }
     if (form.contact.length !== 10) {
@@ -86,21 +103,37 @@ export default function Appointment() {
       const res = await fetch(`${BASE_URL}/appointments`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...form, source: isLoggedIn ? "online" : "guest" }),
+        body: JSON.stringify({
+          ...form,
+          name: form.name.trim(),
+          age,
+          problem: form.problem.trim(),
+          source: isLoggedIn ? "online" : "guest",
+        }),
       });
-      if (res.ok) {
-        window.__appointmentCompleted = true;
-        setSubmitted(true);
-        setTimeout(() => navigate("/"), 3000);
+      if (!res.ok) {
+        let message = "Booking failed. Please try again.";
+        try {
+          const data = await res.json();
+          if (data?.message) message = data.message;
+        } catch {}
+        setError(message);
+        return;
       }
-    } catch { setError("Booking failed. Please try again."); }
-    finally { setSubmitting(false); }
+      window.__appointmentCompleted = true;
+      setSubmitted(true);
+      setTimeout(() => navigate("/"), 3000);
+    } catch {
+      setError("Unable to reach the clinic server. Please try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) return <div style={{ height: "100vh", background: T.g1, display: "flex", alignItems: "center", justifyContent: "center", color: "white" }}><h1>✅ Appointment Confirmed!</h1></div>;
 
   return (
-    <div style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.g1} 0%, ${T.g2} 100%)`, padding: "100px 20px 60px", color: "white" }}>
+    <div className="appointment-shell" style={{ minHeight: "100vh", background: `linear-gradient(160deg, ${T.g1} 0%, ${T.g2} 100%)`, padding: "100px 20px 60px", color: "white" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         .layout-grid { display: grid; grid-template-columns: 1fr 360px; gap: 30px; max-width: 1200px; margin: 0 auto; }
@@ -109,14 +142,37 @@ export default function Appointment() {
           .preview-sidebar { position: static !important; order: 2; } 
           .hero-title { font-size: 42px !important; margin-top: 10px !important; }
           .breadcrumb-wrap { display: none !important; }
+          .personal-grid { grid-template-columns: 1fr !important; }
+          .contact-strip { gap: 12px !important; padding: 12px 18px !important; }
         }
         .slot-btn:hover { border-color: ${T.g4}; background: rgba(34,197,94,0.15); }
         .slot-btn.active { background: ${T.g4} !important; border-color: ${T.g4} !important; color: white !important; font-weight: 800 !important; }
+        .slot-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(34,197,94,.28); }
+        .appointment-input:focus { border-color: ${T.g4} !important; box-shadow: 0 0 0 3px rgba(34,197,94,.12); }
+        .appointment-submit:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(34,197,94,.28); }
+        .appointment-submit:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,255,255,.55), 0 10px 26px rgba(34,197,94,.28); }
         input, textarea { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif !important; }
+        input::placeholder, textarea::placeholder { color: rgba(255,255,255,.42); }
+        input[type="date"] { color-scheme: dark; }
+        .error-message { border: 1px solid rgba(252,165,165,.25); background: rgba(127,29,29,.18); border-radius: 12px; padding: 10px 12px; }
+        @media (max-width: 600px) {
+          .appointment-shell { padding: 84px 14px 40px !important; }
+          .appointment-header { margin-bottom: 30px !important; }
+          .hero-title { font-size: 36px !important; }
+          .form-card, .preview-card { border-radius: 20px !important; }
+          .form-card { padding: 20px !important; }
+          .section-title { font-size: 30px !important; }
+          .slot-btn { min-height: 48px; }
+          .contact-strip { width: 100%; }
+        }
+        @media (max-width: 380px) {
+          .hero-title { font-size: 32px !important; }
+          .slot-btn { padding: 12px 8px !important; }
+        }
       `}</style>
 
       {/* ── HEADER ── */}
-      <div style={{ textAlign: "center", marginBottom: "50px" }}>
+      <div className="appointment-header" style={{ textAlign: "center", marginBottom: "50px" }}>
         <div className="breadcrumb-wrap" style={{ display: "inline-flex", alignItems: "center", gap: "8px", background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)", borderRadius: "50px", padding: "8px 18px", marginBottom: "20px" }}>
           <span style={{ fontSize: "16px" }}>🌿</span>
           <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "11px", color: "white", fontWeight: "800", letterSpacing: "0.15em", textTransform: "uppercase" }}>Dr. Somnath Clinic</span>
@@ -124,7 +180,7 @@ export default function Appointment() {
         <h1 className="hero-title" style={{ fontFamily: "'Cormorant Garamond', serif", fontSize: "64px", fontWeight: "700", color: "white", margin: "0 auto 15px", lineHeight: 1.1 }}>Book an <span style={{ color: T.g4, fontStyle: "italic" }}>Appointment</span></h1>
         <p style={{ fontFamily: "'Plus Jakarta Sans', sans-serif", fontSize: "16px", color: "rgba(255,255,255,0.6)", maxWidth: "550px", margin: "0 auto 30px", lineHeight: 1.6 }}>Natural healing begins with a conversation. Choose your preferred day and time below.</p>
         
-        <div style={{ display: "inline-flex", gap: "25px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "12px 28px", flexWrap: "wrap", justifyContent: "center" }}>
+        <div className="contact-strip" style={{ display: "inline-flex", gap: "25px", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: "16px", padding: "12px 28px", flexWrap: "wrap", justifyContent: "center" }}>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "rgba(255,255,255,0.8)", fontWeight: "600" }}><span style={{color: T.g4}}>📞</span> +91 97524 40622</div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "rgba(255,255,255,0.8)", fontWeight: "600" }}><span style={{color: T.g4}}>🕐</span> 09:00 AM – 06:00 PM</div>
           <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "13px", color: "rgba(255,255,255,0.8)", fontWeight: "600" }}><span style={{color: T.g4}}>📅</span> Mon – Sat</div>
@@ -133,35 +189,35 @@ export default function Appointment() {
 
       <div className="layout-grid">
         {/* FORM SECTION */}
-        <div style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderRadius: "28px", border: "1px solid rgba(255,255,255,0.12)", padding: "clamp(20px, 5vw, 40px)" }}>
-          <h2 style={{ fontFamily: "'Cormorant Garamond', serif", color: "white", fontSize: "36px", fontWeight: "700", marginBottom: "40px", textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "20px" }}>Appointment Details</h2>
+        <div className="form-card" style={{ background: "rgba(255,255,255,0.05)", backdropFilter: "blur(20px)", borderRadius: "28px", border: "1px solid rgba(255,255,255,0.12)", padding: "clamp(20px, 5vw, 40px)" }}>
+          <h2 className="section-title" style={{ fontFamily: "'Cormorant Garamond', serif", color: "white", fontSize: "36px", fontWeight: "700", marginBottom: "40px", textAlign: "center", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "20px" }}>Appointment Details</h2>
           
           <h3 style={{ color: T.gold, fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: "25px" }}>Personal Information</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
-            <div><label style={S.label}>Full Name *</label><input style={S.input} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Patient's Name" /></div>
-            <div><label style={S.label}>Age *</label><input style={S.input} type="number" value={form.age} onChange={e => setForm({...form, age: e.target.value})} placeholder="Age" /></div>
+          <div className="personal-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
+            <div><label htmlFor="appointment-name" style={S.label}>Full Name *</label><input id="appointment-name" className="appointment-input" style={S.input} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Patient's Name" /></div>
+            <div><label htmlFor="appointment-age" style={S.label}>Age *</label><input id="appointment-age" className="appointment-input" style={S.input} type="number" value={form.age} onChange={e => setForm({...form, age: e.target.value})} placeholder="Age" /></div>
           </div>
           <div style={{ marginBottom: "20px" }}>
-            <label style={S.label}>Phone Number *</label>
-            <input style={S.input} type="tel" value={form.contact} onChange={handlePhoneChange} placeholder="10-digit mobile number" maxLength="10" />
+            <label htmlFor="appointment-phone" style={S.label}>Phone Number *</label>
+            <input id="appointment-phone" className="appointment-input" style={S.input} type="tel" value={form.contact} onChange={handlePhoneChange} placeholder="10-digit mobile number" maxLength="10" />
           </div>
-          <div style={{ marginBottom: "30px" }}><label style={S.label}>Describe Health Concern *</label><textarea style={{ ...S.input, height: "110px", resize: "none" }} value={form.problem} onChange={e => setForm({...form, problem: e.target.value})} placeholder="Describe your symptoms..." /></div>
+          <div style={{ marginBottom: "30px" }}><label htmlFor="appointment-problem" style={S.label}>Describe Health Concern *</label><textarea id="appointment-problem" className="appointment-input" style={{ ...S.input, height: "110px", resize: "none" }} value={form.problem} onChange={e => setForm({...form, problem: e.target.value})} placeholder="Describe your symptoms..." /></div>
 
           <div style={{ marginBottom: "30px", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "30px" }}>
-            <label style={S.label}>Select Date *</label>
-            <input type="date" style={{ ...S.input, width: "auto" }} value={form.date} min={toDateStr(new Date())} onChange={e => setForm({...form, date: e.target.value})} />
+            <label htmlFor="appointment-date" style={S.label}>Select Date *</label>
+            <input id="appointment-date" className="appointment-input" type="date" style={{ ...S.input, width: "auto" }} value={form.date} min={toDateStr(new Date())} onChange={e => setForm({...form, date: e.target.value})} />
           </div>
           <label style={S.label}>Select Time Slot *</label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "12px" }}>
             {availableSlots.length > 0 ? availableSlots.map(slot => (
-              <button key={slot} className={`slot-btn ${form.time === slot ? "active" : ""}`} onClick={() => setForm({...form, time: slot})} style={S.slotBtn}>{slot}</button>
+              <button key={slot} className={`slot-btn ${form.time === slot ? "active" : ""}`} type="button" aria-pressed={form.time === slot} onClick={() => setForm({...form, time: slot})} style={S.slotBtn}>{slot}</button>
             )) : <p style={{ fontSize: "14px", color: "#fca5a5", fontWeight: "600" }}>No remaining slots for today.</p>}
           </div>
         </div>
 
         {/* SIDEBAR PREVIEW */}
         <aside className="preview-sidebar" style={{ position: "sticky", top: "100px", height: "fit-content" }}>
-          <div style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(30px)", borderRadius: "28px", border: "1px solid rgba(255,255,255,0.18)", padding: "30px" }}>
+          <div className="preview-card" style={{ background: "rgba(255,255,255,0.06)", backdropFilter: "blur(30px)", borderRadius: "28px", border: "1px solid rgba(255,255,255,0.18)", padding: "30px" }}>
             <h3 style={{ color: T.gold, fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.15em", marginBottom: "25px", borderBottom: "1px solid rgba(255,255,255,0.1)", paddingBottom: "12px" }}>Live Preview</h3>
             
             <div style={S.previewItem}><div style={S.prevLabel}>Patient</div><div style={S.prevVal}>{form.name || "—"}</div></div>
@@ -169,9 +225,9 @@ export default function Appointment() {
             <div style={S.previewItem}><div style={S.prevLabel}>Health Concern</div><div style={{ ...S.prevVal, fontSize: '13px', fontWeight: '400', color: 'rgba(255,255,255,0.6)', fontStyle: 'italic' }}>{form.problem || "Not described yet"}</div></div>
             <div style={S.previewItem}><div style={S.prevLabel}>Scheduled</div><div style={{ ...S.prevVal, color: T.g4, fontWeight: "800" }}>{form.date} {form.time ? `@ ${form.time}` : ""}</div></div>
 
-            {error && <div style={{ color: "#fca5a5", fontSize: "13px", marginBottom: "15px", fontWeight: "700", textAlign: "center" }}>{error}</div>}
+            {error && <div className="error-message" style={{ color: "#fca5a5", fontSize: "13px", marginBottom: "15px", fontWeight: "700", textAlign: "center" }}>{error}</div>}
 
-            <button onClick={handleSubmit} disabled={submitting} style={{ width: "100%", padding: "16px", background: (form.time && form.name && form.contact.length === 10) ? `linear-gradient(135deg, ${T.g3}, ${T.g4})` : "rgba(255,255,255,0.1)", border: "none", borderRadius: "14px", color: "white", fontWeight: "800", cursor: (form.time && form.name && form.contact.length === 10) ? "pointer" : "not-allowed", transition: "0.4s" }}>
+            <button type="button" className="appointment-submit" onClick={handleSubmit} disabled={submitting} style={{ width: "100%", padding: "16px", background: (form.time && form.name && form.contact.length === 10) ? `linear-gradient(135deg, ${T.g3}, ${T.g4})` : "rgba(255,255,255,0.1)", border: "none", borderRadius: "14px", color: "white", fontWeight: "800", cursor: (form.time && form.name && form.contact.length === 10) ? "pointer" : "not-allowed", transition: "0.4s" }}>
               {submitting ? "Booking..." : "Confirm & Book Now"}
             </button>
           </div>

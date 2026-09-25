@@ -21,6 +21,18 @@ const STATUS_MAP = {
 };
 const getStatus = (s) => STATUS_MAP[(s || "").toLowerCase()] || STATUS_MAP.pending;
 
+const formatAppointmentDate = (value) => {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const parts = String(value).split("-");
+  if (parts.length === 3 && parts[0].length === 4) {
+    const fallback = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    if (!Number.isNaN(fallback.getTime())) return fallback.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  }
+  return String(value);
+};
+
 const timeAgo = (iso) => {
   if (!iso) return "";
   const d = Math.floor((Date.now() - new Date(iso)) / 60000);
@@ -119,7 +131,15 @@ function ProfilePhotoUploader({initials,photo,onPhotoChange}){
     reader.readAsDataURL(f);
   };
   return(
-    <div style={{position:"relative",display:"inline-block",cursor:"pointer"}} onClick={()=>fileRef.current?.click()} title="Click to change profile photo">
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label="Change profile photo"
+      onClick={()=>fileRef.current?.click()}
+      onKeyDown={(e)=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fileRef.current?.click();}}}
+      style={{position:"relative",display:"inline-block",cursor:"pointer"}}
+      title="Click to change profile photo"
+    >
       <div style={{width:"68px",height:"68px",borderRadius:"18px",background:photo?"transparent":"linear-gradient(135deg,#166534,#4ade80)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:"800",fontSize:"22px",flexShrink:0,overflow:"hidden",border:"3px solid white",boxShadow:"0 4px 14px rgba(0,0,0,0.15)"}}>
         {photo?<img src={photo} alt="Profile" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:uploading?"…":initials}
       </div>
@@ -189,7 +209,7 @@ export default function UserDashboard() {
 
   // ORDERS
   const fetchOrders = useCallback(() => {
-    api.get("/order/my")
+    api.get("/orders/my")
       .then((res) => { if (Array.isArray(res.data)) setOrders(res.data); })
       .catch(() => setOrders(safeReadArray("orders")))
       .finally(() => setOrdersLoading(false));
@@ -265,7 +285,7 @@ export default function UserDashboard() {
   const lastApt      = appointments[0];
 
   const notifications = [];
-  if (lastApt && lastApt.status === "Confirmed") notifications.push({ icon: "📅", bg: "#dbeafe", text: <span>Your appointment on <strong>{lastApt.date} at {lastApt.time}</strong> is confirmed</span>, time: timeAgo(lastApt.bookedAt) });
+  if (lastApt && lastApt.status === "Confirmed") notifications.push({ icon: "📅", bg: "#dbeafe", text: <span>Your appointment on <strong>{formatAppointmentDate(lastApt.date)} at {lastApt.time || "—"}</strong> is confirmed</span>, time: timeAgo(lastApt.bookedAt) });
   if (lastOrder && lastOrder.status === "Delivered") notifications.push({ icon: "✅", bg: "#dcfce7", text: <span>Order <strong>#{lastOrder._id?.toString().slice(-6).toUpperCase()}</strong> has been delivered</span>, time: timeAgo(lastOrder.createdAt) });
   if (lastOrder && lastOrder.status === "Out for Delivery") notifications.push({ icon: "🚚", bg: "#fef3c7", text: <span>Order <strong>#{lastOrder._id?.toString().slice(-6).toUpperCase()}</strong> is on its way!</span>, time: timeAgo(lastOrder.createdAt) });
   if (lastOrder && lastOrder.status === "Approved") notifications.push({ icon: "🔄", bg: "#dbeafe", text: <span>Order <strong>#{lastOrder._id?.toString().slice(-6).toUpperCase()}</strong> has been approved</span>, time: timeAgo(lastOrder.createdAt) });
@@ -274,10 +294,20 @@ export default function UserDashboard() {
   const generateReceipt = (order) => {
     if (!order) return;
     const w = window.open("", "_blank");
+    if (!w) return;
     const items = Array.isArray(order.items) ? order.items : [];
-    const rows = items.map(item => `<tr><td style='padding:8px;border-bottom:1px solid #eee;'>${item.name || "-"}</td><td style='padding:8px;border-bottom:1px solid #eee;'>Rs.${item.price || 0}</td><td style='padding:8px;border-bottom:1px solid #eee;'>${item.quantity || 1}</td></tr>`).join("");
+    const esc = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+    const rows = items.map(item => "<tr><td>" + esc(item.name || "-") + "</td><td>Rs." + Number(item.price || 0).toLocaleString("en-IN") + "</td><td>" + Number(item.quantity || 1) + "</td><td>Rs." + (Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString("en-IN") + "</td></tr>").join("");
     const id = order._id ? order._id.toString().slice(-6).toUpperCase() : "N/A";
-    w.document.write(`<html><head><title>Receipt #${id}</title></head><body style='font-family:Arial,sans-serif;padding:30px;max-width:600px;margin:auto;'><h2 style='color:#166534;text-align:center;'>Digital Clinic</h2><p style='text-align:center;color:#888;'>Order Receipt</p><hr/><p><strong>Order ID:</strong> #${id}</p><p><strong>Date:</strong> ${order.createdAt?new Date(order.createdAt).toLocaleString():"N/A"}</p><p><strong>Payment:</strong> ${order.paymentMethod||"Cash"}</p><p><strong>Status:</strong> ${order.status||"Pending"}</p><table style='width:100%;border-collapse:collapse;margin-top:15px;'><thead><tr style='background:#f0fdf4;'><th style='padding:8px;text-align:left;'>Medicine</th><th style='padding:8px;text-align:left;'>Price</th><th style='padding:8px;text-align:left;'>Qty</th></tr></thead><tbody>${rows}</tbody></table><h3 style='text-align:right;'>Total: Rs.${order.total}</h3><hr/><p style='text-align:center;color:#888;font-size:12px;'>Thank you for choosing Digital Clinic!</p><script>window.onload=function(){window.print();}</script></body></html>`);
+    const date = order.createdAt ? new Date(order.createdAt).toLocaleString("en-IN") : "N/A";
+    const html = "<html><head><title>Digital Clinic · Receipt #" + esc(id) + "</title><style>" +
+      "*{box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f3f7f4;color:#17231b;margin:0;padding:28px}.receipt{max-width:680px;margin:auto;background:#fff;padding:34px;border-radius:18px;box-shadow:0 8px 30px rgba(15,26,19,.10)}" +
+      ".brand{display:flex;align-items:center;gap:12px;padding-bottom:20px;border-bottom:1px solid #e4ece7}.logo{width:48px;height:48px;border-radius:14px;background:#166534;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800}.brand-name{font-size:22px;font-weight:800;color:#0b3d1f}.brand-sub{font-size:11px;color:#697a6e;margin-top:3px}.receipt-title{margin:22px 0 14px;font-size:20px;font-weight:800}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f7faf8;border:1px solid #e4ece7;border-radius:12px;padding:14px;font-size:12px}.meta span{color:#697a6e}.meta strong{display:block;margin-top:3px}table{width:100%;border-collapse:collapse;margin-top:20px}th{text-align:left;background:#f0fdf4;color:#166534;font-size:11px;text-transform:uppercase;padding:10px}td{padding:11px 10px;border-bottom:1px solid #eef2ef;font-size:12px}.total{display:flex;justify-content:space-between;margin-top:18px;padding-top:16px;border-top:2px solid #166534;font-size:15px;font-weight:800}.total strong{font-size:20px;color:#166534}.footer{text-align:center;color:#697a6e;font-size:11px;margin-top:28px;padding-top:18px;border-top:1px solid #e4ece7}@media print{body{background:#fff;padding:0}.receipt{box-shadow:none;border-radius:0;max-width:none;padding:20px}}" +
+      "</style></head><body><div class='receipt'><div class='brand'><div class='logo'>DC</div><div><div class='brand-name'>Digital Clinic</div><div class='brand-sub'>Clinic &amp; Pharmacy Management</div></div></div>" +
+      "<div class='receipt-title'>Order Receipt</div><div class='meta'><div><span>Order ID</span><strong>#" + esc(id) + "</strong></div><div><span>Date</span><strong>" + esc(date) + "</strong></div><div><span>Payment</span><strong>" + esc(order.paymentMethod || "Cash").toUpperCase() + "</strong></div><div><span>Status</span><strong>" + esc(order.status || "Pending") + "</strong></div></div>" +
+      "<table><thead><tr><th>Medicine</th><th>Unit Price</th><th>Qty</th><th>Total</th></tr></thead><tbody>" + rows + "</tbody></table><div class='total'><span>Total Amount</span><strong>Rs." + Number(order.total || 0).toLocaleString("en-IN") + "</strong></div>" +
+      "<div class='footer'>Thank you for choosing Digital Clinic.<br/>Please retain this receipt for your records.</div></div><script>window.onload=function(){window.print();}</script></body></html>";
+    w.document.write(html);
     w.document.close();
   };
 
@@ -299,44 +329,90 @@ export default function UserDashboard() {
   const initials = (userInfo.name || "U").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "'Plus Jakarta Sans', 'Nunito', system-ui, sans-serif", display: "flex" }}>
+    <div className="patient-dashboard" style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "'Plus Jakarta Sans', 'Nunito', system-ui, sans-serif", display: "flex" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         @keyframes skshimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .nav-item:hover { background: rgba(22,101,52,0.08) !important; color: #166534 !important; }
-        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.12) !important; }
-        .order-card:hover { border-color: #86efac !important; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.08) !important; }
-        .reorder-btn:hover { background: #166534 !important; color: white !important; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+        *{box-sizing:border-box}
+        ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+        .nav-item:hover{background:rgba(22,101,52,.08)!important;color:#166534!important}
+        .action-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.12)!important}
+        .order-card:hover{border-color:#86efac!important;transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.08)!important}
+        .reorder-btn:hover{background:#166534!important;color:white!important}
+        .patient-dashboard button:focus-visible,.patient-dashboard a:focus-visible,.patient-dashboard input:focus-visible{outline:3px solid rgba(34,197,94,.28);outline-offset:2px}
+        .patient-sidebar .nav-item[aria-current="page"]{background:rgba(255,255,255,.17)!important;color:#fff!important}
+        .patient-sidebar-utilities a:hover{background:rgba(255,255,255,.18)!important;transform:translateY(-1px)}
+        .patient-sidebar-utilities button:hover{background:rgba(239,68,68,.32)!important;transform:translateY(-1px)}
+        .patient-sidebar-utilities a,.patient-sidebar-utilities button{transition:background .15s ease,transform .15s ease}
+        .patient-stat:hover{box-shadow:0 8px 24px rgba(15,60,35,.08)}
+        .patient-mobile-bottom-nav{display:none}\n        .patient-main{margin-left:72px}
+        .patient-mobile-nav-item{font-family:inherit}
+        @media(max-width:980px){.patient-content{grid-template-columns:1fr!important}.patient-aside{position:static!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
+        @media(max-width:720px){
+          .patient-dashboard{display:block!important}
+          .patient-sidebar{display:none!important}
+          .patient-mobile-bottom-nav{display:flex;position:fixed;left:0;right:0;bottom:0;height:68px;background:rgba(255,255,255,.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid #e2e8f0;box-shadow:0 -8px 24px rgba(15,23,42,.08);z-index:100;align-items:stretch;justify-content:space-around;padding:5px 6px calc(5px + env(safe-area-inset-bottom))}
+          .patient-mobile-nav-item{flex:1;min-width:0;border:0;background:transparent;color:#64748b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:10px;font-size:9px;font-weight:700;cursor:pointer;padding:4px 2px}
+          .patient-mobile-nav-icon{font-size:19px;line-height:1}
+          .patient-mobile-nav-item.is-active{background:#ecfdf3;color:#166534}
+          .patient-mobile-nav-item:focus-visible{outline:3px solid rgba(34,197,94,.28);outline-offset:-2px}
+          .patient-header{padding:12px 16px!important}
+          .patient-header>div:first-child h1{font-size:18px!important}
+          .patient-header>div:last-child>div:first-child{display:none!important}
+          .patient-header>div:last-child>a>div{padding:8px 11px!important}
+          .patient-header>div:last-child>div:last-child{padding:5px 8px!important}
+          .patient-header>div:last-child>div:last-child>div:last-child{display:none}
+          .patient-content{padding:16px 16px 92px!important;gap:16px!important}
+          .patient-aside{grid-template-columns:1fr!important;gap:12px!important}
+        }
+        @media(max-width:480px){.patient-content{padding:12px 12px 92px!important}.patient-header{gap:8px}.patient-header>div:last-child{gap:6px!important}.patient-header>div:last-child>a>div{font-size:11px!important}.patient-dashboard .order-card{padding:15px!important}}
+        @media(prefers-reduced-motion:reduce){.patient-dashboard *,.patient-dashboard *::before,.patient-dashboard *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
       `}</style>
 
       {/* ── SIDEBAR ── */}
-      <aside style={{ width: "72px", background: "linear-gradient(180deg, #0f2419 0%, #166534 100%)", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", position: "sticky", top: 0, height: "100vh", flexShrink: 0, zIndex: 10 }}>
+      <aside className="patient-sidebar" aria-label="Patient dashboard navigation" style={{ width: "72px", background: "linear-gradient(180deg, #0f2419 0%, #166534 100%)", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", position: "fixed", top: 0, left: 0, height: "100vh", flexShrink: 0, zIndex: 100 }}>
         <div style={{ width: "42px", height: "42px", background: "rgba(255,255,255,0.15)", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", marginBottom: "32px" }}>🏥</div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "100%", padding: "0 8px", flex: 1 }}>
           {navItems.map(item => (
             <button key={item.id} className="nav-item" onClick={() => setActiveSection(item.id)}
               title={item.label}
+              aria-label={item.label}
+              aria-current={activeSection === item.id ? "page" : undefined}
+              type="button"
               style={{ width: "100%", padding: "12px 0", border: "none", background: activeSection === item.id ? "rgba(255,255,255,0.15)" : "transparent", color: activeSection === item.id ? "white" : "rgba(255,255,255,0.55)", borderRadius: "10px", cursor: "pointer", fontSize: "18px", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {item.icon}
             </button>
           ))}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "0 8px", width: "100%" }}>
-          <Link to="/store" title="Medicine Store" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 0", background: "rgba(255,255,255,0.1)", borderRadius: "10px", fontSize: "18px", textDecoration: "none" }}>💊</Link>
-          <button onClick={handleLogout} title="Logout" style={{ padding: "12px 0", background: "rgba(239,68,68,0.2)", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "18px", color: "white" }}>🚪</button>
+        <div className="patient-sidebar-utilities" style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "10px 8px 0", width: "100%", borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+          <Link to="/store" title="Medicine Store" aria-label="Medicine Store" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 0", background: "rgba(255,255,255,0.1)", borderRadius: "10px", fontSize: "18px", textDecoration: "none" }}>💊</Link>
+          <button type="button" onClick={handleLogout} title="Logout" aria-label="Logout" style={{ padding: "12px 0", background: "rgba(239,68,68,0.2)", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "18px", color: "white" }}>🚪</button>
         </div>
       </aside>
 
-      {/* ── MAIN AREA ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowY: "auto" }}>
+      <nav className="patient-mobile-bottom-nav" aria-label="Mobile patient navigation">
+        {navItems.map(item => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setActiveSection(item.id)}
+            className={activeSection === item.id ? "patient-mobile-nav-item is-active" : "patient-mobile-nav-item"}
+            aria-current={activeSection === item.id ? "page" : undefined}
+          >
+            <span className="patient-mobile-nav-icon">{item.icon}</span>
+            <span>{item.label === "Overview" ? "Home" : item.label === "Queue Status" ? "Queue" : item.label}</span>
+          </button>
+        ))}
+      </nav>
 
-        <header style={{ background: "white", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e8edf2", position: "sticky", top: 0, zIndex: 9 }}>
+      {/* ── MAIN AREA ── */}
+      <div className="patient-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowY: "auto" }}>
+
+        <header className="patient-header" style={{ background: "white", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e8edf2", position: "sticky", top: 0, zIndex: 9 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: "20px", fontWeight: "800", color: "#1e293b" }}>My Dashboard</h1>
             <p style={{ margin: 0, fontSize: "12px", color: "#94a3b8" }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</p>
@@ -344,7 +420,7 @@ export default function UserDashboard() {
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {pendingOrders.length > 0 && (
               <div style={{ position: "relative" }}>
-                <div style={{ width: "38px", height: "38px", background: "#f0fdf4", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", cursor: "pointer" }} onClick={() => setActiveSection("orders")}>📦</div>
+                <button type="button" aria-label={`View ${pendingOrders.length} pending orders`} style={{ width: "38px", height: "38px", background: "#f0fdf4", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", cursor: "pointer" }} onClick={() => setActiveSection("orders")}>📦</button>
                 <div style={{ position: "absolute", top: "-4px", right: "-4px", width: "18px", height: "18px", background: "#ef4444", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "700", color: "white" }}>{pendingOrders.length}</div>
               </div>
             )}
@@ -364,7 +440,7 @@ export default function UserDashboard() {
           </div>
         </header>
 
-        <main style={{ flex: 1, padding: "24px 28px", display: "grid", gridTemplateColumns: "1fr 300px", gap: "24px", alignItems: "start" }}>
+        <main className="patient-content" style={{ flex: 1, padding: "24px 28px", display: "grid", gridTemplateColumns: "1fr 300px", gap: "24px", alignItems: "start" }}>
 
           <div style={{ minWidth: 0 }}>
 
@@ -398,7 +474,7 @@ export default function UserDashboard() {
                       { icon: "🛍️", value: ordersLoading ? null : orders.length,    label: "Total Orders",   color: "#166534", bg: "#f0fdf4",  onClick: () => setActiveSection("orders") },
                       { icon: "💰", value: ordersLoading ? null : `Rs.${totalSpent.toLocaleString()}`, label: "Total Spent", color: "#7c3aed", bg: "#faf5ff", onClick: null },
                     ].map(({ icon, value, label, color, bg, onClick }, i) => (
-                      <div key={i} onClick={onClick} style={{ background: bg, borderRadius: "14px", padding: "16px", cursor: onClick ? "pointer" : "default", transition: "transform 0.15s", border: `1px solid ${color}20` }}
+                      <div key={i} onClick={onClick} className="patient-stat" style={{ background: bg, borderRadius: "14px", padding: "16px", cursor: onClick ? "pointer" : "default", transition: "transform 0.15s", border: `1px solid ${color}20` }}
                         onMouseEnter={e => onClick && (e.currentTarget.style.transform = "translateY(-2px)")}
                         onMouseLeave={e => (e.currentTarget.style.transform = "none")}>
                         <div style={{ fontSize: "22px", marginBottom: "8px" }}>{icon}</div>
@@ -435,12 +511,12 @@ export default function UserDashboard() {
                 {!aptsLoading && lastApt && (
                   <div style={{ background: "white", borderRadius: "20px", padding: "20px", marginBottom: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>📅 Latest Appointment</h3>
+                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>📅 {upcomingApts.length > 0 ? "Next Appointment" : "Latest Appointment"}</h3>
                       <button onClick={() => setActiveSection("appointments")} style={{ background: "none", border: "none", color: "#166534", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>View all →</button>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
                       <div>
-                        <div style={{ fontWeight: "700", color: "#1e293b", fontSize: "15px" }}>{lastApt.date} at {lastApt.time}</div>
+                        <div style={{ fontWeight: "700", color: "#1e293b", fontSize: "15px" }}>{formatAppointmentDate(lastApt.date)} at {lastApt.time || "—"}</div>
                         <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>{lastApt.problem?.slice(0, 60)}{lastApt.problem?.length > 60 ? "…" : ""}</div>
                       </div>
                       <StatusChip status={lastApt.status} />
@@ -672,7 +748,7 @@ export default function UserDashboard() {
 
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px", position: "sticky", top: "88px" }}>
+          <div className="patient-aside" role="complementary" aria-label="Patient summary" style={{ display: "flex", flexDirection: "column", gap: "20px", position: "sticky", top: "88px" }}>
             <div style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>🔔 Notifications</h3>
@@ -683,11 +759,17 @@ export default function UserDashboard() {
             <div style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>Order History</h3>
+                {orders.length > 0 && <button type="button" onClick={() => navigate("/my-orders")} style={{ border: "none", background: "transparent", color: "#166534", fontSize: "11px", fontWeight: "800", cursor: "pointer", padding: "4px 0" }}>View all</button>}
               </div>
               {ordersLoading ? (
                 [1, 2, 3].map(i => <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}><Sk w="80%" h="13px" mb="6px" /><Sk w="50%" h="11px" /></div>)
               ) : orders.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8", fontSize: "13px" }}>No orders yet</div>
+                <div style={{ textAlign: "center", padding: "20px 12px", color: "#94a3b8", fontSize: "13px" }}>
+                  <div style={{ fontSize: "24px", marginBottom: "6px" }}>🛍️</div>
+                  <div style={{ fontWeight: "700", color: "#475569", marginBottom: "4px" }}>No orders yet</div>
+                  <div style={{ marginBottom: "12px" }}>Your medicine orders will appear here.</div>
+                  <button type="button" onClick={() => navigate("/store")} style={{ border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#166534", borderRadius: "9px", padding: "7px 12px", fontSize: "11px", fontWeight: "800", cursor: "pointer" }}>Browse Medicines</button>
+                </div>
               ) : (
                 orders.slice(0, 4).map((o, i) => (
                   <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}>
@@ -716,7 +798,7 @@ export default function UserDashboard() {
                   const apt = upcomingApts[0] || appointments[0];
                   return (
                     <div style={{ background: "#f8fafc", borderRadius: "12px", padding: "14px" }}>
-                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>{apt.date}</div>
+                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>{formatAppointmentDate(apt.date)}</div>
                       <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "8px" }}>at {apt.time || "—"}</div>
                       <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "10px" }}>{apt.problem?.slice(0, 50)}</div>
                       <StatusChip status={apt.status} />
