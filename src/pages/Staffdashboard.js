@@ -907,7 +907,6 @@ export default function StaffDashboard() {
                         <option value="walk-in">Walk-in</option>
                       </select>
                     </div>
-                  </div>
                     <div className="staff-toolbar-summary" aria-live="polite">
                       <span>{sorted.length} order{sorted.length === 1 ? "" : "s"}</span>
                       {statusFilter !== "all" && <span>· {statusFilter}</span>}
