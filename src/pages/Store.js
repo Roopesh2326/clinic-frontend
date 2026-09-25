@@ -242,7 +242,7 @@ export default function Store() {
       background: "#f8fafc",
       fontFamily: "'Plus Jakarta Sans','Nunito',system-ui,sans-serif",
       // Push content below global fixed Navbar
-      paddingTop: "45px",
+      paddingTop: "32px",
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -254,7 +254,9 @@ export default function Store() {
         @keyframes pulse      { 0%,100%{opacity:1} 50%{opacity:.5} }
         ::-webkit-scrollbar{width:5px;height:5px}
         ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
-        .med-card:hover { transform:translateY(-5px); box-shadow:0 16px 40px rgba(0,0,0,.1); border-color:#86efac !important; }
+        .med-card:hover { transform:translateY(-4px); box-shadow:0 18px 42px rgba(15,60,35,.11); border-color:#a7d8b8 !important; }
+        .med-card:focus-within { border-color:#7ac493 !important; box-shadow:0 0 0 3px rgba(34,197,94,.10),0 14px 34px rgba(15,60,35,.09); }
+        .add-btn:focus-visible,.qty-btn:focus-visible,.cat-pill:focus-visible,.cart-action:focus-visible { outline:3px solid rgba(34,197,94,.25); outline-offset:2px; }
         .add-btn:hover  { background:#15803d !important; transform:scale(1.02); }
         .qty-btn:hover  { background:#dcfce7 !important; }
         .cat-pill       { border:1.5px solid #e2e8f0; border-radius:20px; padding:7px 16px; font-size:13px; font-weight:600; cursor:pointer; background:white; color:#64748b; transition:all .15s; white-space:nowrap; }
@@ -312,7 +314,7 @@ export default function Store() {
                 {cartCount > 0
                   ? ( <> 
                   <span>₹{cartTotal.toLocaleString()}</span>
-                  <span styles={{
+                  <span style={{
                     background: "rgba(0,0,0,0.2)",
                     borderRadius: "10px",
                     padding: "2px 8px",
@@ -334,7 +336,7 @@ export default function Store() {
               ref={searchRef}
               className="sb-input"
               type="text"
-              placeholder="Search medicines, conditions, brands…"
+              aria-label="Search medicines, conditions and brands" placeholder="Search medicines, conditions, brands…"
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{
@@ -365,7 +367,7 @@ export default function Store() {
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
-            <button className={`cat-pill${stockFilter === "in-stock" ? " active" : ""}`} onClick={() => setStockFilter(s => s === "in-stock" ? "all" : "in-stock")}>
+            <button type="button" aria-pressed={stockFilter === "in-stock"} className={`cat-pill${stockFilter === "in-stock" ? " active" : ""}`} onClick={() => setStockFilter(s => s === "in-stock" ? "all" : "in-stock")}>
               ✓ In Stock Only
             </button>
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
@@ -394,7 +396,7 @@ export default function Store() {
             <div style={{ fontSize: "56px", marginBottom: "16px" }}>🔍</div>
             <h3 style={{ fontSize: "20px", fontWeight: "800", color: "#1e293b", margin: "0 0 8px" }}>No medicines found</h3>
             <p style={{ color: "#64748b", marginBottom: "24px", fontSize: "14px" }}>Try different search terms or clear your filters</p>
-            <button onClick={() => { setSearch(""); setCat("All"); setStockFilter("all"); }} style={{ padding: "12px 28px", background: "#166534", color: "white", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>
+            <button type="button" onClick={() => { setSearch(""); setCat("All"); setStockFilter("all"); }} style={{ padding: "12px 28px", background: "#166534", color: "white", border: "none", borderRadius: "12px", fontWeight: "700", cursor: "pointer", fontSize: "14px" }}>
               Clear All Filters
             </button>
           </div>
