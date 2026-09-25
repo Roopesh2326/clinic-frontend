@@ -249,7 +249,7 @@ export default function Store() {
   });
 
   return (
-    <div style={{
+    <div className="store-shell" style={{
       minHeight: "100vh",
       background: "#f8fafc",
       fontFamily: "'Plus Jakarta Sans','Nunito',system-ui,sans-serif",
@@ -279,6 +279,7 @@ export default function Store() {
         .med-grid { display:grid; gap:18px; grid-template-columns:repeat(3,1fr); }
         @media(max-width:1100px){ .med-grid{grid-template-columns:repeat(3,1fr)} }
         @media(max-width:860px) { .med-grid{grid-template-columns:repeat(2,1fr)} }
+        @media(max-width:860px) { .store-shell{padding-top:96px!important} }
         @media(max-width:500px) { .med-grid{grid-template-columns:repeat(2,1fr)!important} .filter-scroll{gap:6px!important} .store-header{padding-top:18px!important} }
         @media(max-width:380px) { .med-grid{grid-template-columns:1fr!important} }
       `}</style>
