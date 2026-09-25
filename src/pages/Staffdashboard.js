@@ -754,6 +754,20 @@ export default function StaffDashboard() {
           .staff-pos-cart-item { flex-wrap: wrap; }
           .staff-pos-cart-item > div:first-child { flex: 1 1 calc(100% - 40px); }
           .staff-pos-cart-item > .staff-pos-qty-controls { margin-left: auto; }
+          .staff-pos-cart-head { padding: 13px 14px !important; }
+          .staff-pos-cart-body { padding: 12px 14px !important; }
+          .staff-pos-cart-item { align-items: center !important; gap: 7px !important; }
+          .staff-pos-cart-item > div:first-child { flex: 1 1 100%; }
+          .staff-pos-cart-item .staff-pos-qty-controls { order: 2; margin-left: 0 !important; }
+          .staff-pos-cart-item > div:nth-of-type(2) { order: 3; margin-left: auto; }
+          .staff-pos-cart-item > button { order: 4; }
+          .staff-pos-complete-button { min-height: 48px !important; font-size: 14px !important; }
+          .staff-pos-card-head { padding: 16px 14px 0 !important; }
+          .staff-pos-medicine-section { padding: 0 14px 14px !important; }
+          .staff-pos-payment-options button { min-height: 44px !important; }
+          .staff-pos-medicine-name { font-size: 12px !important; }
+          .staff-pos-medicine-price { font-size: 13px !important; }
+          .staff-pos-medicine-stock { font-size: 10px !important; }
           .staff-pos-cart-item > div:nth-last-of-type(1) { }
           .staff-pos-cart-card button { min-height: 40px; }
           .staff-mobile-note { display: block; font-size: 11px; color: #6b7280; padding: 8px 14px; background: #f9fafb; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; white-space: nowrap; }
@@ -1101,14 +1115,14 @@ export default function StaffDashboard() {
             {/* RIGHT: Cart */}
             <div className="staff-pos-cart staff-pos-cart-card" style={{ position: "sticky", top: "20px" }}>
               <div style={{ ...s.card, border: "2px solid #166534" }}>
-                <div style={{ padding: "14px 18px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <div className="staff-pos-cart-head" style={{ padding: "14px 18px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#166534" }}>🛒 Order Summary</h3>
                   {posCart.length > 0 && (
                     <button onClick={posReset} style={{ border: "none", background: "none", cursor: "pointer", fontSize: "12px", color: "#9ca3af" }}>Clear all</button>
                   )}
                 </div>
 
-                <div style={{ padding: "14px 18px" }}>
+                <div className="staff-pos-cart-body" style={{ padding: "14px 18px" }}>
                   {posCart.length === 0 ? (
                     <div style={{ textAlign: "center", padding: "32px 16px", color: "#9ca3af" }}>
                       <div style={{ fontSize: "36px", marginBottom: "8px" }}>🛒</div>
@@ -1123,7 +1137,7 @@ export default function StaffDashboard() {
                               <div style={{ fontSize: "13px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</div>
                               <div style={{ fontSize: "11px", color: "#9ca3af" }}>Rs.{item.price} each</div>
                             </div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                            <div className="staff-pos-qty-controls" style={{ display: "flex", alignItems: "center", gap: "4px" }}>
                               <button onClick={() => posChangeQty(item._id, -1)} aria-label={"Decrease " + item.name + " quantity"} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                               <span style={{ fontWeight: "700", minWidth: "20px", textAlign: "center", fontSize: "13px" }}>{item.quantity}</span>
                               <button onClick={() => posChangeQty(item._id, 1)} aria-label={"Increase " + item.name + " quantity"} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
@@ -1150,7 +1164,7 @@ export default function StaffDashboard() {
                         </div>
                       )}
 
-                      <button onClick={posPlaceOrder} disabled={posPlacing}
+                      <button className="staff-pos-complete-button" onClick={posPlaceOrder} disabled={posPlacing}
                         style={{ width: "100%", padding: "13px", background: posPlacing ? "#9ca3af" : "#166534", color: "white", border: "none", borderRadius: "10px", fontWeight: "700", fontSize: "14px", cursor: posPlacing ? "not-allowed" : "pointer", transition: "background 0.15s" }}>
                         {posPlacing ? "⏳ Creating order…" : "✅ Complete Sale & Print Receipt"}
                       </button>
