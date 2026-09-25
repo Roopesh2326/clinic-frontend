@@ -51,7 +51,7 @@ function ConfirmModal({ order, nextStatus, onConfirm, onCancel, loading }) {
   const meta = STATUS_META[nextStatus] || {};
   return (
     <div style={modal.overlay}>
-      <div style={modal.box}>
+      <div style={modal.box} className="staff-confirm-modal">
         <div style={modal.icon}>⚡</div>
         <h3 style={modal.title}>Confirm Status Update</h3>
         <p style={modal.sub}>Move <strong>{name}</strong>'s order to</p>
@@ -155,7 +155,7 @@ function StatsBar({ orders }) {
   const completedToday = todayOrders.filter(o => o.status === "Completed" || o.status === "Delivered").length;
   const revenueToday   = todayOrders.reduce((s, o) => s + Number(o.total || 0), 0);
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "12px", marginBottom: "20px" }}>
+    <div className="staff-stats-bar" style={{ display: "grid", gridTemplateColumns: "repeat(4,1fr)", gap: "12px", marginBottom: "20px" }}>
       {[
         { label: "Pending",       value: pending,                  color: "#92400e", bg: "#fef3c7", icon: "⏳" },
         { label: "In Progress",   value: approved,                 color: "#1e40af", bg: "#dbeafe", icon: "🔄" },
@@ -596,7 +596,7 @@ export default function StaffDashboard() {
         @keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:.4; } }
         input:focus, select:focus { outline:none; border-color:#166534 !important; box-shadow:0 0 0 3px rgba(22,101,52,0.1); }
         .staff-orders-layout { min-width: 0; }
-        .staff-orders-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .staff-orders-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
         .staff-orders-table { min-width: 760px; }
         .staff-pos-medicine-grid { min-width: 0; }
         .staff-pos-medicine-grid > * { min-width: 0; }
@@ -622,7 +622,7 @@ export default function StaffDashboard() {
           .staff-header > div:last-child span { display: none; }
           .staff-header > div:last-child button, .staff-header > div:last-child > div { flex: 1 1 auto; }
           .staff-header .staffBadge { padding: 6px 9px !important; }
-          .staff-toolbar { padding: 14px !important; }
+          .staff-toolbar { padding: 14px !important; }\n          .staff-stats-bar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; margin-bottom: 14px !important; }\n          .staff-stats-bar > div { min-width: 0; padding: 12px 12px !important; }\n          .staff-stats-bar > div > span { font-size: 18px !important; }\n          .staff-stats-bar > div > div > div:first-child { font-size: 16px !important; }\n          .staff-stats-bar > div > div > div:last-child { font-size: 10px !important; }
           .staff-search-wrap { width: 100%; }
           .staff-orders-table { min-width: 720px; }
           .staff-side-column { display: grid; grid-template-columns: 1fr; gap: 12px; }
@@ -631,7 +631,7 @@ export default function StaffDashboard() {
           .staff-pos-cart-card { width: 100%; }
           .staff-pos-cart-card > div { min-width: 0; }
           .staff-pos-cart-card button { min-height: 40px; }
-          .staff-mobile-note { display: block; font-size: 11px; color: #888; padding: 8px 14px; background: #f9fafb; border-top: 1px solid #f3f4f6; }
+          .staff-mobile-note { display: block; font-size: 11px; color: #6b7280; padding: 8px 14px; background: #f9fafb; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
 
           .staff-header { padding: 14px 16px !important; align-items: flex-start !important; }
           .staff-header > div:last-child { width: 100%; flex-wrap: wrap; }
@@ -645,7 +645,7 @@ export default function StaffDashboard() {
           .staff-toolbar-controls { width: 100%; }
           .staff-toolbar-controls > * { flex: 1 1 100%; min-width: 0 !important; width: 100%; }
           .staff-pos-customer-grid { grid-template-columns: 1fr !important; }
-          .staff-pos-cart { width: 100%; }
+          .staff-pos-cart { width: 100%; }\n          .staff-orders-table-wrap { border-left: 1px solid #f3f4f6; border-right: 1px solid #f3f4f6; }\n          .staff-confirm-modal { width: min(320px, calc(100vw - 32px)) !important; padding: 28px 20px !important; }\n          .staff-confirm-modal > div:last-child { flex-wrap: wrap; }
         }
         @media (prefers-reduced-motion: reduce) {
           .staff-dashboard * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
