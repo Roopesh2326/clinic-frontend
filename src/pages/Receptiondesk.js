@@ -138,8 +138,8 @@ export default function Receptiondesk() {
     if (!window.confirm(`Reset ${type} queue? This cannot be undone.`)) return;
     try {
       await axios.post(`${BASE_URL}/queue/reset`,{type},{withCredentials:true});
-      setQueueStatus(p => ({...p,[type]:{...p[type],currentServing:0,totalIssued:0}}));
-      notify(`${type} queue reset`, true);
+      setQueueStatus(p => ({...p,[type]:{...p[type],currentServing:p[type]?.totalIssued||0,waiting:0}}));
+      notify(`${type} queue cleared for today`, true);
     } catch {
       notify("Failed to reset queue", false);
     }
