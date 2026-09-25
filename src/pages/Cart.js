@@ -99,9 +99,11 @@ export default function Cart() {
 
       // 4️⃣ NOW show success alert
       alert(
-        "Payment successful!\n\nMethod: " + paymentInfo.method +
+        "Order placed successfully!\n\nPayment method: " + (paymentInfo.method || "cash") +
         "\nAmount: Rs." + getTotal() +
-        "\n\nYour order has been placed successfully!"
+        (paymentInfo.method === "cash"
+          ? "\n\nPlease complete payment at the clinic counter."
+          : "\n\nYour order has been placed successfully!")
       );
 
       setOrderPlaced(true);
