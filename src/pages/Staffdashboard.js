@@ -649,6 +649,30 @@ export default function StaffDashboard() {
         @keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:.4; } }
         input:focus, select:focus { outline:none; border-color:#166534 !important; box-shadow:0 0 0 3px rgba(22,101,52,0.1); }
         .staff-orders-layout { min-width: 0; }
+        /* Product-wide visual language: patient dashboard spacing + staff operational density */
+        .staff-header { box-shadow: 0 8px 24px rgba(22,101,52,0.12); }
+        .staff-header .staffBadge { box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12); }
+        .staff-tabbar { background: #fff; border-bottom: 1px solid #e5e7eb !important; }
+        .staff-tabbar button { transition: color .15s ease, background .15s ease; }
+        .staff-body { background: #f3f7f5; }
+        .staff-stat-card { border: 1px solid #eef2f0; border-left-width: 3px !important; min-height: 74px; }
+        .staff-stat-card:nth-child(1) { background: #fffdf7 !important; }
+        .staff-stat-card:nth-child(2) { background: #f9fbff !important; }
+        .staff-stat-card:nth-child(3) { background: #f7fcf8 !important; }
+        .staff-stat-card:nth-child(4) { background: #fbf9ff !important; }
+        .staff-stat-icon { box-shadow: 0 1px 4px rgba(0,0,0,.04); }
+        .staff-orders-card, .staff-pos-card { border: 1px solid #e8eeea !important; box-shadow: 0 4px 18px rgba(15,23,42,.06) !important; }
+        .staff-toolbar { border-bottom: 1px solid #eef2f0; }
+        .staff-toolbar-controls input, .staff-toolbar-controls select { min-height: 42px !important; }
+        .staff-pos-card-head h2 { letter-spacing: -.01em; }
+        .staff-pos-payment-options { flex-wrap: wrap; }
+        .staff-pos-payment-options button { min-width: 105px; }
+        .staff-pos-search { min-height: 42px; }
+        .staff-pos-medicine-section { border-top: 1px solid #f1f5f2; padding-top: 16px !important; }
+        .staff-pos-medicine-card { box-shadow: 0 1px 3px rgba(15,23,42,.03); }
+        .staff-pos-cart-card { border: 1px solid #e8eeea !important; box-shadow: 0 4px 18px rgba(15,23,42,.06) !important; }
+        .staff-side-column > div { border: 1px solid #e8eeea; }
+        .staff-orders-table thead th { background: #f7faf8 !important; }
         .staff-orders-table-wrap { width: 100%; max-width: 100%; min-width: 0; overflow-x: scroll; overflow-y: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; touch-action: pan-x; scrollbar-gutter: stable; }
         .staff-orders-mobile-list { display: none; }
         .staff-mobile-order-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px; margin: 10px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
@@ -712,6 +736,9 @@ export default function StaffDashboard() {
           .staff-header > div:last-child button, .staff-header > div:last-child > div { flex: 1 1 auto; }
           .staff-header .staffBadge { padding: 6px 9px !important; }
           .staff-toolbar { padding: 14px !important; }
+          .staff-orders-card, .staff-pos-card { border-radius: 14px !important; }
+          .staff-pos-payment-options button { flex: 1 1 0; min-width: 0; }
+          .staff-pos-search { min-height: 44px; }
           .staff-stats-bar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; margin-bottom: 14px !important; }
           .staff-stats-bar > div { min-width: 0; padding: 12px 12px !important; }
           .staff-stats-bar > div > span { font-size: 18px !important; }
@@ -828,7 +855,7 @@ export default function StaffDashboard() {
             <div style={s.layout} className="staff-orders-layout">
               {/* Orders table */}
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={s.card}>
+                <div style={s.card} className="staff-orders-card">
                   <div style={s.toolbar} className="staff-toolbar">
                     <div>
                       <h2 style={s.cardTitle}>📦 Orders</h2>
@@ -941,8 +968,8 @@ export default function StaffDashboard() {
           <div className="staff-pos-grid" style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "20px", alignItems: "start" }}>
 
             {/* LEFT: Customer info + medicine grid */}
-            <div style={s.card}>
-              <div style={{ padding: "18px 18px 0" }}>
+            <div style={s.card} className="staff-pos-card">
+              <div className="staff-pos-card-head" style={{ padding: "18px 18px 0" }}>
                 <h2 style={{ ...s.cardTitle, marginBottom: "4px" }}>🏪 Walk-in Point of Sale</h2>
                 <p style={{ margin: "0 0 16px", fontSize: "12px", color: "#9ca3af" }}>
                   Create an in-person medicine order and print a receipt instantly
@@ -974,7 +1001,7 @@ export default function StaffDashboard() {
                 {/* Payment method */}
                 <div style={{ marginBottom: "16px" }}>
                   <label style={s.fieldLabel}>Payment Method</label>
-                  <div style={{ display: "flex", gap: "8px" }}>
+                  <div className="staff-pos-payment-options" style={{ display: "flex", gap: "8px" }}>
                     {[["cash","💵 Cash"],["upi","📱 UPI"],["card","💳 Card"]].map(([method, label]) => (
                       <button key={method} onClick={() => setPosPaymentMethod(method)}
                         style={{ padding: "8px 16px", borderRadius: "8px", fontWeight: "600", fontSize: "13px", cursor: "pointer", transition: "all 0.15s",
@@ -990,7 +1017,7 @@ export default function StaffDashboard() {
                 {/* Medicine search */}
                 <div style={{ marginBottom: "14px" }}>
                   <label style={s.fieldLabel}>Search & Add Medicines</label>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "0 12px", height: "36px" }}>
+                  <div className="staff-pos-search" style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "0 12px", height: "36px" }}>
                     <span style={{ color: "#aaa" }}>🔍</span>
                     <input aria-label="Search medicines" placeholder="Search medicine name…" value={posSearch} onChange={e => setPosSearch(e.target.value)}
                       style={{ border: "none", background: "transparent", outline: "none", fontSize: "13px", color: "#111", width: "100%" }} />
@@ -1002,8 +1029,8 @@ export default function StaffDashboard() {
               </div>
 
               {/* Medicine grid */}
-              <div style={{ padding: "0 18px 18px" }}>
-                {/* ✅ Show loading skeleton while medicines fetch */}
+              <div className="staff-pos-medicine-section" style={{ padding: "0 18px 18px" }}>
+                {/* Show loading skeleton while medicines fetch */}
                 {medLoading ? (
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(148px,1fr))", gap: "10px" }}>
                     {[1,2,3,4,5,6].map(i => (
