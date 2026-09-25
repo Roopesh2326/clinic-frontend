@@ -560,46 +560,24 @@ export default function StaffDashboard() {
 
   const generateReceipt = (order) => {
     if (!order) return;
-    const w     = window.open("", "_blank");
+    const w = window.open("", "_blank");
+    if (!w) { showToast("Please allow pop-ups to print the receipt", false); return; }
     const items = Array.isArray(order.items) ? order.items : [];
-    const rows  = items.map(item =>
-      `<tr>
-        <td style="padding:8px;border-bottom:1px solid #eee;">${item.name || "-"}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;">Rs.${item.price || 0}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;">${item.quantity || 1}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;font-weight:700;">Rs.${Number(item.price || 0) * (item.quantity || 1)}</td>
-      </tr>`
-    ).join("");
-    const id   = order._id ? order._id.toString().slice(-6).toUpperCase() : "N/A";
-    const date = order.createdAt ? new Date(order.createdAt).toLocaleString() : new Date().toLocaleString();
+    const esc = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+    const rows = items.map(item => "<tr><td>" + esc(item.name || "-") + "</td><td>Rs." + Number(item.price || 0).toLocaleString("en-IN") + "</td><td>" + Number(item.quantity || 1) + "</td><td>Rs." + (Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString("en-IN") + "</td></tr>").join("");
+    const id = order._id ? order._id.toString().slice(-6).toUpperCase() : "N/A";
+    const date = order.createdAt ? new Date(order.createdAt).toLocaleString("en-IN") : new Date().toLocaleString("en-IN");
     const cust = order.guestInfo?.name || posCustomerName || "Walk-in Customer";
-    w.document.write(`
-      <html><head><title>Receipt #${id}</title></head>
-      <body style="font-family:Arial,sans-serif;padding:30px;max-width:580px;margin:auto;">
-        <h2 style="color:#166534;text-align:center;margin-bottom:4px;">Digital Clinic</h2>
-        <p style="text-align:center;color:#888;margin-top:0;">Walk-in Order Receipt</p>
-        <hr/>
-        <p><strong>Order ID:</strong> #${id}</p>
-        <p><strong>Date:</strong> ${date}</p>
-        <p><strong>Customer:</strong> ${cust}</p>
-        <p><strong>Payment:</strong> ${order.paymentMethod || "Cash"}</p>
-        <table style="width:100%;border-collapse:collapse;margin-top:12px;">
-          <thead>
-            <tr style="background:#f0fdf4;">
-              <th style="padding:8px;text-align:left;">Medicine</th>
-              <th style="padding:8px;text-align:left;">Price</th>
-              <th style="padding:8px;text-align:left;">Qty</th>
-              <th style="padding:8px;text-align:left;">Subtotal</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-        </table>
-        <h3 style="text-align:right;color:#166534;">Total: Rs.${order.total}</h3>
-        <hr/>
-        <p style="text-align:center;color:#888;font-size:12px;">Thank you for choosing Digital Clinic!</p>
-        <script>window.onload=function(){window.print();}</script>
-      </body></html>
-    `);
+    const payment = String(order.paymentMethod || "Cash").toUpperCase();
+    const html = "<html><head><title>Digital Clinic · Receipt #" + esc(id) + "</title><style>" +
+      "*{box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f3f7f4;color:#17231b;margin:0;padding:28px}" +
+      ".receipt{max-width:680px;margin:0 auto;background:#fff;padding:34px;border-radius:18px;box-shadow:0 8px 30px rgba(15,26,19,.10)}" +
+      ".brand{display:flex;align-items:center;gap:12px;padding-bottom:20px;border-bottom:1px solid #e4ece7}.logo{width:48px;height:48px;border-radius:14px;background:#166534;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800}.brand-name{font-size:22px;font-weight:800;color:#0b3d1f}.brand-sub{font-size:11px;color:#697a6e;margin-top:3px}.receipt-title{margin:22px 0 14px;font-size:20px;font-weight:800}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f7faf8;border:1px solid #e4ece7;border-radius:12px;padding:14px;font-size:12px}.meta span{color:#697a6e}.meta strong{display:block;color:#17231b;margin-top:3px}table{width:100%;border-collapse:collapse;margin-top:20px}th{text-align:left;background:#f0fdf4;color:#166534;font-size:11px;text-transform:uppercase;padding:10px}td{padding:11px 10px;border-bottom:1px solid #eef2ef;font-size:12px}.total{display:flex;justify-content:space-between;margin-top:18px;padding-top:16px;border-top:2px solid #166534;font-size:15px;font-weight:800}.total strong{font-size:20px;color:#166534}.footer{text-align:center;color:#697a6e;font-size:11px;margin-top:28px;padding-top:18px;border-top:1px solid #e4ece7}@media print{body{background:#fff;padding:0}.receipt{box-shadow:none;border-radius:0;max-width:none;padding:20px}}" +
+      "</style></head><body><div class='receipt'><div class='brand'><div class='logo'>DC</div><div><div class='brand-name'>Digital Clinic</div><div class='brand-sub'>Clinic &amp; Pharmacy Management</div></div></div>" +
+      "<div class='receipt-title'>Walk-in Order Receipt</div><div class='meta'><div><span>Order ID</span><strong>#" + esc(id) + "</strong></div><div><span>Date</span><strong>" + esc(date) + "</strong></div><div><span>Customer</span><strong>" + esc(cust) + "</strong></div><div><span>Payment</span><strong>" + esc(payment) + "</strong></div></div>" +
+      "<table><thead><tr><th>Medicine</th><th>Unit Price</th><th>Qty</th><th>Total</th></tr></thead><tbody>" + rows + "</tbody></table>" +
+      "<div class='total'><span>Total Amount</span><strong>Rs." + Number(order.total || 0).toLocaleString("en-IN") + "</strong></div><div class='footer'>Thank you for choosing Digital Clinic.<br/>Please retain this receipt for your records.</div></div><script>window.onload=function(){window.print();}</script></body></html>";
+    w.document.write(html);
     w.document.close();
   };
 
