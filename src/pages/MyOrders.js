@@ -247,10 +247,11 @@ export default function MyOrders() {
                       <Button
                         variant="text"
                         size="small"
-                        onClick={() => navigate("/")}
+                        onClick={() => navigate("/store")}
                       >
                         Order Again
                       </Button>
+                      </Box>
                     </Box>
                   </CardContent>
                 </Card>
