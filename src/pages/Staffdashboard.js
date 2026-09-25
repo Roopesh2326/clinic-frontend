@@ -144,7 +144,9 @@ function OrderRow({ order, onAction, idx }) {
     </tr>
   );
 }
-const td = { padding: "12px 14px", borderBottom: "1px solid #f3f4f6", verticalAlign: "middle" };\n\n
+const td = { padding: "12px 14px", borderBottom: "1px solid #f3f4f6", verticalAlign: "middle" };
+
+
 function MobileOrderCard({ order, onAction, idx }) {
   const name = order.orderType === "walk-in" ? (order.guestInfo?.name || "Walk-in") : (order.userId?.name || "Online");
   const items = safeArray(order.items);
