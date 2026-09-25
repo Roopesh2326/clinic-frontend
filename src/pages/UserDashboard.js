@@ -109,7 +109,7 @@ function QueueTracker({ orders }) {
           </div>
         </div>
       )}
-    </div></>
+    </div>
   );
 }
 
