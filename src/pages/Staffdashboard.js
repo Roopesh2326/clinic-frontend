@@ -596,7 +596,7 @@ export default function StaffDashboard() {
         @keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:.4; } }
         input:focus, select:focus { outline:none; border-color:#166534 !important; box-shadow:0 0 0 3px rgba(22,101,52,0.1); }
         .staff-orders-layout { min-width: 0; }
-        .staff-orders-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+        .staff-orders-table-wrap { width: 100%; max-width: 100%; min-width: 0; overflow-x: scroll; overflow-y: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; touch-action: pan-x; scrollbar-gutter: stable; }
         .staff-orders-table { min-width: 760px; }
 
         .staff-stats-bar > .staff-stat-card { min-width: 0; }
@@ -659,7 +659,7 @@ export default function StaffDashboard() {
           .staff-pos-cart-item > .staff-pos-qty-controls { margin-left: auto; }
           .staff-pos-cart-item > div:nth-last-of-type(1) { }
           .staff-pos-cart-card button { min-height: 40px; }
-          .staff-mobile-note { display: block; font-size: 11px; color: #6b7280; padding: 8px 14px; background: #f9fafb; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
+          .staff-mobile-note { display: block; font-size: 11px; color: #6b7280; padding: 8px 14px; background: #f9fafb; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; white-space: nowrap; }
 
           .staff-header { padding: 14px 16px !important; align-items: flex-start !important; }
           .staff-header > div:last-child { width: 100%; flex-wrap: wrap; }
@@ -798,7 +798,8 @@ export default function StaffDashboard() {
                       )}
                     </div>
                   ) : (
-                    <div className="staff-orders-table-wrap">
+                    <div className="staff-orders-table-wrap" role="region" aria-label="Orders table" tabIndex="0">
+                      <div className="staff-mobile-note">↔ Swipe left or right to view order details</div>
                       <table className="staff-orders-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
                           <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
