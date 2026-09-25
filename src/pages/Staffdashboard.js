@@ -875,30 +875,32 @@ export default function StaffDashboard() {
                       )}
                     </div>
                   ) : (
-                    <div className="staff-orders-desktop">
-                      <div className="staff-orders-table-wrap" role="region" aria-label="Orders table" tabIndex="0">
-                        <div className="staff-mobile-note">↔ Swipe left or right to view order details</div>
-                        <table className="staff-orders-table" style={{ width: "100%", borderCollapse: "collapse" }}>
-                        <thead>
-                          <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
-                            {["Patient / Token", "Items", "Total", "Type", "Status", "Action"].map(h => (
-                              <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
-                            ))}
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {sorted.map((order, idx) => (
-                            <OrderRow key={order._id} order={order} idx={idx} onAction={handleAction} />
-                          ))}
-                        </tbody>
-                        </table>
+                    <>
+                      <div className="staff-orders-desktop">
+                        <div className="staff-orders-table-wrap" role="region" aria-label="Orders table" tabIndex="0">
+                          <div className="staff-mobile-note">↔ Swipe left or right to view order details</div>
+                          <table className="staff-orders-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                            <thead>
+                              <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
+                                {["Patient / Token", "Items", "Total", "Type", "Status", "Action"].map(h => (
+                                  <th key={h} style={{ padding: "10px 14px", textAlign: "left", fontSize: "11px", fontWeight: "700", color: "#888", textTransform: "uppercase", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>{h}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {sorted.map((order, idx) => (
+                                <OrderRow key={order._id} order={order} idx={idx} onAction={handleAction} />
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
                       </div>
-                    </div>
-                    <div className="staff-orders-mobile-list">
-                      {sorted.map((order, idx) => (
-                        <MobileOrderCard key={order._id} order={order} idx={idx} onAction={handleAction} />
-                      ))}
-                    </div>
+                      <div className="staff-orders-mobile-list">
+                        {sorted.map((order, idx) => (
+                          <MobileOrderCard key={order._id} order={order} idx={idx} onAction={handleAction} />
+                        ))}
+                      </div>
+                    </>
                   )}
 
                   {!loading && (
