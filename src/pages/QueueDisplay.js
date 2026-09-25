@@ -106,6 +106,7 @@ export default function QueueDisplayPage() {
   const next        = activeData.next || [];
   const total       = activeData.totalIssued || 0;
   const serving     = current?.number || 0;
+  const waiting     = Number.isFinite(Number(activeData.waiting)) ? Number(activeData.waiting) : Math.max(0, total - serving);
 
   if (loading) {
     return (
@@ -297,7 +298,7 @@ export default function QueueDisplayPage() {
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px", marginTop: "20px" }}>
             {[
               { label: "Issued Today", value: total },
-              { label: "Remaining",    value: Math.max(0, total - serving) },
+              { label: "Remaining",    value: waiting },
             ].map(({ label, value }) => (
               <div key={label} style={{ background: "#050f0a", borderRadius: "10px", padding: "12px", textAlign: "center", border: "1px solid #1a3d24" }}>
                 <div style={{ fontFamily: "monospace", fontSize: "24px", fontWeight: "700", color: "#00c853" }}>{value}</div>
