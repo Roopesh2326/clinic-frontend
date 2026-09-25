@@ -253,8 +253,8 @@ export default function Store() {
       minHeight: "100vh",
       background: "#f8fafc",
       fontFamily: "'Plus Jakarta Sans','Nunito',system-ui,sans-serif",
-      // Push content below global fixed Navbar
-      paddingTop: "32px",
+      // Keep the store header fully below the fixed global Navbar.
+      paddingTop: "76px",
     }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
@@ -279,7 +279,7 @@ export default function Store() {
         .med-grid { display:grid; gap:18px; grid-template-columns:repeat(3,1fr); }
         @media(max-width:1100px){ .med-grid{grid-template-columns:repeat(3,1fr)} }
         @media(max-width:860px) { .med-grid{grid-template-columns:repeat(2,1fr)} }
-        @media(max-width:500px) { .med-grid{grid-template-columns:repeat(2,1fr)!important} .filter-scroll{gap:6px!important} }
+        @media(max-width:500px) { .med-grid{grid-template-columns:repeat(2,1fr)!important} .filter-scroll{gap:6px!important} .store-header{padding-top:18px!important} }
         @media(max-width:380px) { .med-grid{grid-template-columns:1fr!important} }
       `}</style>
 
@@ -291,7 +291,7 @@ export default function Store() {
       )}
 
       {/* ── STORE HEADER — search only, no duplicate nav ── */}
-      <header style={{ background: "linear-gradient(135deg,#071810 0%,#0d3320 50%,#166534 100%)", padding: "24px 24px 28px" }}>
+      <header className="store-header" style={{ background: "linear-gradient(135deg,#071810 0%,#0d3320 50%,#166534 100%)", padding: "24px 24px 28px" }}>
         <div style={{ maxWidth: "1280px", margin: "0 auto" }}>
 
           {/* Title row */}
