@@ -144,7 +144,58 @@ function OrderRow({ order, onAction, idx }) {
     </tr>
   );
 }
-const td = { padding: "12px 14px", borderBottom: "1px solid #f3f4f6", verticalAlign: "middle" };
+const td = { padding: "12px 14px", borderBottom: "1px solid #f3f4f6", verticalAlign: "middle" };\n\n
+function MobileOrderCard({ order, onAction, idx }) {
+  const name = order.orderType === "walk-in" ? (order.guestInfo?.name || "Walk-in") : (order.userId?.name || "Online");
+  const items = safeArray(order.items);
+  const nextSt = NEXT_STATUS[order.status];
+  return (
+    <article className="staff-mobile-order-card">
+      <div className="staff-mobile-order-top">
+        <div className="staff-mobile-order-person">
+          {order.tokenStr && <span className="staff-mobile-token">{order.tokenStr}</span>}
+          <div>
+            <div className="staff-mobile-order-name">{name}</div>
+            <div className="staff-mobile-order-time">{timeAgo(order.createdAt)}</div>
+          </div>
+        </div>
+        <StatusChip status={order.status} />
+      </div>
+
+      <div className="staff-mobile-order-meta">
+        <span className={order.orderType === "walk-in" ? "staff-mobile-type staff-mobile-type--walkin" : "staff-mobile-type"}>
+          {order.orderType === "walk-in" ? "🏪 Walk-in" : "🌐 Online"}
+        </span>
+        <strong className="staff-mobile-total">Rs.{fmt(order.total)}</strong>
+      </div>
+
+      <div className="staff-mobile-items">
+        <div className="staff-mobile-section-label">ITEMS</div>
+        {items.length > 0 ? items.map((item, i) => (
+          <div key={i} className="staff-mobile-item-row">
+            <span>{item.name || "Medicine"}</span>
+            <strong>× {item.quantity || 1}</strong>
+          </div>
+        )) : (
+          <div className="staff-mobile-empty-items">No items listed</div>
+        )}
+      </div>
+
+      {nextSt ? (
+        <button
+          className={nextSt === "Completed" ? "staff-mobile-action staff-mobile-action--complete" : "staff-mobile-action"}
+          onClick={() => onAction(order, nextSt)}
+        >
+          {nextSt === "Approved" ? "✓ Approve Order" : "✓ Complete Order"}
+        </button>
+      ) : (
+        <div className="staff-mobile-final-state">No further staff action</div>
+      )}
+    </article>
+  );
+}
+
+
 
 // ─── STATS BAR ────────────────────────────────────────────────────────────────
 function StatsBar({ orders }) {
@@ -597,6 +648,27 @@ export default function StaffDashboard() {
         input:focus, select:focus { outline:none; border-color:#166534 !important; box-shadow:0 0 0 3px rgba(22,101,52,0.1); }
         .staff-orders-layout { min-width: 0; }
         .staff-orders-table-wrap { width: 100%; max-width: 100%; min-width: 0; overflow-x: scroll; overflow-y: hidden; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; touch-action: pan-x; scrollbar-gutter: stable; }
+        .staff-orders-mobile-list { display: none; }
+        .staff-mobile-order-card { background: #fff; border: 1px solid #e5e7eb; border-radius: 14px; padding: 14px; margin: 10px 0; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+        .staff-mobile-order-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+        .staff-mobile-order-person { display: flex; align-items: center; gap: 9px; min-width: 0; }
+        .staff-mobile-token { display: inline-flex; align-items: center; background: #166534; color: #fff; padding: 4px 8px; border-radius: 7px; font-size: 11px; font-weight: 800; flex-shrink: 0; }
+        .staff-mobile-order-name { font-size: 15px; font-weight: 700; color: #111827; overflow-wrap: anywhere; }
+        .staff-mobile-order-time { margin-top: 2px; color: #9ca3af; font-size: 11px; }
+        .staff-mobile-order-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 12px; padding: 9px 0; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
+        .staff-mobile-type { background: #dbeafe; color: #1e40af; padding: 4px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; }
+        .staff-mobile-type--walkin { background: #fef3c7; color: #92400e; }
+        .staff-mobile-total { color: #166534; font-size: 16px; }
+        .staff-mobile-items { padding-top: 11px; }
+        .staff-mobile-section-label { color: #9ca3af; font-size: 10px; font-weight: 800; letter-spacing: .08em; margin-bottom: 7px; }
+        .staff-mobile-item-row { display: flex; justify-content: space-between; gap: 12px; padding: 5px 0; color: #4b5563; font-size: 12px; }
+        .staff-mobile-item-row span { min-width: 0; overflow-wrap: anywhere; }
+        .staff-mobile-item-row strong { color: #111827; white-space: nowrap; }
+        .staff-mobile-empty-items { color: #9ca3af; font-size: 12px; }
+        .staff-mobile-action { width: 100%; min-height: 44px; margin-top: 12px; border: 0; border-radius: 9px; background: #1e40af; color: #fff; font-size: 13px; font-weight: 700; }
+        .staff-mobile-action--complete { background: #166534; }
+        .staff-mobile-final-state { margin-top: 12px; padding: 9px; text-align: center; background: #f9fafb; color: #9ca3af; border-radius: 8px; font-size: 11px; }
+
         .staff-orders-table { min-width: 760px; }
 
         .staff-stats-bar > .staff-stat-card { min-width: 0; }
@@ -645,6 +717,9 @@ export default function StaffDashboard() {
           .staff-stats-bar > div > div > div:last-child { font-size: 10px !important; }
           .staff-search-wrap { width: 100%; }
           .staff-orders-table { min-width: 720px; }
+          .staff-orders-desktop { display: none; }
+          .staff-orders-mobile-list { display: block; padding: 4px 10px 10px; }
+
           .staff-side-column { display: grid; grid-template-columns: 1fr; gap: 12px; }
           .staff-side-column > div { margin-top: 0 !important; }
           .staff-pos-medicine-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; max-height: none !important; overflow: visible !important; }
@@ -798,9 +873,10 @@ export default function StaffDashboard() {
                       )}
                     </div>
                   ) : (
-                    <div className="staff-orders-table-wrap" role="region" aria-label="Orders table" tabIndex="0">
-                      <div className="staff-mobile-note">↔ Swipe left or right to view order details</div>
-                      <table className="staff-orders-table" style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <div className="staff-orders-desktop">
+                      <div className="staff-orders-table-wrap" role="region" aria-label="Orders table" tabIndex="0">
+                        <div className="staff-mobile-note">↔ Swipe left or right to view order details</div>
+                        <table className="staff-orders-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
                           <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
                             {["Patient / Token", "Items", "Total", "Type", "Status", "Action"].map(h => (
@@ -813,7 +889,13 @@ export default function StaffDashboard() {
                             <OrderRow key={order._id} order={order} idx={idx} onAction={handleAction} />
                           ))}
                         </tbody>
-                      </table>
+                        </table>
+                      </div>
+                    </div>
+                    <div className="staff-orders-mobile-list">
+                      {sorted.map((order, idx) => (
+                        <MobileOrderCard key={order._id} order={order} idx={idx} onAction={handleAction} />
+                      ))}
                     </div>
                   )}
 
