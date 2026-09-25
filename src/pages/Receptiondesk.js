@@ -10,14 +10,20 @@ const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
 // ─── STYLES ──────────────────────────────────────────────────────────────────
 const S = {
-  page:    { height:"100vh", overflow:"hidden", background:"#f1f5f9", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", display:"flex" },
+  page:    { height:"100vh", overflow:"hidden", background:"#f8fafc", fontFamily:"'Plus Jakarta Sans','Segoe UI',sans-serif", display:"flex" },
   sidebar: { width:"220px", background:"linear-gradient(180deg,#0a1f12 0%,#14532d 50%,#1e7a3e 100%)", display:"flex", flexDirection:"column", position:"fixed", top:0, left:0, height:"100vh", zIndex:20, overflowY:"auto" },
   main:    { flex:1, display:"flex", flexDirection:"column", minWidth:0, overflowY:"auto", marginLeft:"220px" },
   topbar:  { background:"white", padding:"13px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", borderBottom:"1px solid #e5e7eb", position:"sticky", top:0, zIndex:9, boxShadow:"0 1px 3px rgba(0,0,0,0.04)", gap:"12px" },
-  content: { padding:"24px 28px", maxWidth:"1200px", margin:"0 auto", width:"100%" },
+  content: { padding:"24px 28px", maxWidth:"1280px", margin:"0 auto", width:"100%" },
   card:    { background:"white", borderRadius:"14px", padding:"24px", boxShadow:"0 1px 6px rgba(0,0,0,0.06)", marginBottom:"24px" },
   navItem: { display:"flex", alignItems:"center", gap:"10px", padding:"10px 12px", margin:"1px 8px", borderRadius:"10px", cursor:"pointer", fontSize:"13px", fontWeight:"500", color:"rgba(255,255,255,0.6)", border:"none", background:"transparent", width:"calc(100% - 16px)", textAlign:"left", transition:"all 0.15s" },
   navItemActive: { background:"rgba(255,255,255,0.16)", color:"white", fontWeight:"700" },
+};
+
+const getLocalDateKey = () => {
+  const d = new Date();
+  const offset = d.getTimezoneOffset();
+  return new Date(d.getTime() - offset * 60000).toISOString().slice(0, 10);
 };
 
 const aptStatusColors = {
@@ -82,14 +88,19 @@ export default function Receptiondesk() {
       fetchQueue("walkin");
     }, 8000);
 
-    // Socket.io
+    // Socket.io — keep the connection scoped to this screen.
+    let socket;
     import("socket.io-client").then(({io}) => {
-      const socket = io(BASE_URL,{withCredentials:true});
-      socket.on("queue:update", d => setQueueStatus(p => ({...p,[d.type]:d})));
-      return () => socket.disconnect();
+      socket = io(BASE_URL,{withCredentials:true});
+      socket.on("queue:update", d => {
+        if (d?.type) setQueueStatus(p => ({...p,[d.type]:d}));
+      });
     }).catch(()=>{});
 
-    return () => clearInterval(interval);
+    return () => {
+      clearInterval(interval);
+      if (socket) socket.disconnect();
+    };
   }, [authChecked]);
 
   // ── FETCH APPOINTMENTS ──────────────────────────────────────────────────────
@@ -164,7 +175,7 @@ export default function Receptiondesk() {
     return [a.name,a.contact,a.problem,a.status,a.date].some(f => String(f||"").toLowerCase().includes(q));
   });
 
-  const todayApts     = appointments.filter(a => a.date === new Date().toISOString().split("T")[0]);
+  const todayApts     = appointments.filter(a => a.date === getLocalDateKey());
   const pendingCount  = appointments.filter(a => a.status === "Pending").length;
   const confirmedCount = appointments.filter(a => a.status === "Confirmed").length;
 
@@ -193,8 +204,38 @@ export default function Receptiondesk() {
         @keyframes slideIn {from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
         * {box-sizing:border-box}
         .nav-btn:hover{background:rgba(255,255,255,0.12)!important;color:white!important}
-        @media(max-width:860px){.rd-sidebar{display:none!important}.rd-ham{display:flex!important}.rd-main{margin-left:0!important}}
-        @media(min-width:861px){.rd-ham{display:none!important}}
+        .rd-icon-btn{min-width:44px;min-height:44px}
+        .rd-primary-btn{min-height:44px}
+        .rd-queue-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+        .rd-appointment-row{transition:box-shadow .15s ease,border-color .15s ease}
+        .rd-appointment-row:hover{box-shadow:0 4px 14px rgba(15,23,42,.07)!important}
+        .rd-modal-close:focus-visible,.rd-icon-btn:focus-visible,.rd-primary-btn:focus-visible,.nav-btn:focus-visible{outline:3px solid rgba(34,197,94,.35);outline-offset:2px}
+        @media(max-width:1050px){.rd-queue-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+        @media(max-width:860px){
+          .rd-sidebar{display:none!important}
+          .rd-ham{display:flex!important}
+          .rd-main{margin-left:0!important}
+          .rd-content{padding:18px 16px!important}
+          .rd-topbar{padding:10px 16px!important}
+          .rd-queue-grid{grid-template-columns:1fr}
+        }
+        @media(max-width:600px){
+          .rd-topbar-status{display:none!important}
+          .rd-page-title{font-size:16px!important}
+          .rd-page-subtitle{font-size:10px!important}
+          .rd-content h2{font-size:18px!important}
+          .rd-apt-search{min-width:0!important;width:100%!important}
+          .rd-apt-toolbar{width:100%}
+          .rd-apt-refresh{width:100%}
+          .rd-appointment-row{align-items:flex-start!important;padding:14px!important}
+          .rd-appointment-actions{width:100%;justify-content:flex-start!important}
+          .rd-appointment-actions button{min-height:40px}
+        }
+        @media(max-width:380px){
+          .rd-content{padding:14px 12px!important}
+          .rd-queue-actions{flex-wrap:wrap}
+          .rd-queue-actions .rd-primary-btn{min-width:100%}
+        }
       `}</style>
 
       {/* Mobile overlay */}
@@ -212,7 +253,7 @@ export default function Receptiondesk() {
         <div style={{flex:1,padding:"4px 0",overflowY:"auto"}}>
           {NAV.map(n => (
             <button key={n.id} className="nav-btn" onClick={() => { setActiveTab(n.id); setSidebarOpen(false); }}
-              style={{...S.navItem,...( activeTab===n.id ? S.navItemActive : {})}}>
+              aria-current={activeTab===n.id ? "page" : undefined} style={{...S.navItem,...( activeTab===n.id ? S.navItemActive : {})}}>
               <span style={{fontSize:"16px",width:"20px",textAlign:"center"}}>{n.icon}</span>
               <span>{n.label}</span>
               {n.id==="appointments" && pendingCount>0 && (
@@ -241,12 +282,12 @@ export default function Receptiondesk() {
         <aside style={{...S.sidebar,zIndex:50}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"18px 14px 14px",borderBottom:"1px solid rgba(255,255,255,0.09)"}}>
             <div style={{color:"white",fontWeight:"700",fontSize:"14px"}}>Reception Desk</div>
-            <button onClick={() => setSidebarOpen(false)} style={{background:"none",border:"none",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:"20px"}}>✕</button>
+            <button className="rd-modal-close" onClick={() => setSidebarOpen(false)} aria-label="Close reception navigation" style={{background:"none",border:"none",color:"rgba(255,255,255,0.6)",cursor:"pointer",fontSize:"20px"}}>✕</button>
           </div>
           <div style={{flex:1,padding:"4px 0"}}>
             {NAV.map(n => (
               <button key={n.id} className="nav-btn" onClick={() => { setActiveTab(n.id); setSidebarOpen(false); }}
-                style={{...S.navItem,...(activeTab===n.id?S.navItemActive:{})}}>
+                aria-current={activeTab===n.id ? "page" : undefined} style={{...S.navItem,...(activeTab===n.id?S.navItemActive:{})}}>
                 <span>{n.icon}</span><span>{n.label}</span>
               </button>
             ))}
@@ -263,20 +304,22 @@ export default function Receptiondesk() {
       <div className="rd-main" style={S.main}>
 
         {/* Topbar */}
-        <div style={S.topbar}>
+        <div className="rd-topbar" style={S.topbar}>
           <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
             <button className="rd-ham" onClick={() => setSidebarOpen(true)}
+              aria-label="Open reception navigation"
+              aria-expanded={sidebarOpen}
               style={{width:"36px",height:"36px",background:"#f1f5f9",border:"none",borderRadius:"9px",cursor:"pointer",fontSize:"17px",display:"none",alignItems:"center",justifyContent:"center"}}>
               ☰
             </button>
             <div>
-              <h1 style={{margin:0,fontSize:"17px",fontWeight:"800",color:"#1e293b"}}>
+              <h1 className="rd-page-title" style={{margin:0,fontSize:"17px",fontWeight:"800",color:"#1e293b"}}>
                 {NAV.find(n => n.id===activeTab)?.icon} {NAV.find(n => n.id===activeTab)?.label}
               </h1>
-              <p style={{margin:0,fontSize:"11px",color:"#94a3b8"}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
+              <p className="rd-page-subtitle" style={{margin:0,fontSize:"11px",color:"#94a3b8"}}>{new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"long",year:"numeric"})}</p>
             </div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:"8px"}}>
+          <div className="rd-topbar-status" style={{display:"flex",alignItems:"center",gap:"8px"}}>
             {pendingCount > 0 && (
               <div style={{padding:"6px 12px",background:"#fef3c7",color:"#92400e",borderRadius:"8px",fontSize:"12px",fontWeight:"700",border:"1px solid #fcd34d"}}>
                 ⏳ {pendingCount} pending apts
@@ -288,7 +331,7 @@ export default function Receptiondesk() {
           </div>
         </div>
 
-        <div style={S.content}>
+        <div className="rd-content" style={S.content}>
 
           {/* ═══ QUEUE TAB ═══ */}
           {activeTab === "queue" && (
@@ -312,7 +355,7 @@ export default function Receptiondesk() {
               </div>
 
               {/* Queue cards */}
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(280px,1fr))",gap:"20px"}}>
+              <div className="rd-queue-grid">
                 {[
                   {type:"appointment",label:"Appointments",icon:"📅",color:"#166534",bg:"#f0fdf4",border:"#bbf7d0"},
                   {type:"order",      label:"Online Orders",icon:"📦",color:"#1e40af",bg:"#eff6ff",border:"#bfdbfe"},
@@ -359,8 +402,8 @@ export default function Receptiondesk() {
                       )}
 
                       {/* Action buttons */}
-                      <div style={{padding:"14px 16px 18px",display:"flex",gap:"8px"}}>
-                        <button onClick={() => callNext(type)} disabled={isLoad || allDone}
+                      <div className="rd-queue-actions" style={{padding:"14px 16px 18px",display:"flex",gap:"8px"}}>
+                        <button className="rd-primary-btn" aria-label={`Call next ${label} token`} onClick={() => callNext(type)} disabled={isLoad || allDone}
                           style={{flex:1,padding:"12px",background:(isLoad||allDone)?"#e5e7eb":color,color:(isLoad||allDone)?"#9ca3af":"white",border:"none",borderRadius:"10px",fontWeight:"700",fontSize:"13px",cursor:(isLoad||allDone)?"not-allowed":"pointer",transition:"all 0.15s"}}>
                           {isLoad ? "⏳ Calling…" : allDone ? "✅ All Done" : "➡ Next"}
                         </button>
@@ -383,15 +426,15 @@ export default function Receptiondesk() {
           {/* ═══ APPOINTMENTS TAB ═══ */}
           {activeTab === "appointments" && (
             <div style={{animation:"slideIn 0.3s ease"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"20px",flexWrap:"wrap",gap:"12px"}}>
+              <div className="rd-apt-toolbar" style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:"20px",flexWrap:"wrap",gap:"12px"}}>
                 <div>
                   <h2 style={{fontSize:"20px",fontWeight:"800",color:"#1e293b",margin:"0 0 3px"}}>📅 Appointments</h2>
                   <p style={{fontSize:"13px",color:"#9ca3af",margin:0}}>{appointments.length} total · {pendingCount} pending · {confirmedCount} confirmed</p>
                 </div>
                 <div style={{display:"flex",gap:"10px",flexWrap:"wrap"}}>
-                  <input placeholder="Search name, contact, problem…" value={aptSearch} onChange={e => setAptSearch(e.target.value)}
+                  <input className="rd-apt-search" aria-label="Search appointments by name, contact, problem, status or date" placeholder="Search name, contact, problem…" value={aptSearch} onChange={e => setAptSearch(e.target.value)}
                     style={{padding:"9px 14px",border:"1px solid #e5e7eb",borderRadius:"9px",fontSize:"13px",outline:"none",minWidth:"240px"}} />
-                  <button onClick={fetchAppointments} style={{padding:"9px 16px",background:"#166534",color:"white",border:"none",borderRadius:"9px",cursor:"pointer",fontWeight:"600",fontSize:"13px"}}>
+                  <button className="rd-apt-refresh rd-primary-btn" aria-label="Refresh appointments" onClick={fetchAppointments} style={{padding:"9px 16px",background:"#166534",color:"white",border:"none",borderRadius:"9px",cursor:"pointer",fontWeight:"600",fontSize:"13px"}}>
                     ↻ Refresh
                   </button>
                 </div>
@@ -424,7 +467,7 @@ export default function Receptiondesk() {
                     const sc = aptStatusColors[apt.status] || aptStatusColors.Pending;
                     const isToday = apt.date === new Date().toISOString().split("T")[0];
                     return (
-                      <div key={apt._id} style={{background:"white",borderRadius:"14px",padding:"16px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",border:isToday?"1px solid #bbf7d0":"1px solid #f3f4f6",display:"flex",alignItems:"center",gap:"16px",flexWrap:"wrap"}}>
+                      <div key={apt._id} className="rd-appointment-row" style={{background:"white",borderRadius:"14px",padding:"16px 20px",boxShadow:"0 1px 4px rgba(0,0,0,0.06)",border:isToday?"1px solid #bbf7d0":"1px solid #f3f4f6",display:"flex",alignItems:"center",gap:"16px",flexWrap:"wrap"}}>
                         {/* Avatar */}
                         <div style={{width:"44px",height:"44px",borderRadius:"50%",background:"linear-gradient(135deg,#166534,#4ade80)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:"700",fontSize:"16px",flexShrink:0}}>
                           {(apt.name||"?").charAt(0).toUpperCase()}
@@ -440,9 +483,9 @@ export default function Receptiondesk() {
                           <div style={{fontSize:"12px",color:"#9ca3af",marginTop:"3px",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:"400px"}}>{apt.problem||""}</div>
                         </div>
                         {/* Status + action */}
-                        <div style={{display:"flex",alignItems:"center",gap:"10px",flexShrink:0}}>
+                        <div className="rd-appointment-actions" style={{display:"flex",alignItems:"center",gap:"10px",flexShrink:0}}>
                           <span style={{padding:"4px 12px",background:sc.bg,color:sc.color,borderRadius:"20px",fontSize:"11px",fontWeight:"700"}}>{apt.status}</span>
-                          <button onClick={() => { setSelectedApt({...apt}); setAptDialogOpen(true); }}
+                          <button className="rd-primary-btn" aria-label={`Update appointment for ${apt.name || "patient"}`} onClick={() => { setSelectedApt({...apt}); setAptDialogOpen(true); }}
                             style={{padding:"7px 14px",background:"#166534",color:"white",border:"none",borderRadius:"8px",cursor:"pointer",fontWeight:"600",fontSize:"12px"}}>
                             Update
                           </button>
@@ -460,9 +503,9 @@ export default function Receptiondesk() {
 
       {/* ── APPOINTMENT STATUS DIALOG ── */}
       {aptDialogOpen && selectedApt && (
-        <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
-          <div style={{background:"white",borderRadius:"20px",padding:"28px",maxWidth:"440px",width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
-            <h3 style={{margin:"0 0 6px",fontSize:"18px",fontWeight:"800",color:"#111"}}>Update Appointment Status</h3>
+        <div role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) { setAptDialogOpen(false); setSelectedApt(null); } }} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.5)",zIndex:100,display:"flex",alignItems:"center",justifyContent:"center",padding:"16px"}}>
+          <div role="dialog" aria-modal="true" aria-labelledby="rd-appointment-dialog-title" style={{background:"white",borderRadius:"20px",padding:"28px",maxWidth:"440px",width:"100%",boxShadow:"0 20px 60px rgba(0,0,0,0.2)"}}>
+            <h3 id="rd-appointment-dialog-title" style={{margin:"0 0 6px",fontSize:"18px",fontWeight:"800",color:"#111"}}>Update Appointment Status</h3>
             <p style={{margin:"0 0 20px",fontSize:"13px",color:"#9ca3af"}}>
               <strong style={{color:"#111"}}>{selectedApt.name}</strong> — {selectedApt.date} at {selectedApt.time}
             </p>
