@@ -596,6 +596,12 @@ export default function StaffDashboard() {
         @keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:.4; } }
         input:focus, select:focus { outline:none; border-color:#166534 !important; box-shadow:0 0 0 3px rgba(22,101,52,0.1); }
         .staff-orders-layout { min-width: 0; }
+        .staff-orders-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .staff-orders-table { min-width: 760px; }
+        .staff-pos-medicine-grid { min-width: 0; }
+        .staff-pos-medicine-grid > * { min-width: 0; }
+        .staff-pos-cart-card { min-width: 0; }
+        .staff-mobile-note { display: none; }
         .staff-side-column { min-width: 0; }
         .staff-pos-grid { min-width: 0; }
         @media (max-width: 1050px) {
@@ -606,6 +612,27 @@ export default function StaffDashboard() {
           .staff-pos-cart { position: static !important; }
         }
         @media (max-width: 700px) {
+          .staff-dashboard { width: 100%; overflow-x: hidden; }
+          .staff-body { padding: 12px !important; }
+          .staff-tabbar { scrollbar-width: none; }
+          .staff-tabbar::-webkit-scrollbar { display: none; }
+          .staff-header > div:first-child { min-width: 0; }
+          .staff-header > div:first-child > div:last-child { min-width: 0; }
+          .staff-header > div:last-child { gap: 6px !important; }
+          .staff-header > div:last-child span { display: none; }
+          .staff-header > div:last-child button, .staff-header > div:last-child > div { flex: 1 1 auto; }
+          .staff-header .staffBadge { padding: 6px 9px !important; }
+          .staff-toolbar { padding: 14px !important; }
+          .staff-search-wrap { width: 100%; }
+          .staff-orders-table { min-width: 720px; }
+          .staff-side-column { display: grid; grid-template-columns: 1fr; gap: 12px; }
+          .staff-side-column > div { margin-top: 0 !important; }
+          .staff-pos-medicine-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          .staff-pos-cart-card { width: 100%; }
+          .staff-pos-cart-card > div { min-width: 0; }
+          .staff-pos-cart-card button { min-height: 40px; }
+          .staff-mobile-note { display: block; font-size: 11px; color: #888; padding: 8px 14px; background: #f9fafb; border-top: 1px solid #f3f4f6; }
+
           .staff-header { padding: 14px 16px !important; align-items: flex-start !important; }
           .staff-header > div:last-child { width: 100%; flex-wrap: wrap; }
           .staff-header > div:last-child button { min-height: 42px; }
@@ -734,8 +761,8 @@ export default function StaffDashboard() {
                       )}
                     </div>
                   ) : (
-                    <div style={{ overflowX: "auto" }}>
-                      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                    <div className="staff-orders-table-wrap">
+                      <table className="staff-orders-table" style={{ width: "100%", borderCollapse: "collapse" }}>
                         <thead>
                           <tr style={{ background: "#f9fafb", borderBottom: "2px solid #e5e7eb" }}>
                             {["Patient / Token", "Items", "Total", "Type", "Status", "Action"].map(h => (
@@ -876,7 +903,7 @@ export default function StaffDashboard() {
                     )}
                   </div>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(148px,1fr))", gap: "10px", maxHeight: "420px", overflowY: "auto" }}>
+                  <div className="staff-pos-medicine-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(148px,1fr))", gap: "10px", maxHeight: "420px", overflowY: "auto" }}>
                     {posFilteredMedicines.map(m => {
                       const inCart = posCart.find(i => i._id === m._id);
                       const oos    = m.stock <= 0;
@@ -906,7 +933,7 @@ export default function StaffDashboard() {
             </div>
 
             {/* RIGHT: Cart */}
-            <div className="staff-pos-cart" style={{ position: "sticky", top: "20px" }}>
+            <div className="staff-pos-cart staff-pos-cart-card" style={{ position: "sticky", top: "20px" }}>
               <div style={{ ...s.card, border: "2px solid #166534" }}>
                 <div style={{ padding: "14px 18px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#166534" }}>🛒 Order Summary</h3>
