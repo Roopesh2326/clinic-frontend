@@ -703,6 +703,8 @@ export default function StaffDashboard() {
         .staff-pos-results-meta strong { color: #166534; }
         .staff-pos-medicine-card { min-width: 0; overflow: hidden; }
         .staff-pos-medicine-card:hover { border-color: #86efac !important; box-shadow: 0 5px 16px rgba(22,101,52,0.08); transform: translateY(-1px); }
+        .staff-pos-medicine-card:focus-visible { outline: 3px solid rgba(34,197,94,.28); outline-offset: 2px; }
+        .staff-pos-add-button:focus-visible { outline: 3px solid rgba(34,197,94,.28); outline-offset: 2px; }
         .staff-pos-medicine-image { width: 100%; height: 72px !important; object-fit: cover; border-radius: 8px !important; background: #f0fdf4; }
         .staff-pos-medicine-image--empty { display: flex; align-items: center; justify-content: center; font-size: 28px; }
         .staff-pos-medicine-name { line-height: 1.25; min-height: 32px; }
@@ -1059,7 +1061,10 @@ export default function StaffDashboard() {
                       const inCart = posCart.find(i => i._id === m._id);
                       const oos    = m.stock <= 0;
                       return (
-                        <div key={m._id} onClick={() => !oos && posAddToCart(m)}
+                        <div key={m._id} className="staff-pos-medicine-card" role="button" tabIndex={oos ? -1 : 0}
+                          aria-label={oos ? m.name + " is out of stock" : "Add " + m.name + " to order"}
+                          onClick={() => !oos && posAddToCart(m)}
+                          onKeyDown={e => { if (!oos && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); posAddToCart(m); } }}
                           style={{ border: inCart ? "2px solid #166534" : "1px solid #e5e7eb", borderRadius: "10px", padding: "12px",
                             cursor: oos ? "not-allowed" : "pointer",
                             background: oos ? "#f9fafb" : inCart ? "#f0fdf4" : "white",
@@ -1070,11 +1075,14 @@ export default function StaffDashboard() {
                             </div>
                           )}
                           {m.img ? <img className="staff-pos-medicine-image" src={m.img} alt={m.name} style={{ width: "100%", height: "60px", objectFit: "cover", borderRadius: "6px", marginBottom: "8px" }} /> : <div className="staff-pos-medicine-image staff-pos-medicine-image--empty" aria-hidden="true">💊</div>}
-                          <div style={{ fontSize: "13px", fontWeight: "600", color: "#111", marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
-                          <div style={{ fontSize: "14px", fontWeight: "700", color: "#166534", marginBottom: "2px" }}>Rs.{m.price}</div>
-                          <div style={{ fontSize: "11px", color: oos ? "#dc2626" : m.stock <= (m.lowStockThreshold || 10) ? "#92400e" : "#9ca3af" }}>
+                          <div className="staff-pos-medicine-name" style={{ fontSize: "13px", fontWeight: "600", color: "#111", marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
+                          <div className="staff-pos-medicine-price" style={{ fontSize: "14px", fontWeight: "700", color: "#166534", marginBottom: "2px" }}>Rs.{m.price}</div>
+                          <div className="staff-pos-medicine-stock" style={{ fontSize: "11px", color: oos ? "#dc2626" : m.stock <= (m.lowStockThreshold || 10) ? "#92400e" : "#9ca3af" }}>
                             {oos ? "Out of stock" : `Stock: ${m.stock}`}
                           </div>
+                          <button type="button" className="staff-pos-add-button" disabled={oos} onClick={e => { e.stopPropagation(); if (!oos) posAddToCart(m); }}>
+                            {oos ? "Unavailable" : inCart ? `Add more · ${inCart.quantity}` : "＋ Add"}
+                          </button>
                         </div>
                       );
                     })}
