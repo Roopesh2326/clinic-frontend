@@ -189,7 +189,7 @@ export default function UserDashboard() {
 
   // ORDERS
   const fetchOrders = useCallback(() => {
-    api.get("/order/my")
+    api.get("/orders/my")
       .then((res) => { if (Array.isArray(res.data)) setOrders(res.data); })
       .catch(() => setOrders(safeReadArray("orders")))
       .finally(() => setOrdersLoading(false));
