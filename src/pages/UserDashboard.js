@@ -21,6 +21,18 @@ const STATUS_MAP = {
 };
 const getStatus = (s) => STATUS_MAP[(s || "").toLowerCase()] || STATUS_MAP.pending;
 
+const formatAppointmentDate = (value) => {
+  if (!value) return "—";
+  const parsed = new Date(value);
+  if (!Number.isNaN(parsed.getTime())) return parsed.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  const parts = String(value).split("-");
+  if (parts.length === 3 && parts[0].length === 4) {
+    const fallback = new Date(Number(parts[0]), Number(parts[1]) - 1, Number(parts[2]));
+    if (!Number.isNaN(fallback.getTime())) return fallback.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  }
+  return String(value);
+};
+
 const timeAgo = (iso) => {
   if (!iso) return "";
   const d = Math.floor((Date.now() - new Date(iso)) / 60000);
@@ -273,7 +285,7 @@ export default function UserDashboard() {
   const lastApt      = appointments[0];
 
   const notifications = [];
-  if (lastApt && lastApt.status === "Confirmed") notifications.push({ icon: "📅", bg: "#dbeafe", text: <span>Your appointment on <strong>{lastApt.date} at {lastApt.time}</strong> is confirmed</span>, time: timeAgo(lastApt.bookedAt) });
+  if (lastApt && lastApt.status === "Confirmed") notifications.push({ icon: "📅", bg: "#dbeafe", text: <span>Your appointment on <strong>{formatAppointmentDate(lastApt.date)} at {lastApt.time || "—"}</strong> is confirmed</span>, time: timeAgo(lastApt.bookedAt) });
   if (lastOrder && lastOrder.status === "Delivered") notifications.push({ icon: "✅", bg: "#dcfce7", text: <span>Order <strong>#{lastOrder._id?.toString().slice(-6).toUpperCase()}</strong> has been delivered</span>, time: timeAgo(lastOrder.createdAt) });
   if (lastOrder && lastOrder.status === "Out for Delivery") notifications.push({ icon: "🚚", bg: "#fef3c7", text: <span>Order <strong>#{lastOrder._id?.toString().slice(-6).toUpperCase()}</strong> is on its way!</span>, time: timeAgo(lastOrder.createdAt) });
   if (lastOrder && lastOrder.status === "Approved") notifications.push({ icon: "🔄", bg: "#dbeafe", text: <span>Order <strong>#{lastOrder._id?.toString().slice(-6).toUpperCase()}</strong> has been approved</span>, time: timeAgo(lastOrder.createdAt) });
@@ -321,6 +333,9 @@ export default function UserDashboard() {
         .reorder-btn:hover{background:#166534!important;color:white!important}
         .patient-dashboard button:focus-visible,.patient-dashboard a:focus-visible,.patient-dashboard input:focus-visible{outline:3px solid rgba(34,197,94,.28);outline-offset:2px}
         .patient-sidebar .nav-item[aria-current="page"]{background:rgba(255,255,255,.17)!important;color:#fff!important}
+        .patient-sidebar-utilities a:hover{background:rgba(255,255,255,.18)!important;transform:translateY(-1px)}
+        .patient-sidebar-utilities button:hover{background:rgba(239,68,68,.32)!important;transform:translateY(-1px)}
+        .patient-sidebar-utilities a,.patient-sidebar-utilities button{transition:background .15s ease,transform .15s ease}
         .patient-stat:hover{box-shadow:0 8px 24px rgba(15,60,35,.08)}
         @media(max-width:980px){.patient-content{grid-template-columns:1fr!important}.patient-aside{position:static!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
         @media(max-width:720px){
@@ -361,8 +376,8 @@ export default function UserDashboard() {
           ))}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "0 8px", width: "100%" }}>
-          <Link to="/store" title="Medicine Store" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 0", background: "rgba(255,255,255,0.1)", borderRadius: "10px", fontSize: "18px", textDecoration: "none" }}>💊</Link>
+        <div className="patient-sidebar-utilities" style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "10px 8px 0", width: "100%", borderTop: "1px solid rgba(255,255,255,0.12)" }}>
+          <Link to="/store" title="Medicine Store" aria-label="Medicine Store" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 0", background: "rgba(255,255,255,0.1)", borderRadius: "10px", fontSize: "18px", textDecoration: "none" }}>💊</Link>
           <button type="button" onClick={handleLogout} title="Logout" aria-label="Logout" style={{ padding: "12px 0", background: "rgba(239,68,68,0.2)", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "18px", color: "white" }}>🚪</button>
         </div>
       </aside>
@@ -469,7 +484,7 @@ export default function UserDashboard() {
                 {!aptsLoading && lastApt && (
                   <div style={{ background: "white", borderRadius: "20px", padding: "20px", marginBottom: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
-                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>📅 Latest Appointment</h3>
+                      <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>📅 {upcomingApts.length > 0 ? "Next Appointment" : "Latest Appointment"}</h3>
                       <button onClick={() => setActiveSection("appointments")} style={{ background: "none", border: "none", color: "#166534", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>View all →</button>
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
@@ -756,7 +771,7 @@ export default function UserDashboard() {
                   const apt = upcomingApts[0] || appointments[0];
                   return (
                     <div style={{ background: "#f8fafc", borderRadius: "12px", padding: "14px" }}>
-                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>{apt.date}</div>
+                      <div style={{ fontSize: "14px", fontWeight: "700", color: "#1e293b", marginBottom: "6px" }}>{formatAppointmentDate(apt.date)}</div>
                       <div style={{ fontSize: "12px", color: "#64748b", marginBottom: "8px" }}>at {apt.time || "—"}</div>
                       <div style={{ fontSize: "12px", color: "#94a3b8", marginBottom: "10px" }}>{apt.problem?.slice(0, 50)}</div>
                       <StatusChip status={apt.status} />
