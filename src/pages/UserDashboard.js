@@ -319,7 +319,8 @@ export default function UserDashboard() {
   const initials = (userInfo.name || "U").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <div className="patient-dashboard" style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "'Plus Jakarta Sans', 'Nunito', system-ui, sans-serif", display: "flex" }}>\n      <style>{`
+    <div className="patient-dashboard" style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "'Plus Jakarta Sans', 'Nunito', system-ui, sans-serif", display: "flex" }}>
+      <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         @keyframes skshimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
