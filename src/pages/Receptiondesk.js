@@ -364,7 +364,7 @@ export default function Receptiondesk() {
                   const q      = queueStatus[type] || {};
                   const total  = q.totalIssued    || 0;
                   const serving = q.currentServing || 0;
-                  const waiting = Math.max(0, total - serving);
+                  const waiting = Number.isFinite(Number(q.waiting)) ? Number(q.waiting) : Math.max(0, total - serving);
                   const isLoad  = queueLoading[type];
                   const allDone = total > 0 && serving >= total;
 
