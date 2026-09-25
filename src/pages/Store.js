@@ -363,7 +363,7 @@ export default function Store() {
           <div className="filter-scroll" style={{ display: "flex", gap: "7px", overflowX: "auto", paddingBottom: "2px", scrollbarWidth: "none", marginBottom: "10px" }}>
             <style>{`.filter-scroll::-webkit-scrollbar{display:none}`}</style>
             {cats.slice(0, 10).map(c => (
-              <button key={c} className={`cat-pill${cat === c ? " active" : ""}`} onClick={() => setCat(c)}>{c}</button>
+              <button key={c} className={`cat-pill${cat === c ? " active" : ""}`} type="button" aria-pressed={cat === c} onClick={() => setCat(c)}>{c}</button>
             ))}
           </div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px", flexWrap: "wrap" }}>
