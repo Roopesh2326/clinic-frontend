@@ -637,14 +637,27 @@ export default function StaffDashboard() {
           .staff-header > div:last-child span { display: none; }
           .staff-header > div:last-child button, .staff-header > div:last-child > div { flex: 1 1 auto; }
           .staff-header .staffBadge { padding: 6px 9px !important; }
-          .staff-toolbar { padding: 14px !important; }\n          .staff-stats-bar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; margin-bottom: 14px !important; }\n          .staff-stats-bar > div { min-width: 0; padding: 12px 12px !important; }\n          .staff-stats-bar > div > span { font-size: 18px !important; }\n          .staff-stats-bar > div > div > div:first-child { font-size: 16px !important; }\n          .staff-stats-bar > div > div > div:last-child { font-size: 10px !important; }
+          .staff-toolbar { padding: 14px !important; }
+          .staff-stats-bar { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; gap: 10px !important; margin-bottom: 14px !important; }
+          .staff-stats-bar > div { min-width: 0; padding: 12px 12px !important; }
+          .staff-stats-bar > div > span { font-size: 18px !important; }
+          .staff-stats-bar > div > div > div:first-child { font-size: 16px !important; }
+          .staff-stats-bar > div > div > div:last-child { font-size: 10px !important; }
           .staff-search-wrap { width: 100%; }
           .staff-orders-table { min-width: 720px; }
           .staff-side-column { display: grid; grid-template-columns: 1fr; gap: 12px; }
           .staff-side-column > div { margin-top: 0 !important; }
-          .staff-pos-medicine-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; max-height: none !important; overflow: visible !important; }\n          .staff-pos-results-meta { font-size: 10px; }\n          .staff-pos-medicine-card { padding: 10px !important; }\n          .staff-pos-medicine-image { height: 64px !important; }\n          .staff-pos-add-button { min-height: 40px; }
+          .staff-pos-medicine-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; max-height: none !important; overflow: visible !important; }
+          .staff-pos-results-meta { font-size: 10px; }
+          .staff-pos-medicine-card { padding: 10px !important; }
+          .staff-pos-medicine-image { height: 64px !important; }
+          .staff-pos-add-button { min-height: 40px; }
           .staff-pos-cart-card { width: 100%; }
-          .staff-pos-cart-card > div { min-width: 0; }\n          .staff-pos-cart-item { flex-wrap: wrap; }\n          .staff-pos-cart-item > div:first-child { flex: 1 1 calc(100% - 40px); }\n          .staff-pos-cart-item > .staff-pos-qty-controls { margin-left: auto; }\n          .staff-pos-cart-item > div:nth-last-of-type(1) { }
+          .staff-pos-cart-card > div { min-width: 0; }
+          .staff-pos-cart-item { flex-wrap: wrap; }
+          .staff-pos-cart-item > div:first-child { flex: 1 1 calc(100% - 40px); }
+          .staff-pos-cart-item > .staff-pos-qty-controls { margin-left: auto; }
+          .staff-pos-cart-item > div:nth-last-of-type(1) { }
           .staff-pos-cart-card button { min-height: 40px; }
           .staff-mobile-note { display: block; font-size: 11px; color: #6b7280; padding: 8px 14px; background: #f9fafb; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
 
@@ -655,12 +668,21 @@ export default function StaffDashboard() {
           .staff-tabbar { padding: 0 12px !important; overflow-x: auto; }
           .staff-tabbar button { min-height: 46px; white-space: nowrap; }
         }
-        @media (max-width: 360px) {\n          .staff-pos-medicine-grid { grid-template-columns: 1fr !important; }\n          .staff-pos-results-meta span:last-child { display: none; }\n        }\n        @media (max-width: 560px) {
+        @media (max-width: 360px) {
+          .staff-pos-medicine-grid { grid-template-columns: 1fr !important; }
+          .staff-pos-results-meta span:last-child { display: none; }
+        }
+        @media (max-width: 560px) {
           .staff-body { padding: 14px !important; }
           .staff-toolbar-controls { width: 100%; }
           .staff-toolbar-controls > * { flex: 1 1 100%; min-width: 0 !important; width: 100%; }
           .staff-pos-customer-grid { grid-template-columns: 1fr !important; }
-          .staff-pos-cart { width: 100%; }\n          .staff-pos-payment-options { width: 100%; }\n          .staff-pos-payment-options button { flex: 1 1 0; padding-inline: 8px !important; min-width: 0; }\n          .staff-orders-table-wrap { border-left: 1px solid #f3f4f6; border-right: 1px solid #f3f4f6; }\n          .staff-confirm-modal { width: min(320px, calc(100vw - 32px)) !important; padding: 28px 20px !important; }\n          .staff-confirm-modal > div:last-child { flex-wrap: wrap; }
+          .staff-pos-cart { width: 100%; }
+          .staff-pos-payment-options { width: 100%; }
+          .staff-pos-payment-options button { flex: 1 1 0; padding-inline: 8px !important; min-width: 0; }
+          .staff-orders-table-wrap { border-left: 1px solid #f3f4f6; border-right: 1px solid #f3f4f6; }
+          .staff-confirm-modal { width: min(320px, calc(100vw - 32px)) !important; padding: 28px 20px !important; }
+          .staff-confirm-modal > div:last-child { flex-wrap: wrap; }
         }
         @media (prefers-reduced-motion: reduce) {
           .staff-dashboard * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
