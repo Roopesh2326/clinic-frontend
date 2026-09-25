@@ -298,54 +298,41 @@ export default function UserDashboard() {
 
   const initials = (userInfo.name || "U").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
-  return (
-    <div className="patient-dashboard" style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "'Plus Jakarta Sans', 'Nunito', system-ui, sans-serif", display: "flex" }}>
-      <style>{`
+  return (\n    <div className="patient-dashboard" style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "'Plus Jakarta Sans', 'Nunito', system-ui, sans-serif", display: "flex" }}>\n      <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         @keyframes skshimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
         @keyframes fadeUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.5} }
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 6px; } ::-webkit-scrollbar-track { background: transparent; } ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
-        .nav-item:hover { background: rgba(22,101,52,0.08) !important; color: #166534 !important; }
-        .action-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.12) !important; }
-        .order-card:hover { border-color: #86efac !important; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.08) !important; }
-        .reorder-btn:hover { background: #166534 !important; color: white !important; }
-        .patient-dashboard button:focus-visible,.patient-dashboard a:focus-visible,input:focus-visible { outline:3px solid rgba(34,197,94,.28); outline-offset:2px; }
-        .patient-sidebar .nav-item[aria-current="page"] { background:rgba(255,255,255,.17) !important; color:#fff !important; }
-        .patient-stat:hover { box-shadow:0 8px 24px rgba(15,60,35,.08); }
-        @media (max-width: 980px) {
-          .patient-content { grid-template-columns:1fr !important; }
-          .patient-aside { position:static !important; display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+        @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+        *{box-sizing:border-box}
+        ::-webkit-scrollbar{width:6px} ::-webkit-scrollbar-track{background:transparent} ::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:3px}
+        .nav-item:hover{background:rgba(22,101,52,.08)!important;color:#166534!important}
+        .action-btn:hover{transform:translateY(-2px);box-shadow:0 8px 20px rgba(0,0,0,.12)!important}
+        .order-card:hover{border-color:#86efac!important;transform:translateY(-1px);box-shadow:0 4px 20px rgba(0,0,0,.08)!important}
+        .reorder-btn:hover{background:#166534!important;color:white!important}
+        .patient-dashboard button:focus-visible,.patient-dashboard a:focus-visible,.patient-dashboard input:focus-visible{outline:3px solid rgba(34,197,94,.28);outline-offset:2px}
+        .patient-sidebar .nav-item[aria-current="page"]{background:rgba(255,255,255,.17)!important;color:#fff!important}
+        .patient-stat:hover{box-shadow:0 8px 24px rgba(15,60,35,.08)}
+        @media(max-width:980px){.patient-content{grid-template-columns:1fr!important}.patient-aside{position:static!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
+        @media(max-width:720px){
+          .patient-dashboard{display:block!important}
+          .patient-sidebar{width:100%!important;height:auto!important;min-height:64px;position:sticky!important;top:0!important;flex-direction:row!important;padding:8px 10px!important;overflow-x:auto}
+          .patient-sidebar>div:first-child{width:38px!important;height:38px!important;min-width:38px;margin:0 8px 0 0!important}
+          .patient-sidebar>div:nth-child(2){flex-direction:row!important;width:auto!important;padding:0!important;gap:4px!important;overflow-x:auto}
+          .patient-sidebar>div:nth-child(2) .nav-item{width:46px!important;min-width:46px;padding:10px 0!important}
+          .patient-sidebar>div:last-child{flex-direction:row!important;width:auto!important;padding:0 0 0 6px!important;gap:4px!important}
+          .patient-sidebar>div:last-child a,.patient-sidebar>div:last-child button{width:46px!important;min-width:46px;padding:10px 0!important}
+          .patient-header{padding:12px 16px!important}
+          .patient-header>div:first-child h1{font-size:18px!important}
+          .patient-header>div:last-child>div:first-child{display:none!important}
+          .patient-header>div:last-child>a>div{padding:8px 11px!important}
+          .patient-header>div:last-child>div:last-child{padding:5px 8px!important}
+          .patient-header>div:last-child>div:last-child>div:last-child{display:none}
+          .patient-content{padding:16px!important;gap:16px!important}
+          .patient-aside{grid-template-columns:1fr!important;gap:12px!important}
         }
-        @media (max-width: 720px) {
-          .patient-dashboard { display:block !important; }
-          .patient-sidebar { width:100% !important; height:auto !important; min-height:64px; position:sticky !important; top:0 !important; flex-direction:row !important; padding:8px 10px !important; overflow-x:auto; }
-          .patient-sidebar > div:first-child { width:38px !important; height:38px !important; min-width:38px; margin:0 8px 0 0 !important; }
-          .patient-sidebar > div:nth-child(2) { flex-direction:row !important; width:auto !important; padding:0 !important; gap:4px !important; overflow-x:auto; }
-          .patient-sidebar > div:nth-child(2) .nav-item { width:46px !important; min-width:46px; padding:10px 0 !important; }
-          .patient-sidebar > div:last-child { flex-direction:row !important; width:auto !important; padding:0 0 0 6px !important; gap:4px !important; }
-          .patient-sidebar > div:last-child a,.patient-sidebar > div:last-child button { width:46px !important; min-width:46px; padding:10px 0 !important; }
-          .patient-header { padding:12px 16px !important; }
-          .patient-header > div:first-child h1 { font-size:18px !important; }
-          .patient-header > div:last-child > div:nth-child(1) { display:none !important; }
-          .patient-header > div:last-child > a > div { padding:8px 11px !important; }
-          .patient-header > div:last-child > div:last-child { padding:5px 8px !important; }
-          .patient-header > div:last-child > div:last-child > div:last-child { display:none; }
-          .patient-content { padding:16px !important; gap:16px !important; }
-          .patient-aside { grid-template-columns:1fr !important; gap:12px !important; }
-        }
-        @media (max-width: 480px) {
-          .patient-content { padding:12px !important; }
-          .patient-header { gap:8px; }
-          .patient-header > div:last-child { gap:6px !important; }
-          .patient-header > div:last-child > a > div { font-size:11px !important; }
-          .patient-dashboard .order-card { padding:15px !important; }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .patient-dashboard *, .patient-dashboard *::before, .patient-dashboard *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
-        }
-`}</style>
+        @media(max-width:480px){.patient-content{padding:12px!important}.patient-header{gap:8px}.patient-header>div:last-child{gap:6px!important}.patient-header>div:last-child>a>div{font-size:11px!important}.patient-dashboard .order-card{padding:15px!important}}
+        @media(prefers-reduced-motion:reduce){.patient-dashboard *,.patient-dashboard *::before,.patient-dashboard *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
+      `}</style>
 
       {/* ── SIDEBAR ── */}
       <aside className="patient-sidebar" aria-label="Patient dashboard navigation" style={{ width: "72px", background: "linear-gradient(180deg, #0f2419 0%, #166534 100%)", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", position: "sticky", top: 0, height: "100vh", flexShrink: 0, zIndex: 10 }}>
