@@ -43,11 +43,13 @@ export default function Signup() {
 
         {/* FIELDS */}
         <div style={styles.field}>
-          <label style={styles.label}>Full Name</label>
+          <label htmlFor="signup-name" style={styles.label}>Full Name</label>
           <div style={styles.inputWrapper}>
             <span style={styles.icon}>👤</span>
             <input
+              id="signup-name"
               type="text"
+              autoComplete="name"
               placeholder="Enter your full name"
               value={name}
               onChange={(e) => setName(e.target.value)}
@@ -57,11 +59,13 @@ export default function Signup() {
         </div>
 
         <div style={styles.field}>
-          <label style={styles.label}>Email Address</label>
+          <label htmlFor="signup-email" style={styles.label}>Email Address</label>
           <div style={styles.inputWrapper}>
             <span style={styles.icon}>📧</span>
             <input
+              id="signup-email"
               type="email"
+              autoComplete="email"
               placeholder="Enter your email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
@@ -71,11 +75,13 @@ export default function Signup() {
         </div>
 
         <div style={styles.field}>
-          <label style={styles.label}>Phone Number</label>
+          <label htmlFor="signup-phone" style={styles.label}>Phone Number</label>
           <div style={styles.inputWrapper}>
             <span style={styles.icon}>📱</span>
             <input
+              id="signup-phone"
               type="tel"
+              autoComplete="tel"
               placeholder="Enter your phone number"
               value={phone}
               onChange={(e) => setPhone(e.target.value)}
@@ -85,11 +91,13 @@ export default function Signup() {
         </div>
 
         <div style={styles.field}>
-          <label style={styles.label}>Password</label>
+          <label htmlFor="signup-password" style={styles.label}>Password</label>
           <div style={styles.inputWrapper}>
             <span style={styles.icon}>🔒</span>
             <input
+              id="signup-password"
               type="password"
+              autoComplete="new-password"
               placeholder="Create a password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
@@ -118,15 +126,16 @@ export default function Signup() {
 const styles = {
   page: {
     minHeight: "100vh",
-    background: "linear-gradient(135deg, #e8f5e9 0%, #e3f2fd 100%)",
+    background: "radial-gradient(circle at 85% 15%, rgba(34,197,94,.14), transparent 32%), linear-gradient(135deg, #f8fbf8 0%, #eef8f0 50%, #faf8f3 100%)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     padding: "20px",
   },
   card: {
-    background: "#fff",
-    borderRadius: "20px",
+    background: "rgba(255,255,255,.96)",
+    border: "1px solid #e4ece7",
+    borderRadius: "24px",
     padding: "40px 36px",
     width: "100%",
     maxWidth: "420px",
@@ -187,7 +196,7 @@ const styles = {
   btn: {
     width: "100%",
     padding: "14px",
-    background: "linear-gradient(135deg, #166534, #16a34a)",
+    background: "linear-gradient(135deg, #155231, #22c55e)",
     color: "#fff",
     border: "none",
     borderRadius: "10px",
