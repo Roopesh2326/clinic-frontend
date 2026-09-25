@@ -29,6 +29,23 @@ export default function Cart() {
     }
   }, [navigate]);
 
+  const changeQuantity = (index, delta) => {
+    setCart((current) => {
+      const next = current.map((item, i) => {
+        if (i !== index) return item;
+        const currentQty = Number(item.quantity) || 1;
+        const stock = Number(item.stock);
+        const nextQty = currentQty + delta;
+        if (nextQty <= 0) return null;
+        if (Number.isFinite(stock) && stock > 0 && nextQty > stock) return item;
+        return { ...item, quantity: nextQty };
+      }).filter(Boolean);
+      localStorage.setItem("cart", JSON.stringify(next));
+      window.dispatchEvent(new Event("cartUpdate"));
+      return next;
+    });
+  };
+
   // ❌ Remove item
   const removeFromCart = (index) => {
     const newCart = cart.filter((_, i) => i !== index);
@@ -37,11 +54,13 @@ export default function Cart() {
     window.dispatchEvent(new Event("cartUpdate"));
   };
 
+  const getItemCount = () => cart.reduce((count, item) => count + (Number(item?.quantity) || 1), 0);
+
   // 💰 Total
   const getTotal = () => {
     return cart.reduce((total, item) => {
       const price = Number(String(item?.price ?? "0").replace(/[^\d.]/g, "")) || 0;
-      return total + price;
+      return total + price * (Number(item?.quantity) || 1);
     }, 0);
   };
 
@@ -144,7 +163,7 @@ export default function Cart() {
   // 🎉 Success screen
   if (orderPlaced) {
     return (
-      <Container maxWidth="md">
+      <Container maxWidth="md" style={{ paddingTop: "32px", paddingBottom: "48px" }}>
         <Box style={styles.successBox}>
           <Typography variant="h5" style={{ color: "#166534", fontWeight: "700" }}>
             ✅ Order Placed Successfully!
@@ -180,7 +199,7 @@ export default function Cart() {
           <Button
             variant="contained"
             color="success"
-            onClick={() => navigate("/")}
+            onClick={() => navigate("/store")}
             style={{ marginTop: "10px" }}
           >
             Shop Now
@@ -195,20 +214,26 @@ export default function Cart() {
                 {item.img && (
                   <img src={item.img} alt={item.name} style={styles.image} />
                 )}
-                <Box style={{ flex: 1 }}>
+                <Box style={{ flex: 1, minWidth: 0 }}>
                   <Typography style={{ fontWeight: "600" }}>{item.name}</Typography>
                   <Typography style={{ color: "#166534", fontWeight: "700" }}>
-                    Rs.{item.price}
+                    Rs.{item.price} each
                   </Typography>
                   {item.desc && (
-                    <Typography variant="caption" style={{ color: "#888" }}>
+                    <Typography variant="caption" style={{ color: "#888", display: "block", marginTop: 4 }}>
                       {item.desc}
                     </Typography>
                   )}
+                  <Box style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                    <Button size="small" variant="outlined" aria-label={"Decrease " + item.name + " quantity"} onClick={() => changeQuantity(index, -1)} style={{ minWidth: 36, minHeight: 36, padding: 0 }}>−</Button>
+                    <Typography aria-live="polite" style={{ minWidth: 24, textAlign: "center", fontWeight: 700 }}>{item.quantity || 1}</Typography>
+                    <Button size="small" variant="outlined" aria-label={"Increase " + item.name + " quantity"} onClick={() => changeQuantity(index, 1)} disabled={Number.isFinite(Number(item.stock)) && Number(item.stock) > 0 && (Number(item.quantity) || 1) >= Number(item.stock)} style={{ minWidth: 36, minHeight: 36, padding: 0 }}>+</Button>
+                    <Button color="error" size="small" onClick={() => removeFromCart(index)} style={{ marginLeft: "auto" }}>Remove</Button>
+                  </Box>
                 </Box>
-                <Button color="error" onClick={() => removeFromCart(index)}>
-                  Remove
-                </Button>
+                <Typography style={{ fontWeight: 800, color: "#1e293b", whiteSpace: "nowrap" }}>
+                  Rs.{(Number(String(item?.price ?? "0").replace(/[^\d.]/g, "")) || 0) * (Number(item.quantity) || 1)}
+                </Typography>
               </Card>
             ))}
 
@@ -218,7 +243,7 @@ export default function Cart() {
                 Order Summary
               </Typography>
               <Box style={{ display: "flex", justifyContent: "space-between", marginTop: "8px" }}>
-                <Typography>Items ({cart.length})</Typography>
+                <Typography>Items ({getItemCount()})</Typography>
                 <Typography>Rs.{getTotal()}</Typography>
               </Box>
               <Box style={{ display: "flex", justifyContent: "space-between", marginTop: "4px", fontWeight: "700" }}>
