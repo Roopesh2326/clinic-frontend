@@ -42,7 +42,7 @@ function AppContent() {
     <>
       <NoticeBar />
       {!hideShell && <Navbar />}
-      <Chatbot />
+      {(location.pathname === "/" || location.pathname === "/dashboard") && <Chatbot />}
       <ErrorBoundary>
         <Routes>
 
