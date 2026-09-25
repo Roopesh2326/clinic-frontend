@@ -112,6 +112,10 @@ export default function Appointment() {
         }
         .slot-btn:hover { border-color: ${T.g4}; background: rgba(34,197,94,0.15); }
         .slot-btn.active { background: ${T.g4} !important; border-color: ${T.g4} !important; color: white !important; font-weight: 800 !important; }
+        .slot-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(34,197,94,.28); }
+        .appointment-input:focus { border-color: ${T.g4} !important; box-shadow: 0 0 0 3px rgba(34,197,94,.12); }
+        .appointment-submit:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(34,197,94,.28); }
+        .appointment-submit:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(255,255,255,.55), 0 10px 26px rgba(34,197,94,.28); }
         input, textarea { box-sizing: border-box; font-family: 'Plus Jakarta Sans', sans-serif !important; }
       `}</style>
 
@@ -138,23 +142,23 @@ export default function Appointment() {
           
           <h3 style={{ color: T.gold, fontSize: "11px", fontWeight: "800", textTransform: "uppercase", letterSpacing: "0.2em", marginBottom: "25px" }}>Personal Information</h3>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "20px", marginBottom: "20px" }}>
-            <div><label style={S.label}>Full Name *</label><input style={S.input} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Patient's Name" /></div>
-            <div><label style={S.label}>Age *</label><input style={S.input} type="number" value={form.age} onChange={e => setForm({...form, age: e.target.value})} placeholder="Age" /></div>
+            <div><label htmlFor="appointment-name" style={S.label}>Full Name *</label><input id="appointment-name" className="appointment-input" style={S.input} value={form.name} onChange={e => setForm({...form, name: e.target.value})} placeholder="Patient's Name" /></div>
+            <div><label htmlFor="appointment-age" style={S.label}>Age *</label><input id="appointment-age" className="appointment-input" style={S.input} type="number" value={form.age} onChange={e => setForm({...form, age: e.target.value})} placeholder="Age" /></div>
           </div>
           <div style={{ marginBottom: "20px" }}>
-            <label style={S.label}>Phone Number *</label>
-            <input style={S.input} type="tel" value={form.contact} onChange={handlePhoneChange} placeholder="10-digit mobile number" maxLength="10" />
+            <label htmlFor="appointment-phone" style={S.label}>Phone Number *</label>
+            <input id="appointment-phone" className="appointment-input" style={S.input} type="tel" value={form.contact} onChange={handlePhoneChange} placeholder="10-digit mobile number" maxLength="10" />
           </div>
-          <div style={{ marginBottom: "30px" }}><label style={S.label}>Describe Health Concern *</label><textarea style={{ ...S.input, height: "110px", resize: "none" }} value={form.problem} onChange={e => setForm({...form, problem: e.target.value})} placeholder="Describe your symptoms..." /></div>
+          <div style={{ marginBottom: "30px" }}><label htmlFor="appointment-problem" style={S.label}>Describe Health Concern *</label><textarea id="appointment-problem" className="appointment-input" style={{ ...S.input, height: "110px", resize: "none" }} value={form.problem} onChange={e => setForm({...form, problem: e.target.value})} placeholder="Describe your symptoms..." /></div>
 
           <div style={{ marginBottom: "30px", borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: "30px" }}>
-            <label style={S.label}>Select Date *</label>
-            <input type="date" style={{ ...S.input, width: "auto" }} value={form.date} min={toDateStr(new Date())} onChange={e => setForm({...form, date: e.target.value})} />
+            <label htmlFor="appointment-date" style={S.label}>Select Date *</label>
+            <input id="appointment-date" className="appointment-input" type="date" style={{ ...S.input, width: "auto" }} value={form.date} min={toDateStr(new Date())} onChange={e => setForm({...form, date: e.target.value})} />
           </div>
           <label style={S.label}>Select Time Slot *</label>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(100px, 1fr))", gap: "12px" }}>
             {availableSlots.length > 0 ? availableSlots.map(slot => (
-              <button key={slot} className={`slot-btn ${form.time === slot ? "active" : ""}`} onClick={() => setForm({...form, time: slot})} style={S.slotBtn}>{slot}</button>
+              <button key={slot} className={`slot-btn ${form.time === slot ? "active" : ""}`} type="button" aria-pressed={form.time === slot} onClick={() => setForm({...form, time: slot})} style={S.slotBtn}>{slot}</button>
             )) : <p style={{ fontSize: "14px", color: "#fca5a5", fontWeight: "600" }}>No remaining slots for today.</p>}
           </div>
         </div>
@@ -171,7 +175,7 @@ export default function Appointment() {
 
             {error && <div style={{ color: "#fca5a5", fontSize: "13px", marginBottom: "15px", fontWeight: "700", textAlign: "center" }}>{error}</div>}
 
-            <button onClick={handleSubmit} disabled={submitting} style={{ width: "100%", padding: "16px", background: (form.time && form.name && form.contact.length === 10) ? `linear-gradient(135deg, ${T.g3}, ${T.g4})` : "rgba(255,255,255,0.1)", border: "none", borderRadius: "14px", color: "white", fontWeight: "800", cursor: (form.time && form.name && form.contact.length === 10) ? "pointer" : "not-allowed", transition: "0.4s" }}>
+            <button type="button" className="appointment-submit" onClick={handleSubmit} disabled={submitting} style={{ width: "100%", padding: "16px", background: (form.time && form.name && form.contact.length === 10) ? `linear-gradient(135deg, ${T.g3}, ${T.g4})` : "rgba(255,255,255,0.1)", border: "none", borderRadius: "14px", color: "white", fontWeight: "800", cursor: (form.time && form.name && form.contact.length === 10) ? "pointer" : "not-allowed", transition: "0.4s" }}>
               {submitting ? "Booking..." : "Confirm & Book Now"}
             </button>
           </div>
