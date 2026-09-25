@@ -356,7 +356,7 @@ export default function UserDashboard() {
           <Link to="/store" title="Medicine Store" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 0", background: "rgba(255,255,255,0.1)", borderRadius: "10px", fontSize: "18px", textDecoration: "none" }}>💊</Link>
           <button type="button" onClick={handleLogout} title="Logout" aria-label="Logout" style={{ padding: "12px 0", background: "rgba(239,68,68,0.2)", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "18px", color: "white" }}>🚪</button>
         </div>
-      </div>
+      </aside>
 
       {/* ── MAIN AREA ── */}
       <div className="patient-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowY: "auto" }}>
