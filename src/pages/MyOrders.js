@@ -1,12 +1,11 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../utils/api";
 import {
   Container, Typography, Card, CardContent, Button, Box,
   Chip, Grid, Alert, CircularProgress
 } from "@mui/material";
 
-const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
 export default function MyOrders() {
   const navigate = useNavigate();
@@ -14,6 +13,7 @@ export default function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [lastUpdated, setLastUpdated] = useState(null);
 
   // 🔐 AUTH CHECK
   useEffect(() => {
@@ -35,10 +35,11 @@ export default function MyOrders() {
     try {
       setLoading(true);
       // ✅ Fixed endpoint from /user-orders to /orders/my
-      const res = await axios.get(`${BASE_URL}/orders/my`, { withCredentials: true });
+      const res = await api.get("/orders/my");
       if (Array.isArray(res.data)) {
         setOrders(res.data);
         setError("");
+        setLastUpdated(new Date());
       }
     } catch (err) {
       console.error("Failed to fetch orders:", err);
@@ -137,11 +138,12 @@ export default function MyOrders() {
   }
 
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
+    <Container maxWidth="lg" className="my-orders-page" sx={{ py: 4 }}>
+      <style>{`.my-orders-page{padding-top:88px!important;padding-bottom:48px}.order-card{transition:transform .2s,box-shadow .2s}.order-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(15,60,35,.08)!important}@media(max-width:600px){.my-orders-page{padding:76px 12px 32px!important}.orders-header{align-items:flex-start!important;gap:12px;flex-wrap:wrap}.orders-title{font-size:30px!important}.order-card-content{padding:16px!important}.order-actions{display:flex;flex-wrap:wrap;gap:8px}.order-actions button{margin-right:0!important}}`}</style>
 
       {/* HEADER */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Typography variant="h4" component="h1" sx={{ fontWeight: "bold", color: "#166534" }}>
+      <Box className="orders-header" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+        <Typography className="orders-title" variant="h4" component="h1" sx={{ fontWeight: "bold", color: "#166534" }}>
           📦 My Orders
         </Typography>
         <Button
@@ -152,6 +154,7 @@ export default function MyOrders() {
         >
           {loading ? "Refreshing..." : "Refresh"}
         </Button>
+        {lastUpdated && <Typography variant="caption" color="text.secondary">Updated {lastUpdated.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Typography>}
       </Box>
 
       {/* ERROR */}
@@ -169,7 +172,7 @@ export default function MyOrders() {
             <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
               You have not placed any orders yet. Start shopping to see your orders here.
             </Typography>
-            <Button variant="contained" color="success" onClick={() => navigate("/")}>
+            <Button variant="contained" color="success" onClick={() => navigate("/store")}>
               Browse Medicines
             </Button>
           </CardContent>
@@ -187,8 +190,8 @@ export default function MyOrders() {
 
             return (
               <Grid item xs={12} md={6} lg={4} key={order._id || idx}>
-                <Card sx={{ height: "100%", display: "flex", flexDirection: "column", borderRadius: "12px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
-                  <CardContent sx={{ flexGrow: 1 }}>
+                <Card className="order-card" sx={{ height: "100%", display: "flex", flexDirection: "column", borderRadius: "16px", boxShadow: "0 2px 12px rgba(0,0,0,0.08)" }}>
+                  <CardContent className="order-card-content" sx={{ flexGrow: 1 }}>
 
                     {/* ORDER ID + STATUS */}
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 2 }}>
@@ -231,6 +234,7 @@ export default function MyOrders() {
                       <Typography variant="h6" color="success.main" sx={{ mb: 2 }}>
                         Total: Rs.{order.total || 0}
                       </Typography>
+                      <Box className="order-actions" sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1 }}>
                       <Button
                         variant="outlined"
                         size="small"
