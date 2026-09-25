@@ -444,8 +444,7 @@ export default function StaffDashboard() {
     }
   }, [activeTab, fetchMedicines]);
 
-  // Also fetch once on mount for background readiness
-  useEffect(() => { fetchMedicines(); }, [fetchMedicines]);
+  // Medicines are loaded when POS is opened; avoid blocking the initial Staff dashboard load.
 
   // ─── STATUS UPDATE ───────────────────────────────────────────────────────
   const handleAction = (order, nextStatus) => setConfirmData({ order, nextStatus });
