@@ -719,6 +719,19 @@ export default function StaffDashboard() {
         .staff-mobile-note { display: none; }
         .staff-side-column { min-width: 0; }
         .staff-pos-grid { min-width: 0; }
+        .staff-toolbar-summary { display: flex; align-items: center; gap: 5px; margin-top: 8px; color: #64748b; font-size: 11px; font-weight: 600; }
+        .staff-toolbar-controls { align-items: stretch !important; }
+        .staff-toolbar-controls .searchWrap { min-width: 220px; }
+        .staff-tabbar button:focus-visible, .staff-header button:focus-visible, .staff-toolbar-controls input:focus-visible, .staff-toolbar-controls select:focus-visible { outline: 3px solid rgba(34,197,94,.28); outline-offset: 2px; }
+        .staff-mobile-order-card { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+        .staff-mobile-order-card:focus-within { border-color: #86efac; box-shadow: 0 4px 16px rgba(22,101,52,.09); }
+        .staff-mobile-action { cursor: pointer; transition: filter .15s ease, transform .15s ease; }
+        .staff-mobile-action:hover { filter: brightness(.96); }
+        .staff-mobile-action:active { transform: translateY(1px); }
+        .staff-pos-cart-item button { touch-action: manipulation; }
+        .staff-pos-add-button { cursor: pointer; touch-action: manipulation; }
+        .staff-pos-add-button:hover:not(:disabled) { background: #dcfce7; border-color: #86efac; }
+        .staff-pos-payment-options button { touch-action: manipulation; }
         @media (max-width: 1050px) {
           .staff-header { flex-wrap: wrap; gap: 12px; }
           .staff-orders-layout { flex-direction: column !important; }
@@ -774,12 +787,23 @@ export default function StaffDashboard() {
           .staff-tabbar { padding: 0 12px !important; overflow-x: auto; }
           .staff-tabbar button { min-height: 46px; white-space: nowrap; }
         }
+        @media (max-width: 400px) {
+          .staff-confirm-modal { max-height: calc(100vh - 24px); overflow-y: auto; }
+          .staff-confirm-modal button { min-height: 44px; }
+        }
         @media (max-width: 360px) {
           .staff-pos-medicine-grid { grid-template-columns: 1fr !important; }
           .staff-pos-results-meta span:last-child { display: none; }
         }
         @media (max-width: 560px) {
-          .staff-body { padding: 14px !important; }
+          .staff-body { padding: 12px !important; }
+          .staff-toolbar-summary { margin-top: 4px; }
+          .staff-toolbar-controls { gap: 8px !important; }
+          .staff-toolbar-controls .searchWrap { min-width: 0 !important; width: 100%; }
+          .staff-header .staffBadge { display: inline-flex !important; align-items: center; justify-content: center; }
+          .staff-body > * { min-width: 0; }
+          .staff-mobile-order-card { margin: 8px 0; padding: 13px; }
+
           .staff-toolbar-controls { width: 100%; }
           .staff-toolbar-controls > * { flex: 1 1 100%; min-width: 0 !important; width: 100%; }
           .staff-pos-customer-grid { grid-template-columns: 1fr !important; }
@@ -823,7 +847,7 @@ export default function StaffDashboard() {
         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
           {refreshing && <span style={{ fontSize: "12px", color: "rgba(255,255,255,0.65)" }}>Refreshing…</span>}
           {lastRefresh && <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.55)" }}>Updated {timeAgo(lastRefresh)}</span>}
-          <button onClick={() => fetchOrders(true)} style={s.refreshBtn}>⟳ Refresh</button>
+          <button onClick={() => { fetchOrders(true); fetchQueue(false); }} style={s.refreshBtn} aria-label="Refresh orders and queue">⟳ Refresh</button>
           <div style={s.staffBadge}>🏥 Staff</div>
           <button onClick={handleLogout} style={{ ...s.refreshBtn, background: "rgba(220,38,38,0.25)", borderColor: "rgba(220,38,38,0.4)" }}>Logout</button>
         </div>
@@ -868,20 +892,26 @@ export default function StaffDashboard() {
                     <div style={s.controls} className="staff-toolbar-controls">
                       <div style={s.searchWrap}>
                         <span style={{ color: "#aaa", fontSize: "14px" }}>🔍</span>
-                        <input placeholder="Search name or token…" value={search} onChange={e => setSearch(e.target.value)} style={s.searchInput} />
+                        <input aria-label="Search orders by name or token" placeholder="Search name or token…" value={search} onChange={e => setSearch(e.target.value)} style={s.searchInput} />
                       </div>
-                      <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={s.select}>
+                      <select aria-label="Filter orders by status" value={statusFilter} onChange={e => setStatusFilter(e.target.value)} style={s.select}>
                         <option value="all">All Status</option>
                         <option value="Pending">Pending</option>
                         <option value="Approved">Approved</option>
                         <option value="Completed">Completed</option>
                         <option value="Cancelled">Cancelled</option>
                       </select>
-                      <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={s.select}>
+                      <select aria-label="Filter orders by type" value={typeFilter} onChange={e => setTypeFilter(e.target.value)} style={s.select}>
                         <option value="all">All Types</option>
                         <option value="online">Online</option>
                         <option value="walk-in">Walk-in</option>
                       </select>
+                    </div>
+                  </div>
+                    <div className="staff-toolbar-summary" aria-live="polite">
+                      <span>{sorted.length} order{sorted.length === 1 ? "" : "s"}</span>
+                      {statusFilter !== "all" && <span>· {statusFilter}</span>}
+                      {typeFilter !== "all" && <span>· {typeFilter === "walk-in" ? "Walk-in" : "Online"}</span>}
                     </div>
                   </div>
 
