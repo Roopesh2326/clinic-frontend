@@ -65,8 +65,30 @@ const GLOBAL_CSS = `
   ::-webkit-scrollbar-track { background:${T.cr}; }
   ::-webkit-scrollbar-thumb { background:${T.g5}; border-radius:3px; }
 
+  .home-cta,
+  .home-card,
+  .treat-card,
+  .step-dot {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .home-cta {
+    min-height: 48px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
   @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto !important; }
     .reveal, .reveal-l, .reveal-r { opacity: 1 !important; transform: none !important; }
+    .home-cta,
+    .home-card,
+    .treat-card,
+    .step-dot {
+      animation: none !important;
+      transition: none !important;
+    }
   }
 
   @media (max-width:900px) {
@@ -86,8 +108,15 @@ const GLOBAL_CSS = `
     .hero-text      { padding:0 !important; }
     .section-pad    { padding:64px 20px !important; }
     .h1-size        { font-size:36px !important; line-height:1.15 !important; }
-    .hero-btns      { flex-direction:column !important; align-items:flex-start !important; }
+    .hero-btns      { flex-direction:column !important; align-items:stretch !important; }
+    .hero-btns .home-cta { width:100%; }
     .footer-grid    { flex-direction:column !important; gap:32px !important; }
+  }
+
+  @media (max-width:390px) {
+    .section-pad { padding-left:16px !important; padding-right:16px !important; }
+    .h1-size { font-size:32px !important; }
+    .tbar-grid { gap:12px !important; }
   }
 `;
 
