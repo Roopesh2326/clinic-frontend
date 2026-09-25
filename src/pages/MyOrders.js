@@ -68,62 +68,26 @@ export default function MyOrders() {
     }
   };
 
-  // 🧾 RECEIPT — using string concat to avoid escape character lint errors
+  // 🧾 PROFESSIONAL RECEIPT
   const generateReceipt = (order) => {
     if (!order) return;
     const receiptWin = window.open("", "_blank");
+    if (!receiptWin) { setError("Please allow pop-ups to print the receipt."); return; }
     const items = Array.isArray(order.items) ? order.items : [];
-
-    const itemsHtml = items
-      .map((item) =>
-        "<tr>" +
-        "<td style='padding:6px 10px;'>" + (item.name || "-") + "</td>" +
-        "<td style='padding:6px 10px;'>" + (item.quantity || 1) + "</td>" +
-        "<td style='padding:6px 10px;'>Rs." + (item.price || 0) + "</td>" +
-        "<td style='padding:6px 10px;'>Rs." + ((item.price || 0) * (item.quantity || 1)) + "</td>" +
-        "</tr>"
-      )
-      .join("");
-
-    const orderId = order._id
-      ? order._id.toString().slice(-6).toUpperCase()
-      : String(order.id || "N/A");
-    const orderDate = order.createdAt
-      ? new Date(order.createdAt).toLocaleString()
-      : order.date || "N/A";
-
-    const statusColor = getStatusColor(order.status).color;
-
+    const esc = (value) => String(value == null ? "" : value).replace(/[&<>"']/g, ch => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[ch]));
+    const itemsHtml = items.map(item =>
+      "<tr><td>" + esc(item.name || "-") + "</td><td>Rs." + Number(item.price || 0).toLocaleString("en-IN") + "</td><td>" + Number(item.quantity || 1) + "</td><td>Rs." + (Number(item.price || 0) * Number(item.quantity || 1)).toLocaleString("en-IN") + "</td></tr>"
+    ).join("");
+    const orderId = order._id ? order._id.toString().slice(-6).toUpperCase() : String(order.id || "N/A");
+    const orderDate = order.createdAt ? new Date(order.createdAt).toLocaleString("en-IN") : order.date || "N/A";
     const html =
-      "<html><head><title>Receipt #" + orderId + "</title>" +
-      "<style>" +
-      "body{font-family:Arial,sans-serif;padding:30px;max-width:800px;margin:auto;}" +
-      ".header{text-align:center;color:#166534;margin-bottom:30px;}" +
-      ".order-info{background:#f8f9fa;padding:15px;border-radius:8px;margin:20px 0;}" +
-      ".total{text-align:right;font-size:18px;font-weight:bold;margin:20px 0;}" +
-      "table{width:100%;border-collapse:collapse;margin:20px 0;}" +
-      "th,td{padding:12px;text-align:left;border-bottom:1px solid #ddd;}" +
-      "th{background:#f0fdf4;font-weight:bold;}" +
-      ".footer{text-align:center;color:#888;font-size:12px;margin-top:30px;}" +
-      "</style></head><body>" +
-      "<div class='header'><h1>Digital Clinic</h1><p>Order Receipt</p></div>" +
-      "<div class='order-info'>" +
-      "<p><strong>Order ID:</strong> #" + orderId + "</p>" +
-      "<p><strong>Date:</strong> " + orderDate + "</p>" +
-      "<p><strong>Payment:</strong> " + (order.paymentMethod || "Cash") + "</p>" +
-      "<p><strong>Status:</strong> <span style='color:" + statusColor + ";'>" + (order.status || "Pending") + "</span></p>" +
-      "</div>" +
-      "<table><thead><tr>" +
-      "<th>Medicine</th><th>Qty</th><th>Unit Price</th><th>Total</th>" +
-      "</tr></thead><tbody>" + itemsHtml + "</tbody></table>" +
-      "<div class='total'>Total Amount: Rs." + (order.total || 0) + "</div>" +
-      "<div class='footer'>" +
-      "<p>Thank you for choosing Digital Clinic!</p>" +
-      "<p>For any queries, please contact our support team.</p>" +
-      "</div>" +
-      "<script>window.onload = function(){ window.print(); }</script>" +
-      "</body></html>";
-
+      "<html><head><title>Digital Clinic · Receipt #" + esc(orderId) + "</title><style>" +
+      "*{box-sizing:border-box}body{font-family:Arial,sans-serif;background:#f3f7f4;color:#17231b;margin:0;padding:28px}.receipt{max-width:680px;margin:auto;background:#fff;padding:34px;border-radius:18px;box-shadow:0 8px 30px rgba(15,26,19,.10)}" +
+      ".brand{display:flex;align-items:center;gap:12px;padding-bottom:20px;border-bottom:1px solid #e4ece7}.logo{width:48px;height:48px;border-radius:14px;background:#166534;color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800}.brand-name{font-size:22px;font-weight:800;color:#0b3d1f}.brand-sub{font-size:11px;color:#697a6e;margin-top:3px}.receipt-title{margin:22px 0 14px;font-size:20px;font-weight:800}.meta{display:grid;grid-template-columns:1fr 1fr;gap:8px;background:#f7faf8;border:1px solid #e4ece7;border-radius:12px;padding:14px;font-size:12px}.meta span{color:#697a6e}.meta strong{display:block;margin-top:3px}table{width:100%;border-collapse:collapse;margin-top:20px}th{text-align:left;background:#f0fdf4;color:#166534;font-size:11px;text-transform:uppercase;padding:10px}td{padding:11px 10px;border-bottom:1px solid #eef2ef;font-size:12px}.total{display:flex;justify-content:space-between;margin-top:18px;padding-top:16px;border-top:2px solid #166534;font-size:15px;font-weight:800}.total strong{font-size:20px;color:#166534}.footer{text-align:center;color:#697a6e;font-size:11px;margin-top:28px;padding-top:18px;border-top:1px solid #e4ece7}@media print{body{background:#fff;padding:0}.receipt{box-shadow:none;border-radius:0;max-width:none;padding:20px}}" +
+      "</style></head><body><div class='receipt'><div class='brand'><div class='logo'>DC</div><div><div class='brand-name'>Digital Clinic</div><div class='brand-sub'>Clinic &amp; Pharmacy Management</div></div></div>" +
+      "<div class='receipt-title'>Order Receipt</div><div class='meta'><div><span>Order ID</span><strong>#" + esc(orderId) + "</strong></div><div><span>Date</span><strong>" + esc(orderDate) + "</strong></div><div><span>Payment</span><strong>" + esc(order.paymentMethod || "Cash").toUpperCase() + "</strong></div><div><span>Status</span><strong>" + esc(order.status || "Pending") + "</strong></div></div>" +
+      "<table><thead><tr><th>Medicine</th><th>Unit Price</th><th>Qty</th><th>Total</th></tr></thead><tbody>" + itemsHtml + "</tbody></table>" +
+      "<div class='total'><span>Total Amount</span><strong>Rs." + Number(order.total || 0).toLocaleString("en-IN") + "</strong></div><div class='footer'>Thank you for choosing Digital Clinic.<br/>Please retain this receipt for your records.</div></div><script>window.onload=function(){window.print();}</script></body></html>";
     receiptWin.document.write(html);
     receiptWin.document.close();
   };
@@ -142,6 +106,10 @@ export default function MyOrders() {
       <style>{`.my-orders-page{padding-top:88px!important;padding-bottom:48px}.order-card{transition:transform .2s,box-shadow .2s}.order-card:hover{transform:translateY(-2px);box-shadow:0 10px 28px rgba(15,60,35,.08)!important}@media(max-width:600px){.my-orders-page{padding:76px 12px 32px!important}.orders-header{align-items:flex-start!important;gap:12px;flex-wrap:wrap}.orders-title{font-size:30px!important}.order-card-content{padding:16px!important}.order-actions{display:flex;flex-wrap:wrap;gap:8px}.order-actions button{margin-right:0!important}}`}</style>
 
       {/* HEADER */}
+      <Box className="orders-brand" sx={{ display: "flex", alignItems: "center", gap: 1.5, mb: 1.5 }}>
+        <Box aria-hidden="true" sx={{ width: 44, height: 44, borderRadius: "12px", background: "linear-gradient(135deg,#0b3d1f,#166534)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: "18px", letterSpacing: "-1px", boxShadow: "0 6px 16px rgba(22,101,52,.18)" }}>DC</Box>
+        <Box><Typography sx={{ fontSize: "18px", fontWeight: 800, color: "#0b3d1f", lineHeight: 1.1 }}>Digital Clinic</Typography><Typography sx={{ fontSize: "11px", color: "#697a6e", mt: .3 }}>Clinic &amp; Pharmacy Management</Typography></Box>
+      </Box>
       <Box className="orders-header" sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
         <Typography className="orders-title" variant="h4" component="h1" sx={{ fontWeight: "bold", color: "#166534" }}>
           📦 My Orders
