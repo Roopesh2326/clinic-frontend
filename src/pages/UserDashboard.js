@@ -709,11 +709,17 @@ export default function UserDashboard() {
             <div style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>Order History</h3>
+                {orders.length > 0 && <button type="button" onClick={() => navigate("/my-orders")} style={{ border: "none", background: "transparent", color: "#166534", fontSize: "11px", fontWeight: "800", cursor: "pointer", padding: "4px 0" }}>View all</button>}
               </div>
               {ordersLoading ? (
                 [1, 2, 3].map(i => <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}><Sk w="80%" h="13px" mb="6px" /><Sk w="50%" h="11px" /></div>)
               ) : orders.length === 0 ? (
-                <div style={{ textAlign: "center", padding: "20px", color: "#94a3b8", fontSize: "13px" }}>No orders yet</div>
+                <div style={{ textAlign: "center", padding: "20px 12px", color: "#94a3b8", fontSize: "13px" }}>
+                  <div style={{ fontSize: "24px", marginBottom: "6px" }}>🛍️</div>
+                  <div style={{ fontWeight: "700", color: "#475569", marginBottom: "4px" }}>No orders yet</div>
+                  <div style={{ marginBottom: "12px" }}>Your medicine orders will appear here.</div>
+                  <button type="button" onClick={() => navigate("/store")} style={{ border: "1px solid #bbf7d0", background: "#f0fdf4", color: "#166534", borderRadius: "9px", padding: "7px 12px", fontSize: "11px", fontWeight: "800", cursor: "pointer" }}>Browse Medicines</button>
+                </div>
               ) : (
                 orders.slice(0, 4).map((o, i) => (
                   <div key={i} style={{ padding: "12px 0", borderBottom: "1px solid #f1f5f9" }}>
