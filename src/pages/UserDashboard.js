@@ -399,7 +399,7 @@ export default function UserDashboard() {
         ))}
       </nav>
 
-      {/* ── MAIN AREA ── */
+      {/* ── MAIN AREA ── */}
       <div className="patient-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowY: "auto" }}>
 
         <header className="patient-header" style={{ background: "white", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e8edf2", position: "sticky", top: 0, zIndex: 9 }}>
