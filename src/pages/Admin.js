@@ -1306,7 +1306,7 @@ useEffect(() => {
                 const q=queueStatus[type]||{};
                 const total=q.totalIssued||0;
                 const serving=q.currentServing||0;
-                const waiting=Math.max(0,total-serving);
+                const waiting=Number.isFinite(Number(q.waiting)) ? Number(q.waiting) : Math.max(0,total-serving);
                 const isLoading=queueLoading[type];
                 return (
                   <div key={type} style={{background:"white",borderRadius:"16px",boxShadow:"0 2px 8px rgba(0,0,0,0.07)",overflow:"hidden"}}>
