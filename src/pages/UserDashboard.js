@@ -337,7 +337,7 @@ export default function UserDashboard() {
         .patient-sidebar-utilities button:hover{background:rgba(239,68,68,.32)!important;transform:translateY(-1px)}
         .patient-sidebar-utilities a,.patient-sidebar-utilities button{transition:background .15s ease,transform .15s ease}
         .patient-stat:hover{box-shadow:0 8px 24px rgba(15,60,35,.08)}
-        .patient-mobile-bottom-nav{display:none}
+        .patient-mobile-bottom-nav{display:none}\n        .patient-main{margin-left:72px}
         .patient-mobile-nav-item{font-family:inherit}
         @media(max-width:980px){.patient-content{grid-template-columns:1fr!important}.patient-aside{position:static!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
         @media(max-width:720px){
@@ -362,7 +362,7 @@ export default function UserDashboard() {
       `}</style>
 
       {/* ── SIDEBAR ── */}
-      <aside className="patient-sidebar" aria-label="Patient dashboard navigation" style={{ width: "72px", background: "linear-gradient(180deg, #0f2419 0%, #166534 100%)", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", position: "sticky", top: 0, height: "100vh", flexShrink: 0, zIndex: 10 }}>
+      <aside className="patient-sidebar" aria-label="Patient dashboard navigation" style={{ width: "72px", background: "linear-gradient(180deg, #0f2419 0%, #166534 100%)", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", position: "fixed", top: 0, left: 0, height: "100vh", flexShrink: 0, zIndex: 100 }}>
         <div style={{ width: "42px", height: "42px", background: "rgba(255,255,255,0.15)", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", marginBottom: "32px" }}>🏥</div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "100%", padding: "0 8px", flex: 1 }}>
