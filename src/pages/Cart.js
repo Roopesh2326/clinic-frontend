@@ -16,6 +16,7 @@ const safeReadArray = (key) => {
 };
 
 export default function Cart() {
+  const cartPageStyles = ".cart-page{padding:88px 16px 48px;min-height:100vh;background:#f8fafc}.cart-item{transition:box-shadow .2s,border-color .2s}.cart-item:hover{border-color:#bbf7d0!important;box-shadow:0 8px 24px rgba(15,60,35,.08)!important}@media(max-width:600px){.cart-page{padding:80px 12px 32px}.cart-heading{font-size:30px!important;margin-bottom:20px!important}.cart-item{align-items:flex-start!important;flex-wrap:wrap;padding:12px!important}.cart-item img{width:60px!important;height:60px!important}.cart-item-total{width:100%;text-align:right;padding-left:72px}.cart-controls{flex-wrap:wrap}}";
   const navigate = useNavigate();
   const [cart, setCart] = useState(safeReadArray("cart"));
   const [orderPlaced, setOrderPlaced] = useState(false);
@@ -163,7 +164,7 @@ export default function Cart() {
   // 🎉 Success screen
   if (orderPlaced) {
     return (
-      <Container maxWidth="md" style={{ paddingTop: "32px", paddingBottom: "48px" }}>
+      <Container maxWidth="md" className="cart-page" style={{ paddingTop: "32px", paddingBottom: "48px" }}>
         <Box style={styles.successBox}>
           <Typography variant="h5" style={{ color: "#166534", fontWeight: "700" }}>
             ✅ Order Placed Successfully!
@@ -188,8 +189,9 @@ export default function Cart() {
 
   // 🛒 MAIN CART UI
   return (
-    <Container maxWidth="md">
-      <Typography variant="h4" style={styles.heading}>
+    <Container maxWidth="md" className="cart-page">
+      <style>{cartPageStyles}</style>
+      <Typography variant="h4" className="cart-heading" style={styles.heading}>
         🛒 Your Cart
       </Typography>
 
@@ -210,7 +212,7 @@ export default function Cart() {
           {/* CART ITEMS */}
           <Grid item xs={12} md={7}>
             {cart.map((item, index) => (
-              <Card key={index} style={styles.item}>
+              <Card key={index} className="cart-item" style={styles.item}>
                 {item.img && (
                   <img src={item.img} alt={item.name} style={styles.image} />
                 )}
@@ -224,14 +226,14 @@ export default function Cart() {
                       {item.desc}
                     </Typography>
                   )}
-                  <Box style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
+                  <Box className="cart-controls" style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10 }}>
                     <Button size="small" variant="outlined" aria-label={"Decrease " + item.name + " quantity"} onClick={() => changeQuantity(index, -1)} style={{ minWidth: 36, minHeight: 36, padding: 0 }}>−</Button>
                     <Typography aria-live="polite" style={{ minWidth: 24, textAlign: "center", fontWeight: 700 }}>{item.quantity || 1}</Typography>
                     <Button size="small" variant="outlined" aria-label={"Increase " + item.name + " quantity"} onClick={() => changeQuantity(index, 1)} disabled={Number.isFinite(Number(item.stock)) && Number(item.stock) > 0 && (Number(item.quantity) || 1) >= Number(item.stock)} style={{ minWidth: 36, minHeight: 36, padding: 0 }}>+</Button>
                     <Button color="error" size="small" onClick={() => removeFromCart(index)} style={{ marginLeft: "auto" }}>Remove</Button>
                   </Box>
                 </Box>
-                <Typography style={{ fontWeight: 800, color: "#1e293b", whiteSpace: "nowrap" }}>
+                <Typography className="cart-item-total" style={{ fontWeight: 800, color: "#1e293b", whiteSpace: "nowrap" }}>
                   Rs.{(Number(String(item?.price ?? "0").replace(/[^\d.]/g, "")) || 0) * (Number(item.quantity) || 1)}
                 </Typography>
               </Card>
