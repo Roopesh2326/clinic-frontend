@@ -162,8 +162,8 @@ function StatsBar({ orders }) {
         { label: "Done Today",    value: completedToday,           color: "#166534", bg: "#dcfce7", icon: "✅" },
         { label: "Revenue Today", value: `Rs.${fmt(revenueToday)}`,color: "#6d28d9", bg: "#f5f3ff", icon: "💰" },
       ].map((s) => (
-        <div key={s.label} style={{ background: "white", borderRadius: "10px", padding: "14px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", borderLeft: `3px solid ${s.color}`, display: "flex", alignItems: "center", gap: "10px" }}>
-          <span style={{ fontSize: "20px" }}>{s.icon}</span>
+        <div key={s.label} className="staff-stat-card" style={{ background: "white", borderRadius: "10px", padding: "14px 16px", boxShadow: "0 1px 4px rgba(0,0,0,0.06)", borderLeft: `3px solid ${s.color}`, display: "flex", alignItems: "center", gap: "10px" }}>
+          <span className="staff-stat-icon" style={{ fontSize: "20px" }}>{s.icon}</span>
           <div>
             <div style={{ fontSize: "18px", fontWeight: "700", color: s.color }}>{s.value}</div>
             <div style={{ fontSize: "11px", color: "#888" }}>{s.label}</div>
@@ -598,6 +598,21 @@ export default function StaffDashboard() {
         .staff-orders-layout { min-width: 0; }
         .staff-orders-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
         .staff-orders-table { min-width: 760px; }
+
+        .staff-stats-bar > .staff-stat-card { min-width: 0; }
+        .staff-stat-icon { width: 38px; height: 38px; border-radius: 10px; display: inline-flex; align-items: center; justify-content: center; flex: 0 0 38px; background: #f8fafc; }
+        .staff-pos-results-meta { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin: 0 0 10px; padding: 0 2px; color: #6b7280; font-size: 11px; }
+        .staff-pos-results-meta strong { color: #166534; }
+        .staff-pos-medicine-card { min-width: 0; overflow: hidden; }
+        .staff-pos-medicine-card:hover { border-color: #86efac !important; box-shadow: 0 5px 16px rgba(22,101,52,0.08); transform: translateY(-1px); }
+        .staff-pos-medicine-image { width: 100%; height: 72px !important; object-fit: cover; border-radius: 8px !important; background: #f0fdf4; }
+        .staff-pos-medicine-image--empty { display: flex; align-items: center; justify-content: center; font-size: 28px; }
+        .staff-pos-medicine-name { line-height: 1.25; min-height: 32px; }
+        .staff-pos-medicine-stock { min-height: 16px; }
+        .staff-pos-add-button { width: 100%; min-height: 36px; margin-top: 9px; border: 1px solid #bbf7d0; border-radius: 8px; background: #f0fdf4; color: #166534; font-size: 12px; font-weight: 700; }
+        .staff-pos-add-button:disabled { border-color: #e5e7eb; background: #f9fafb; color: #9ca3af; cursor: not-allowed; }
+        .staff-pos-payment-options button { min-height: 40px; }
+        .staff-pos-cart-item > * { min-width: 0; }
         .staff-pos-medicine-grid { min-width: 0; }
         .staff-pos-medicine-grid > * { min-width: 0; }
         .staff-pos-cart-card { min-width: 0; }
@@ -627,9 +642,9 @@ export default function StaffDashboard() {
           .staff-orders-table { min-width: 720px; }
           .staff-side-column { display: grid; grid-template-columns: 1fr; gap: 12px; }
           .staff-side-column > div { margin-top: 0 !important; }
-          .staff-pos-medicine-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; }
+          .staff-pos-medicine-grid { grid-template-columns: repeat(2, minmax(0, 1fr)) !important; max-height: none !important; overflow: visible !important; }\n          .staff-pos-results-meta { font-size: 10px; }\n          .staff-pos-medicine-card { padding: 10px !important; }\n          .staff-pos-medicine-image { height: 64px !important; }\n          .staff-pos-add-button { min-height: 40px; }
           .staff-pos-cart-card { width: 100%; }
-          .staff-pos-cart-card > div { min-width: 0; }
+          .staff-pos-cart-card > div { min-width: 0; }\n          .staff-pos-cart-item { flex-wrap: wrap; }\n          .staff-pos-cart-item > div:first-child { flex: 1 1 calc(100% - 40px); }\n          .staff-pos-cart-item > .staff-pos-qty-controls { margin-left: auto; }\n          .staff-pos-cart-item > div:nth-last-of-type(1) { }
           .staff-pos-cart-card button { min-height: 40px; }
           .staff-mobile-note { display: block; font-size: 11px; color: #6b7280; padding: 8px 14px; background: #f9fafb; border-top: 1px solid #f3f4f6; border-bottom: 1px solid #f3f4f6; }
 
@@ -640,12 +655,12 @@ export default function StaffDashboard() {
           .staff-tabbar { padding: 0 12px !important; overflow-x: auto; }
           .staff-tabbar button { min-height: 46px; white-space: nowrap; }
         }
-        @media (max-width: 560px) {
+        @media (max-width: 360px) {\n          .staff-pos-medicine-grid { grid-template-columns: 1fr !important; }\n          .staff-pos-results-meta span:last-child { display: none; }\n        }\n        @media (max-width: 560px) {
           .staff-body { padding: 14px !important; }
           .staff-toolbar-controls { width: 100%; }
           .staff-toolbar-controls > * { flex: 1 1 100%; min-width: 0 !important; width: 100%; }
           .staff-pos-customer-grid { grid-template-columns: 1fr !important; }
-          .staff-pos-cart { width: 100%; }\n          .staff-orders-table-wrap { border-left: 1px solid #f3f4f6; border-right: 1px solid #f3f4f6; }\n          .staff-confirm-modal { width: min(320px, calc(100vw - 32px)) !important; padding: 28px 20px !important; }\n          .staff-confirm-modal > div:last-child { flex-wrap: wrap; }
+          .staff-pos-cart { width: 100%; }\n          .staff-pos-payment-options { width: 100%; }\n          .staff-pos-payment-options button { flex: 1 1 0; padding-inline: 8px !important; min-width: 0; }\n          .staff-orders-table-wrap { border-left: 1px solid #f3f4f6; border-right: 1px solid #f3f4f6; }\n          .staff-confirm-modal { width: min(320px, calc(100vw - 32px)) !important; padding: 28px 20px !important; }\n          .staff-confirm-modal > div:last-child { flex-wrap: wrap; }
         }
         @media (prefers-reduced-motion: reduce) {
           .staff-dashboard * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
@@ -918,7 +933,7 @@ export default function StaffDashboard() {
                               {inCart.quantity}
                             </div>
                           )}
-                          {m.img && <img src={m.img} alt={m.name} style={{ width: "100%", height: "60px", objectFit: "cover", borderRadius: "6px", marginBottom: "8px" }} />}
+                          {m.img ? <img className="staff-pos-medicine-image" src={m.img} alt={m.name} style={{ width: "100%", height: "60px", objectFit: "cover", borderRadius: "6px", marginBottom: "8px" }} /> : <div className="staff-pos-medicine-image staff-pos-medicine-image--empty" aria-hidden="true">💊</div>}
                           <div style={{ fontSize: "13px", fontWeight: "600", color: "#111", marginBottom: "3px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{m.name}</div>
                           <div style={{ fontSize: "14px", fontWeight: "700", color: "#166534", marginBottom: "2px" }}>Rs.{m.price}</div>
                           <div style={{ fontSize: "11px", color: oos ? "#dc2626" : m.stock <= (m.lowStockThreshold || 10) ? "#92400e" : "#9ca3af" }}>
@@ -952,7 +967,7 @@ export default function StaffDashboard() {
                     <>
                       <div style={{ display: "flex", flexDirection: "column", gap: "2px", maxHeight: "260px", overflowY: "auto", marginBottom: "8px" }}>
                         {posCart.map(item => (
-                          <div key={item._id} style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0", borderBottom: "1px solid #f9fafb" }}>
+                          <div key={item._id} className="staff-pos-cart-item" style={{ display: "flex", alignItems: "center", gap: "8px", padding: "8px 0", borderBottom: "1px solid #f9fafb" }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                               <div style={{ fontSize: "13px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.name}</div>
                               <div style={{ fontSize: "11px", color: "#9ca3af" }}>Rs.{item.price} each</div>
