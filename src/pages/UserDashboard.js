@@ -299,7 +299,7 @@ export default function UserDashboard() {
   const initials = (userInfo.name || "U").split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 
   return (
-    <div style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "'Plus Jakarta Sans', 'Nunito', system-ui, sans-serif", display: "flex" }}>
+    <div className="patient-dashboard" style={{ minHeight: "100vh", background: "#f0f4f8", fontFamily: "'Plus Jakarta Sans', 'Nunito', system-ui, sans-serif", display: "flex" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
         @keyframes skshimmer { 0%{background-position:-200% 0} 100%{background-position:200% 0} }
@@ -311,16 +311,53 @@ export default function UserDashboard() {
         .action-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.12) !important; }
         .order-card:hover { border-color: #86efac !important; transform: translateY(-1px); box-shadow: 0 4px 20px rgba(0,0,0,0.08) !important; }
         .reorder-btn:hover { background: #166534 !important; color: white !important; }
-      `}</style>
+        .patient-dashboard button:focus-visible,.patient-dashboard a:focus-visible,input:focus-visible { outline:3px solid rgba(34,197,94,.28); outline-offset:2px; }
+        .patient-sidebar .nav-item[aria-current="page"] { background:rgba(255,255,255,.17) !important; color:#fff !important; }
+        .patient-stat:hover { box-shadow:0 8px 24px rgba(15,60,35,.08); }
+        @media (max-width: 980px) {
+          .patient-content { grid-template-columns:1fr !important; }
+          .patient-aside { position:static !important; display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+        }
+        @media (max-width: 720px) {
+          .patient-dashboard { display:block !important; }
+          .patient-sidebar { width:100% !important; height:auto !important; min-height:64px; position:sticky !important; top:0 !important; flex-direction:row !important; padding:8px 10px !important; overflow-x:auto; }
+          .patient-sidebar > div:first-child { width:38px !important; height:38px !important; min-width:38px; margin:0 8px 0 0 !important; }
+          .patient-sidebar > div:nth-child(2) { flex-direction:row !important; width:auto !important; padding:0 !important; gap:4px !important; overflow-x:auto; }
+          .patient-sidebar > div:nth-child(2) .nav-item { width:46px !important; min-width:46px; padding:10px 0 !important; }
+          .patient-sidebar > div:last-child { flex-direction:row !important; width:auto !important; padding:0 0 0 6px !important; gap:4px !important; }
+          .patient-sidebar > div:last-child a,.patient-sidebar > div:last-child button { width:46px !important; min-width:46px; padding:10px 0 !important; }
+          .patient-header { padding:12px 16px !important; }
+          .patient-header > div:first-child h1 { font-size:18px !important; }
+          .patient-header > div:last-child > div:nth-child(1) { display:none !important; }
+          .patient-header > div:last-child > a > div { padding:8px 11px !important; }
+          .patient-header > div:last-child > div:last-child { padding:5px 8px !important; }
+          .patient-header > div:last-child > div:last-child > div:last-child { display:none; }
+          .patient-content { padding:16px !important; gap:16px !important; }
+          .patient-aside { grid-template-columns:1fr !important; gap:12px !important; }
+        }
+        @media (max-width: 480px) {
+          .patient-content { padding:12px !important; }
+          .patient-header { gap:8px; }
+          .patient-header > div:last-child { gap:6px !important; }
+          .patient-header > div:last-child > a > div { font-size:11px !important; }
+          .patient-dashboard .order-card { padding:15px !important; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .patient-dashboard *, .patient-dashboard *::before, .patient-dashboard *::after { animation-duration:.01ms !important; transition-duration:.01ms !important; }
+        }
+`}</style>
 
       {/* ── SIDEBAR ── */}
-      <aside style={{ width: "72px", background: "linear-gradient(180deg, #0f2419 0%, #166534 100%)", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", position: "sticky", top: 0, height: "100vh", flexShrink: 0, zIndex: 10 }}>
+      <aside className="patient-sidebar" aria-label="Patient dashboard navigation" style={{ width: "72px", background: "linear-gradient(180deg, #0f2419 0%, #166534 100%)", display: "flex", flexDirection: "column", alignItems: "center", padding: "20px 0", position: "sticky", top: 0, height: "100vh", flexShrink: 0, zIndex: 10 }}>
         <div style={{ width: "42px", height: "42px", background: "rgba(255,255,255,0.15)", borderRadius: "12px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "22px", marginBottom: "32px" }}>🏥</div>
 
         <div style={{ display: "flex", flexDirection: "column", gap: "4px", width: "100%", padding: "0 8px", flex: 1 }}>
           {navItems.map(item => (
             <button key={item.id} className="nav-item" onClick={() => setActiveSection(item.id)}
               title={item.label}
+              aria-label={item.label}
+              aria-current={activeSection === item.id ? "page" : undefined}
+              type="button"
               style={{ width: "100%", padding: "12px 0", border: "none", background: activeSection === item.id ? "rgba(255,255,255,0.15)" : "transparent", color: activeSection === item.id ? "white" : "rgba(255,255,255,0.55)", borderRadius: "10px", cursor: "pointer", fontSize: "18px", transition: "all 0.2s", display: "flex", alignItems: "center", justifyContent: "center" }}>
               {item.icon}
             </button>
@@ -329,14 +366,14 @@ export default function UserDashboard() {
 
         <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "0 8px", width: "100%" }}>
           <Link to="/store" title="Medicine Store" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 0", background: "rgba(255,255,255,0.1)", borderRadius: "10px", fontSize: "18px", textDecoration: "none" }}>💊</Link>
-          <button onClick={handleLogout} title="Logout" style={{ padding: "12px 0", background: "rgba(239,68,68,0.2)", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "18px", color: "white" }}>🚪</button>
+          <button type="button" onClick={handleLogout} title="Logout" aria-label="Logout" style={{ padding: "12px 0", background: "rgba(239,68,68,0.2)", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "18px", color: "white" }}>🚪</button>
         </div>
       </aside>
 
       {/* ── MAIN AREA ── */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowY: "auto" }}>
+      <div className="patient-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowY: "auto" }}>
 
-        <header style={{ background: "white", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e8edf2", position: "sticky", top: 0, zIndex: 9 }}>
+        <header className="patient-header" style={{ background: "white", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e8edf2", position: "sticky", top: 0, zIndex: 9 }}>
           <div>
             <h1 style={{ margin: 0, fontSize: "20px", fontWeight: "800", color: "#1e293b" }}>My Dashboard</h1>
             <p style={{ margin: 0, fontSize: "12px", color: "#94a3b8" }}>{new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}</p>
@@ -344,7 +381,7 @@ export default function UserDashboard() {
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
             {pendingOrders.length > 0 && (
               <div style={{ position: "relative" }}>
-                <div style={{ width: "38px", height: "38px", background: "#f0fdf4", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", cursor: "pointer" }} onClick={() => setActiveSection("orders")}>📦</div>
+                <button type="button" aria-label={`View ${pendingOrders.length} pending orders`} style={{ width: "38px", height: "38px", background: "#f0fdf4", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", cursor: "pointer" }} onClick={() => setActiveSection("orders")}>📦</button>
                 <div style={{ position: "absolute", top: "-4px", right: "-4px", width: "18px", height: "18px", background: "#ef4444", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "10px", fontWeight: "700", color: "white" }}>{pendingOrders.length}</div>
               </div>
             )}
@@ -364,7 +401,7 @@ export default function UserDashboard() {
           </div>
         </header>
 
-        <main style={{ flex: 1, padding: "24px 28px", display: "grid", gridTemplateColumns: "1fr 300px", gap: "24px", alignItems: "start" }}>
+        <main className="patient-content" style={{ flex: 1, padding: "24px 28px", display: "grid", gridTemplateColumns: "1fr 300px", gap: "24px", alignItems: "start" }}>
 
           <div style={{ minWidth: 0 }}>
 
@@ -398,7 +435,7 @@ export default function UserDashboard() {
                       { icon: "🛍️", value: ordersLoading ? null : orders.length,    label: "Total Orders",   color: "#166534", bg: "#f0fdf4",  onClick: () => setActiveSection("orders") },
                       { icon: "💰", value: ordersLoading ? null : `Rs.${totalSpent.toLocaleString()}`, label: "Total Spent", color: "#7c3aed", bg: "#faf5ff", onClick: null },
                     ].map(({ icon, value, label, color, bg, onClick }, i) => (
-                      <div key={i} onClick={onClick} style={{ background: bg, borderRadius: "14px", padding: "16px", cursor: onClick ? "pointer" : "default", transition: "transform 0.15s", border: `1px solid ${color}20` }}
+                      <div key={i} onClick={onClick} className="patient-stat" style={{ background: bg, borderRadius: "14px", padding: "16px", cursor: onClick ? "pointer" : "default", transition: "transform 0.15s", border: `1px solid ${color}20` }}
                         onMouseEnter={e => onClick && (e.currentTarget.style.transform = "translateY(-2px)")}
                         onMouseLeave={e => (e.currentTarget.style.transform = "none")}>
                         <div style={{ fontSize: "22px", marginBottom: "8px" }}>{icon}</div>
@@ -672,7 +709,7 @@ export default function UserDashboard() {
 
           </div>
 
-          <div style={{ display: "flex", flexDirection: "column", gap: "20px", position: "sticky", top: "88px" }}>
+          <aside className="patient-aside" aria-label="Patient summary" style={{ display: "flex", flexDirection: "column", gap: "20px", position: "sticky", top: "88px" }}>
             <div style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>🔔 Notifications</h3>
