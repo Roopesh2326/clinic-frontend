@@ -161,63 +161,99 @@ function StatsBar({ orders }) {
 }
 
 // ─── QUEUE PANEL ──────────────────────────────────────────────────────────────
-function QueuePanel({ orders }) {
+function QueuePanel({ orders, queueState }) {
   const today = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-  const queue = orders
-    .filter(o => o.tokenDate === today && o.status !== "Cancelled")
-    .sort((a, b) => (a.tokenNumber || 0) - (b.tokenNumber || 0));
-  const serving  = queue.find(o => o.status === "Approved") || queue.find(o => o.status === "Pending");
-  const upcoming = queue.filter(o => o !== serving && o.status === "Pending").slice(0, 5);
+
+  const renderQueue = (type, label, icon) => {
+    const state = queueState?.[type];
+    const orderType = type === "walkin" ? "walk-in" : "online";
+    const serving = Number(state?.currentServing || 0);
+    const waiting = Number(state?.waiting || 0);
+    const totalIssued = Number(state?.totalIssued || 0);
+    const current = serving > 0 ? orders.find(o =>
+      o.tokenDate === today &&
+      o.orderType === orderType &&
+      Number(o.tokenNumber) === serving
+    ) : null;
+
+    const upcoming = orders
+      .filter(o =>
+        o.tokenDate === today &&
+        o.orderType === orderType &&
+        Number(o.tokenNumber) > serving &&
+        o.status !== "Cancelled"
+      )
+      .sort((a, b) => Number(a.tokenNumber) - Number(b.tokenNumber))
+      .slice(0, 5);
+
+    return (
+      <div style={qp.queueBlock}>
+        <div style={qp.queueTitle}>
+          <span>{icon}</span>
+          <span>{label}</span>
+          <span style={qp.waiting}>{waiting} waiting</span>
+        </div>
+        <div style={qp.nowWrap}>
+          <div style={qp.nowLabel}>NOW SERVING</div>
+          {serving > 0 ? (
+            <div style={qp.nowToken}>
+              <span style={qp.nowNum}>
+                {current?.tokenStr || (type === "walkin" ? "WLK-" : "ORD-") + String(serving).padStart(3, "0")}
+              </span>
+              <span style={qp.nowName}>
+                {current ? (current.guestInfo?.name || current.userId?.name || "Customer") : "Token in queue"}
+              </span>
+            </div>
+          ) : (
+            <div style={{ color: "#9ca3af", fontSize: "12px", padding: "8px 0", textAlign: "center" }}>Not started</div>
+          )}
+        </div>
+        {upcoming.length > 0 && (
+          <div>
+            <div style={qp.upLabel}>NEXT UP</div>
+            <div style={qp.upList}>
+              {upcoming.map(o => (
+                <div key={o._id} style={qp.upItem}>
+                  <span style={qp.upToken}>{o.tokenStr || "#" + Number(o.tokenNumber)}</span>
+                  <span style={qp.upName}>
+                    {o.orderType === "walk-in" ? (o.guestInfo?.name || "Walk-in") : (o.userId?.name || "Online")}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {!state && <div style={qp.unavailable}>Queue status unavailable</div>}
+        {state && totalIssued === 0 && <div style={qp.unavailable}>No tokens issued today</div>}
+      </div>
+    );
+  };
+
   return (
     <div style={qp.wrap}>
       <div style={qp.header}>
         <span style={{ fontSize: "20px" }}>🎫</span>
         <div>
-          <div style={qp.headerTitle}>Queue Today</div>
-          <div style={qp.headerSub}>{queue.length} tokens issued</div>
+          <div style={qp.headerTitle}>Order Queues</div>
+          <div style={qp.headerSub}>Live token pointers for today</div>
         </div>
       </div>
-      <div style={qp.nowWrap}>
-        <div style={qp.nowLabel}>NOW SERVING</div>
-        {serving ? (
-          <div style={qp.nowToken}>
-            <span style={qp.nowNum}>{serving.tokenStr || "—"}</span>
-            <span style={qp.nowName}>{serving.orderType === "walk-in" ? (serving.guestInfo?.name || "Walk-in") : (serving.userId?.name || "Online")}</span>
-            <StatusChip status={serving.status} />
-          </div>
-        ) : (
-          <div style={{ color: "#9ca3af", fontSize: "13px", padding: "10px 0", textAlign: "center" }}>No active order</div>
-        )}
-      </div>
-      {upcoming.length > 0 && (
-        <div>
-          <div style={qp.upLabel}>NEXT UP</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-            {upcoming.map((o, i) => (
-              <div key={o._id} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "8px 10px", background: i === 0 ? "#f0fdf4" : "#f9fafb", borderRadius: "8px", border: `1px solid ${i === 0 ? "#86efac" : "#f3f4f6"}` }}>
-                <span style={{ background: "#166534", color: "white", padding: "2px 8px", borderRadius: "6px", fontSize: "11px", fontWeight: "700", minWidth: "60px", textAlign: "center" }}>
-                  {o.tokenStr || `#${i + 2}`}
-                </span>
-                <span style={{ fontSize: "13px", fontWeight: "500", color: "#333", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                  {o.orderType === "walk-in" ? (o.guestInfo?.name || "Walk-in") : (o.userId?.name || "Online")}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-      {queue.length === 0 && (
-        <div style={{ textAlign: "center", padding: "24px", color: "#d1d5db" }}>
-          <div style={{ fontSize: "28px" }}>🕐</div>
-          <div style={{ fontSize: "13px", marginTop: "6px" }}>No orders in queue today</div>
-        </div>
-      )}
+      {renderQueue("order", "Online Orders", "🌐")}
+      {renderQueue("walkin", "Walk-ins", "🏪")}
     </div>
   );
 }
 
 const qp = {
   wrap:        { background: "white", borderRadius: "12px", padding: "18px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", position: "sticky", top: "20px" },
+  queueBlock:  { padding: "12px 0", borderTop: "1px solid #f3f4f6" },
+  queueTitle:  { display: "flex", alignItems: "center", gap: "7px", fontSize: "12px", fontWeight: "700", color: "#374151", marginBottom: "9px" },
+  waiting:     { marginLeft: "auto", fontSize: "10px", color: "#6b7280", fontWeight: "600" },
+  upList:      { display: "flex", flexDirection: "column", gap: "6px" },
+  upItem:      { display: "flex", alignItems: "center", gap: "8px", padding: "7px 8px", background: "#f9fafb", borderRadius: "7px" },
+  upToken:     { background: "#166534", color: "white", padding: "2px 7px", borderRadius: "5px", fontSize: "10px", fontWeight: "700", minWidth: "55px", textAlign: "center" },
+  upName:      { fontSize: "12px", color: "#374151", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" },
+  unavailable: { fontSize: "11px", color: "#9ca3af", textAlign: "center", padding: "8px 0" },
   header:      { display: "flex", alignItems: "center", gap: "10px", marginBottom: "14px", paddingBottom: "12px", borderBottom: "1px solid #f3f4f6" },
   headerTitle: { fontWeight: "700", fontSize: "14px", color: "#111" },
   headerSub:   { fontSize: "11px", color: "#888" },
@@ -256,6 +292,7 @@ export default function StaffDashboard() {
   const [confirmData, setConfirmData]   = useState(null);
   const [updating, setUpdating]         = useState(false);
   const [toast, setToast]               = useState(null);
+  const [queueState, setQueueState] = useState({ order: null, walkin: null });
 
   // ─── POS STATE ───────────────────────────────────────────────────────────
   const [medicines, setMedicines]               = useState([]);
@@ -294,11 +331,29 @@ export default function StaffDashboard() {
     finally { setLoading(false); setRefreshing(false); }
   }, [navigate]);
 
+  const fetchQueue = useCallback(async (silent = true) => {
+    try {
+      const [orderRes, walkinRes] = await Promise.all([
+        fetch(`${BASE_URL}/queue/status?type=order`, { credentials: "include" }),
+        fetch(`${BASE_URL}/queue/status?type=walkin`, { credentials: "include" }),
+      ]);
+      if (!orderRes.ok || !walkinRes.ok) throw new Error("Queue request failed");
+      const [order, walkin] = await Promise.all([orderRes.json(), walkinRes.json()]);
+      setQueueState({ order, walkin });
+    } catch {
+      if (!silent) showToast("Unable to refresh queue status", false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchOrders();
-    const iv = setInterval(() => fetchOrders(true), 15000);
+    fetchQueue();
+    const iv = setInterval(() => {
+      fetchOrders(true);
+      fetchQueue(true);
+    }, 15000);
     return () => clearInterval(iv);
-  }, [fetchOrders]);
+  }, [fetchOrders, fetchQueue]);
 
   // ─── FETCH MEDICINES ─────────────────────────────────────────────────────
   // ✅ FIX: was calling res.json() twice — second call returned empty stream
@@ -395,10 +450,17 @@ export default function StaffDashboard() {
   };
 
   const posAddToCart = (med) => {
-    if (med.stock <= 0) { showToast(med.name + " is out of stock", false); return; }
+    const stock = Math.max(0, Number(med.stock) || 0);
+    if (stock <= 0) { showToast(med.name + " is out of stock", false); return; }
     setPosCart(prev => {
       const ex = prev.find(i => i._id === med._id);
-      if (ex) return prev.map(i => i._id === med._id ? { ...i, quantity: (i.quantity || 1) + 1 } : i);
+      if (ex) {
+        if ((ex.quantity || 1) >= stock) {
+          showToast("Only " + stock + " unit" + (stock === 1 ? "" : "s") + " available", false);
+          return prev;
+        }
+        return prev.map(i => i._id === med._id ? { ...i, quantity: (i.quantity || 1) + 1 } : i);
+      }
       return [...prev, { ...med, quantity: 1 }];
     });
   };
@@ -409,8 +471,14 @@ export default function StaffDashboard() {
     setPosCart(prev =>
       prev.map(i => {
         if (i._id !== id) return i;
+        const stock = Math.max(0, Number(i.stock) || 0);
         const q = (i.quantity || 1) + delta;
-        return q <= 0 ? null : { ...i, quantity: q };
+        if (q <= 0) return null;
+        if (q > stock) {
+          showToast("Only " + stock + " unit" + (stock === 1 ? "" : "s") + " available", false);
+          return i;
+        }
+        return { ...i, quantity: q };
       }).filter(Boolean)
     );
 
@@ -492,8 +560,9 @@ export default function StaffDashboard() {
       generateReceipt(data.order || data);
       setPosCart([]); setPosCustomerName(""); setPosCustomerPhone("");
       setPosPaymentMethod("cash"); setPosMatchedUser(null); setPosSearch("");
-      fetchMedicines(); // ✅ refresh stock counts after sale
+      fetchMedicines();
       fetchOrders(true);
+      fetchQueue(true);
     } catch (err) {
       showToast(err.message || "Failed to create order", false);
     } finally { setPosPlacing(false); }
@@ -506,12 +575,40 @@ export default function StaffDashboard() {
 
   // ─── RENDER ──────────────────────────────────────────────────────────────
   return (
-    <div style={s.page}>
+    <div style={s.page} className="staff-dashboard">
       <style>{`
         @keyframes spin    { to { transform: rotate(360deg); } }
         @keyframes slideIn { from { opacity:0; transform:translateY(-10px); } to { opacity:1; transform:translateY(0); } }
         @keyframes pulse   { 0%,100% { opacity:1; } 50% { opacity:.4; } }
         input:focus, select:focus { outline:none; border-color:#166534 !important; box-shadow:0 0 0 3px rgba(22,101,52,0.1); }
+        .staff-orders-layout { min-width: 0; }
+        .staff-side-column { min-width: 0; }
+        .staff-pos-grid { min-width: 0; }
+        @media (max-width: 1050px) {
+          .staff-header { flex-wrap: wrap; gap: 12px; }
+          .staff-orders-layout { flex-direction: column !important; }
+          .staff-side-column { width: 100% !important; }
+          .staff-pos-grid { grid-template-columns: minmax(0, 1fr) !important; }
+          .staff-pos-cart { position: static !important; }
+        }
+        @media (max-width: 700px) {
+          .staff-header { padding: 14px 16px !important; align-items: flex-start !important; }
+          .staff-header > div:last-child { width: 100%; flex-wrap: wrap; }
+          .staff-header > div:last-child button { min-height: 42px; }
+          .staff-header h1 { font-size: 18px !important; }
+          .staff-tabbar { padding: 0 12px !important; overflow-x: auto; }
+          .staff-tabbar button { min-height: 46px; white-space: nowrap; }
+        }
+        @media (max-width: 560px) {
+          .staff-body { padding: 14px !important; }
+          .staff-toolbar-controls { width: 100%; }
+          .staff-toolbar-controls > * { flex: 1 1 100%; min-width: 0 !important; width: 100%; }
+          .staff-pos-customer-grid { grid-template-columns: 1fr !important; }
+          .staff-pos-cart { width: 100%; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .staff-dashboard * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+        }
       `}</style>
 
       {/* TOAST */}
@@ -531,7 +628,7 @@ export default function StaffDashboard() {
       />
 
       {/* HEADER */}
-      <div style={s.header}>
+      <div style={s.header} className="staff-header">
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           <div style={s.headerIcon}>🏥</div>
           <div>
@@ -549,12 +646,12 @@ export default function StaffDashboard() {
       </div>
 
       {/* TAB BAR */}
-      <div style={s.tabBar}>
+      <div style={s.tabBar} className="staff-tabbar" role="tablist" aria-label="Staff dashboard sections">
         {[
           { id: "orders", label: "📦 Orders" },
           { id: "pos",    label: "🏪 Walk-in POS" },
         ].map(tab => (
-          <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+          <button key={tab.id} role="tab" aria-selected={activeTab === tab.id} onClick={() => setActiveTab(tab.id)}
             style={{ ...s.tab, ...(activeTab === tab.id ? s.tabActive : {}) }}>
             {tab.label}
             {tab.id === "pos" && posCart.length > 0 && (
@@ -567,24 +664,24 @@ export default function StaffDashboard() {
       </div>
 
       {/* BODY */}
-      <div style={s.body}>
+      <div style={s.body} className="staff-body">
 
         {/* ═══════════════ ORDERS TAB ═══════════════ */}
         {activeTab === "orders" && (
           <>
             <StatsBar orders={safeArray(orders)} />
-            <div style={s.layout}>
+            <div style={s.layout} className="staff-orders-layout">
               {/* Orders table */}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={s.card}>
-                  <div style={s.toolbar}>
+                  <div style={s.toolbar} className="staff-toolbar">
                     <div>
                       <h2 style={s.cardTitle}>📦 Orders</h2>
                       <p style={{ margin: "2px 0 0", fontSize: "12px", color: "#9ca3af" }}>
                         Staff view — approve and complete orders only
                       </p>
                     </div>
-                    <div style={s.controls}>
+                    <div style={s.controls} className="staff-toolbar-controls">
                       <div style={s.searchWrap}>
                         <span style={{ color: "#aaa", fontSize: "14px" }}>🔍</span>
                         <input placeholder="Search name or token…" value={search} onChange={e => setSearch(e.target.value)} style={s.searchInput} />
@@ -651,8 +748,8 @@ export default function StaffDashboard() {
               </div>
 
               {/* Queue + permissions */}
-              <div style={{ width: "250px", flexShrink: 0 }}>
-                <QueuePanel orders={safeArray(orders)} />
+              <div style={{ width: "250px", flexShrink: 0 }} className="staff-side-column">
+                <QueuePanel orders={safeArray(orders)} queueState={queueState} />
                 <div style={{ background: "white", borderRadius: "12px", padding: "16px", boxShadow: "0 1px 4px rgba(0,0,0,0.07)", marginTop: "16px" }}>
                   <div style={{ fontSize: "12px", fontWeight: "700", color: "#888", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>Staff Permissions</div>
                   {[
@@ -676,7 +773,7 @@ export default function StaffDashboard() {
 
         {/* ═══════════════ POS TAB ═══════════════ */}
         {activeTab === "pos" && (
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "20px", alignItems: "start" }}>
+          <div className="staff-pos-grid" style={{ display: "grid", gridTemplateColumns: "1fr 360px", gap: "20px", alignItems: "start" }}>
 
             {/* LEFT: Customer info + medicine grid */}
             <div style={s.card}>
@@ -687,14 +784,14 @@ export default function StaffDashboard() {
                 </p>
 
                 {/* Customer fields */}
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
+                <div className="staff-pos-customer-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
                   <div>
                     <label style={s.fieldLabel}>Customer Name <span style={{ color: "#dc2626" }}>*</span></label>
-                    <input placeholder="Enter full name" value={posCustomerName} onChange={e => setPosCustomerName(e.target.value)} style={s.fieldInput} />
+                    <input aria-label="Customer name" placeholder="Enter full name" value={posCustomerName} onChange={e => setPosCustomerName(e.target.value)} style={s.fieldInput} />
                   </div>
                   <div>
                     <label style={s.fieldLabel}>Phone Number</label>
-                    <input placeholder="Phone to look up account" value={posCustomerPhone} onChange={e => handlePhoneChange(e.target.value)} style={s.fieldInput} />
+                    <input aria-label="Customer phone number" inputMode="numeric" type="tel" placeholder="Phone to look up account" value={posCustomerPhone} onChange={e => handlePhoneChange(e.target.value)} style={s.fieldInput} />
                     {posSearchingUser && <p style={{ fontSize: "11px", color: "#9ca3af", marginTop: "4px" }}>🔍 Looking up account…</p>}
                     {posMatchedUser && (
                       <div style={{ marginTop: "5px", padding: "6px 10px", background: "#dcfce7", borderRadius: "7px", fontSize: "12px", color: "#166534" }}>
@@ -730,7 +827,7 @@ export default function StaffDashboard() {
                   <label style={s.fieldLabel}>Search & Add Medicines</label>
                   <div style={{ display: "flex", alignItems: "center", gap: "8px", background: "#f9fafb", border: "1px solid #e5e7eb", borderRadius: "8px", padding: "0 12px", height: "36px" }}>
                     <span style={{ color: "#aaa" }}>🔍</span>
-                    <input placeholder="Search medicine name…" value={posSearch} onChange={e => setPosSearch(e.target.value)}
+                    <input aria-label="Search medicines" placeholder="Search medicine name…" value={posSearch} onChange={e => setPosSearch(e.target.value)}
                       style={{ border: "none", background: "transparent", outline: "none", fontSize: "13px", color: "#111", width: "100%" }} />
                     {posSearch && (
                       <button onClick={() => setPosSearch("")} style={{ border: "none", background: "none", cursor: "pointer", color: "#aaa", fontSize: "14px" }}>✕</button>
@@ -795,7 +892,7 @@ export default function StaffDashboard() {
             </div>
 
             {/* RIGHT: Cart */}
-            <div style={{ position: "sticky", top: "20px" }}>
+            <div className="staff-pos-cart" style={{ position: "sticky", top: "20px" }}>
               <div style={{ ...s.card, border: "2px solid #166534" }}>
                 <div style={{ padding: "14px 18px", borderBottom: "1px solid #f3f4f6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#166534" }}>🛒 Order Summary</h3>
@@ -820,12 +917,12 @@ export default function StaffDashboard() {
                               <div style={{ fontSize: "11px", color: "#9ca3af" }}>Rs.{item.price} each</div>
                             </div>
                             <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                              <button onClick={() => posChangeQty(item._id, -1)} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
+                              <button onClick={() => posChangeQty(item._id, -1)} aria-label={"Decrease " + item.name + " quantity"} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>−</button>
                               <span style={{ fontWeight: "700", minWidth: "20px", textAlign: "center", fontSize: "13px" }}>{item.quantity}</span>
-                              <button onClick={() => posChangeQty(item._id, 1)} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
+                              <button onClick={() => posChangeQty(item._id, 1)} aria-label={"Increase " + item.name + " quantity"} style={{ width: "24px", height: "24px", borderRadius: "50%", border: "1px solid #e5e7eb", background: "white", cursor: "pointer", fontSize: "14px", display: "flex", alignItems: "center", justifyContent: "center" }}>+</button>
                             </div>
                             <div style={{ fontWeight: "700", color: "#166534", minWidth: "54px", textAlign: "right", fontSize: "13px" }}>Rs.{Number(item.price) * item.quantity}</div>
-                            <button onClick={() => posRemoveFromCart(item._id)} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: "14px", padding: "0", flexShrink: 0 }}>✕</button>
+                            <button onClick={() => posRemoveFromCart(item._id)} aria-label={"Remove " + item.name} style={{ background: "none", border: "none", cursor: "pointer", color: "#dc2626", fontSize: "14px", padding: "0", flexShrink: 0 }}>✕</button>
                           </div>
                         ))}
                       </div>
