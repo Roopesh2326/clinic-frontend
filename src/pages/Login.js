@@ -69,9 +69,11 @@ export default function Login() {
           {error && <div style={s.errorBox}>⚠️ {error}</div>}
 
           <div style={s.field}>
-            <label style={s.label}>Email address</label>
+            <label htmlFor="login-email" style={s.label}>Email address</label>
             <input
+              id="login-email"
               type="email"
+              autoComplete="email"
               placeholder="Enter your email"
               value={form.email}
               onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
@@ -82,9 +84,11 @@ export default function Login() {
           </div>
 
           <div style={s.field}>
-            <label style={s.label}>Password</label>
+            <label htmlFor="login-password" style={s.label}>Password</label>
             <input
+              id="login-password"
               type="password"
+              autoComplete="current-password"
               placeholder="Enter your password"
               value={form.password}
               onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
@@ -126,6 +130,8 @@ export default function Login() {
 
       <style>{`
         input:focus { outline: none; border-color: #166534 !important; box-shadow: 0 0 0 3px rgba(22,101,52,0.12); }
+        button[type="submit"]:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(22,101,52,.22); }
+        button[type="submit"]:focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(34,197,94,.25), 0 10px 24px rgba(22,101,52,.18); }
         @keyframes spin { to { transform: rotate(360deg); } }
       `}</style>
     </div>
@@ -133,8 +139,8 @@ export default function Login() {
 }
 
 const s = {
-  page:     { minHeight: "100vh", background: "linear-gradient(135deg, #f0fdf4 0%, #dcfce7 50%, #f0fdf4 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Segoe UI', system-ui, sans-serif", padding: "20px" },
-  card:     { background: "white", borderRadius: "20px", padding: "40px 36px", width: "100%", maxWidth: "420px", boxShadow: "0 8px 40px rgba(22,101,52,0.15)" },
+  page:     { minHeight: "100vh", background: "radial-gradient(circle at 15% 15%, rgba(34,197,94,.16), transparent 34%), linear-gradient(135deg, #f8fbf8 0%, #eef8f0 50%, #faf8f3 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Segoe UI', system-ui, sans-serif", padding: "20px" },
+  card:     { background: "rgba(255,255,255,.96)", border: "1px solid #e4ece7", borderRadius: "24px", padding: "42px 36px", width: "100%", maxWidth: "420px", boxShadow: "0 8px 40px rgba(22,101,52,0.15)" },
   header:   { textAlign: "center", marginBottom: "32px" },
   logo:     { width: "60px", height: "60px", background: "linear-gradient(135deg,#14532d,#16a34a)", borderRadius: "16px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", margin: "0 auto 14px" },
   title:    { fontSize: "24px", fontWeight: "800", color: "#111", margin: "0 0 6px" },
@@ -143,7 +149,7 @@ const s = {
   field:    { display: "flex", flexDirection: "column", gap: "6px" },
   label:    { fontSize: "14px", fontWeight: "600", color: "#374151" },
   input:    { padding: "12px 16px", border: "1.5px solid #e5e7eb", borderRadius: "10px", fontSize: "15px", outline: "none", transition: "border-color 0.15s, box-shadow 0.15s", fontFamily: "inherit" },
-  btn:      { padding: "14px", background: "#166534", color: "white", border: "none", borderRadius: "12px", fontSize: "16px", fontWeight: "700", transition: "background 0.15s" },
+  btn:      { padding: "14px", background: "linear-gradient(135deg,#155231,#22c55e)", color: "white", border: "none", borderRadius: "12px", fontSize: "16px", fontWeight: "700", transition: "background 0.15s" },
   spinner:  { width: "18px", height: "18px", border: "2px solid rgba(255,255,255,0.4)", borderTop: "2px solid white", borderRadius: "50%", display: "inline-block", animation: "spin 0.8s linear infinite" },
   errorBox: { background: "#fef2f2", border: "1px solid #fecaca", borderRadius: "10px", padding: "12px 16px", color: "#dc2626", fontSize: "14px", fontWeight: "500" },
 };
