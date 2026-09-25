@@ -356,7 +356,7 @@ export default function UserDashboard() {
           <Link to="/store" title="Medicine Store" style={{ display: "flex", alignItems: "center", justifyContent: "center", padding: "12px 0", background: "rgba(255,255,255,0.1)", borderRadius: "10px", fontSize: "18px", textDecoration: "none" }}>💊</Link>
           <button type="button" onClick={handleLogout} title="Logout" aria-label="Logout" style={{ padding: "12px 0", background: "rgba(239,68,68,0.2)", border: "none", borderRadius: "10px", cursor: "pointer", fontSize: "18px", color: "white" }}>🚪</button>
         </div>
-      </aside>
+      </div>
 
       {/* ── MAIN AREA ── */}
       <div className="patient-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowY: "auto" }}>
@@ -697,7 +697,7 @@ export default function UserDashboard() {
 
           </div>
 
-          <aside className="patient-aside" aria-label="Patient summary" style={{ display: "flex", flexDirection: "column", gap: "20px", position: "sticky", top: "88px" }}>
+          <div className="patient-aside" role="complementary" aria-label="Patient summary" style={{ display: "flex", flexDirection: "column", gap: "20px", position: "sticky", top: "88px" }}>
             <div style={{ background: "white", borderRadius: "20px", padding: "20px", boxShadow: "0 1px 8px rgba(0,0,0,0.05)" }}>
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
                 <h3 style={{ margin: 0, fontSize: "15px", fontWeight: "700", color: "#1e293b" }}>🔔 Notifications</h3>
