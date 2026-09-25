@@ -5,6 +5,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { getToken } from "../utils/auth";
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
 
@@ -70,30 +71,41 @@ export default function Receptiondesk() {
   }, []);
 
   // ── FETCH QUEUE STATUS ──────────────────────────────────────────────────────
-  const fetchQueue = async (type) => {
+  // Use the backend aggregate queue endpoint instead of three separate
+  // requests on every refresh cycle.
+  const fetchQueue = async () => {
     try {
-      const r = await axios.get(`${BASE_URL}/queue/status?type=${type}`,{withCredentials:true});
-      setQueueStatus(p => ({...p,[type]:r.data}));
+      const token = getToken();
+      const r = await axios.get(`${BASE_URL}/queue`, {
+        withCredentials: true,
+        headers: token ? { Authorization: "Bearer " + token } : {},
+      });
+      const data = r.data || {};
+      const normalized = Object.fromEntries(
+        Object.entries(data).map(([type, value]) => [
+          type,
+          {
+            ...value,
+            currentServing: value?.current?.number || 0,
+            nextToken: value?.next?.[0]?.number || null,
+          },
+        ])
+      );
+      setQueueStatus(normalized);
     } catch {}
   };
 
   useEffect(() => {
     if (!authChecked) return;
-    fetchQueue("appointment");
-    fetchQueue("order");
-    fetchQueue("walkin");
-    const interval = setInterval(() => {
-      fetchQueue("appointment");
-      fetchQueue("order");
-      fetchQueue("walkin");
-    }, 8000);
+    fetchQueue();
+    const interval = setInterval(fetchQueue, 8000);
 
     // Socket.io — keep the connection scoped to this screen.
     let socket;
     import("socket.io-client").then(({io}) => {
       socket = io(BASE_URL,{withCredentials:true});
       socket.on("queue:update", d => {
-        if (d?.type) setQueueStatus(p => ({...p,[d.type]:d}));
+        if (d?.type) fetchQueue();
       });
     }).catch(()=>{});
 
@@ -102,7 +114,6 @@ export default function Receptiondesk() {
       if (socket) socket.disconnect();
     };
   }, [authChecked]);
-
   // ── FETCH APPOINTMENTS ──────────────────────────────────────────────────────
   const fetchAppointments = async () => {
     setAptLoading(true);
