@@ -337,25 +337,27 @@ export default function UserDashboard() {
         .patient-sidebar-utilities button:hover{background:rgba(239,68,68,.32)!important;transform:translateY(-1px)}
         .patient-sidebar-utilities a,.patient-sidebar-utilities button{transition:background .15s ease,transform .15s ease}
         .patient-stat:hover{box-shadow:0 8px 24px rgba(15,60,35,.08)}
+        .patient-mobile-bottom-nav{display:none}
+        .patient-mobile-nav-item{font-family:inherit}
         @media(max-width:980px){.patient-content{grid-template-columns:1fr!important}.patient-aside{position:static!important;display:grid!important;grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
         @media(max-width:720px){
           .patient-dashboard{display:block!important}
-          .patient-sidebar{width:100%!important;height:auto!important;min-height:64px;position:sticky!important;top:0!important;flex-direction:row!important;padding:8px 10px!important;overflow-x:auto}
-          .patient-sidebar>div:first-child{width:38px!important;height:38px!important;min-width:38px;margin:0 8px 0 0!important}
-          .patient-sidebar>div:nth-child(2){flex-direction:row!important;width:auto!important;padding:0!important;gap:4px!important;overflow-x:auto}
-          .patient-sidebar>div:nth-child(2) .nav-item{width:46px!important;min-width:46px;padding:10px 0!important}
-          .patient-sidebar>div:last-child{flex-direction:row!important;width:auto!important;padding:0 0 0 6px!important;gap:4px!important}
-          .patient-sidebar>div:last-child a,.patient-sidebar>div:last-child button{width:46px!important;min-width:46px;padding:10px 0!important}
+          .patient-sidebar{display:none!important}
+          .patient-mobile-bottom-nav{display:flex;position:fixed;left:0;right:0;bottom:0;height:68px;background:rgba(255,255,255,.97);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid #e2e8f0;box-shadow:0 -8px 24px rgba(15,23,42,.08);z-index:100;align-items:stretch;justify-content:space-around;padding:5px 6px calc(5px + env(safe-area-inset-bottom))}
+          .patient-mobile-nav-item{flex:1;min-width:0;border:0;background:transparent;color:#64748b;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;border-radius:10px;font-size:9px;font-weight:700;cursor:pointer;padding:4px 2px}
+          .patient-mobile-nav-icon{font-size:19px;line-height:1}
+          .patient-mobile-nav-item.is-active{background:#ecfdf3;color:#166534}
+          .patient-mobile-nav-item:focus-visible{outline:3px solid rgba(34,197,94,.28);outline-offset:-2px}
           .patient-header{padding:12px 16px!important}
           .patient-header>div:first-child h1{font-size:18px!important}
           .patient-header>div:last-child>div:first-child{display:none!important}
           .patient-header>div:last-child>a>div{padding:8px 11px!important}
           .patient-header>div:last-child>div:last-child{padding:5px 8px!important}
           .patient-header>div:last-child>div:last-child>div:last-child{display:none}
-          .patient-content{padding:16px!important;gap:16px!important}
+          .patient-content{padding:16px 16px 92px!important;gap:16px!important}
           .patient-aside{grid-template-columns:1fr!important;gap:12px!important}
         }
-        @media(max-width:480px){.patient-content{padding:12px!important}.patient-header{gap:8px}.patient-header>div:last-child{gap:6px!important}.patient-header>div:last-child>a>div{font-size:11px!important}.patient-dashboard .order-card{padding:15px!important}}
+        @media(max-width:480px){.patient-content{padding:12px 12px 92px!important}.patient-header{gap:8px}.patient-header>div:last-child{gap:6px!important}.patient-header>div:last-child>a>div{font-size:11px!important}.patient-dashboard .order-card{padding:15px!important}}
         @media(prefers-reduced-motion:reduce){.patient-dashboard *,.patient-dashboard *::before,.patient-dashboard *::after{animation-duration:.01ms!important;transition-duration:.01ms!important}}
       `}</style>
 
@@ -382,7 +384,22 @@ export default function UserDashboard() {
         </div>
       </aside>
 
-      {/* ── MAIN AREA ── */}
+      <nav className="patient-mobile-bottom-nav" aria-label="Mobile patient navigation">
+        {navItems.map(item => (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => setActiveSection(item.id)}
+            className={activeSection === item.id ? "patient-mobile-nav-item is-active" : "patient-mobile-nav-item"}
+            aria-current={activeSection === item.id ? "page" : undefined}
+          >
+            <span className="patient-mobile-nav-icon">{item.icon}</span>
+            <span>{item.label === "Overview" ? "Home" : item.label === "Queue Status" ? "Queue" : item.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {/* ── MAIN AREA ── */
       <div className="patient-main" style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflowY: "auto" }}>
 
         <header className="patient-header" style={{ background: "white", padding: "14px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "1px solid #e8edf2", position: "sticky", top: 0, zIndex: 9 }}>
@@ -489,7 +506,7 @@ export default function UserDashboard() {
                     </div>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px" }}>
                       <div>
-                        <div style={{ fontWeight: "700", color: "#1e293b", fontSize: "15px" }}>{lastApt.date} at {lastApt.time}</div>
+                        <div style={{ fontWeight: "700", color: "#1e293b", fontSize: "15px" }}>{formatAppointmentDate(lastApt.date)} at {lastApt.time || "—"}</div>
                         <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px" }}>{lastApt.problem?.slice(0, 60)}{lastApt.problem?.length > 60 ? "…" : ""}</div>
                       </div>
                       <StatusChip status={lastApt.status} />
