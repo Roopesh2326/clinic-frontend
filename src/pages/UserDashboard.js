@@ -119,7 +119,15 @@ function ProfilePhotoUploader({initials,photo,onPhotoChange}){
     reader.readAsDataURL(f);
   };
   return(
-    <div style={{position:"relative",display:"inline-block",cursor:"pointer"}} onClick={()=>fileRef.current?.click()} title="Click to change profile photo">
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label="Change profile photo"
+      onClick={()=>fileRef.current?.click()}
+      onKeyDown={(e)=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();fileRef.current?.click();}}}
+      style={{position:"relative",display:"inline-block",cursor:"pointer"}}
+      title="Click to change profile photo"
+    >
       <div style={{width:"68px",height:"68px",borderRadius:"18px",background:photo?"transparent":"linear-gradient(135deg,#166534,#4ade80)",display:"flex",alignItems:"center",justifyContent:"center",color:"white",fontWeight:"800",fontSize:"22px",flexShrink:0,overflow:"hidden",border:"3px solid white",boxShadow:"0 4px 14px rgba(0,0,0,0.15)"}}>
         {photo?<img src={photo} alt="Profile" style={{width:"100%",height:"100%",objectFit:"cover"}}/>:uploading?"…":initials}
       </div>
