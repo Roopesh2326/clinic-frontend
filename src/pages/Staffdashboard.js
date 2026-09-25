@@ -1,7 +1,21 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { getToken } from "../utils/auth";
 
 const BASE_URL = "https://clinic-backend-mxto.onrender.com";
+
+// Send the JWT explicitly because cross-origin cookies can be unavailable on mobile browsers.
+const authFetch = (url, options = {}) => {
+  const token = getToken();
+  return fetch(url, {
+    ...options,
+    credentials: "include",
+    headers: {
+      ...(options.headers || {}),
+      ...(token ? { Authorization: "Bearer " + token } : {}),
+    },
+  });
+};
 
 // ─── STATUS CONFIG ────────────────────────────────────────────────────────────
 const NEXT_STATUS = { Pending: "Approved", Approved: "Completed" };
@@ -320,8 +334,9 @@ export default function StaffDashboard() {
     if (!silent) setLoading(true);
     else setRefreshing(true);
     try {
-      const res = await fetch(`${BASE_URL}/staff/orders`, { credentials: "include" });
-      if (res.status === 401 || res.status === 403) { navigate("/login", { replace: true }); return; }
+      const res = await authFetch(`${BASE_URL}/staff/orders`);
+      if (res.status === 401) { navigate("/login", { replace: true }); return; }
+      if (res.status === 403) { showToast("Staff permission denied for orders", false); return; }
       if (res.ok) {
         const data = await res.json();
         setOrders(Array.isArray(data) ? data : []);
@@ -334,8 +349,8 @@ export default function StaffDashboard() {
   const fetchQueue = useCallback(async (silent = true) => {
     try {
       const [orderRes, walkinRes] = await Promise.all([
-        fetch(`${BASE_URL}/queue/status?type=order`, { credentials: "include" }),
-        fetch(`${BASE_URL}/queue/status?type=walkin`, { credentials: "include" }),
+        authFetch(`${BASE_URL}/queue/status?type=order`),
+        authFetch(`${BASE_URL}/queue/status?type=walkin`),
       ]);
       if (!orderRes.ok || !walkinRes.ok) throw new Error("Queue request failed");
       const [order, walkin] = await Promise.all([orderRes.json(), walkinRes.json()]);
@@ -360,7 +375,7 @@ export default function StaffDashboard() {
   const fetchMedicines = useCallback(async () => {
     setMedLoading(true);
     try {
-      const res = await fetch(`${BASE_URL}/medicines/all`, { credentials: "include" });
+      const res = await authFetch(`${BASE_URL}/medicines/all`);
       if (res.ok) {
         const data = await res.json(); // ✅ call ONCE, store in variable
         setMedicines(Array.isArray(data) ? data : []);
@@ -386,10 +401,9 @@ export default function StaffDashboard() {
     if (!confirmData) return;
     setUpdating(true);
     try {
-      const res = await fetch(`${BASE_URL}/staff/orders/${confirmData.order._id}/status`, {
+      const res = await authFetch(`${BASE_URL}/staff/orders/${confirmData.order._id}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        credentials: "include",
         body: JSON.stringify({ status: confirmData.nextStatus }),
       });
       if (res.ok) {
@@ -408,7 +422,7 @@ export default function StaffDashboard() {
 
   // ─── LOGOUT ──────────────────────────────────────────────────────────────
   const handleLogout = async () => {
-    await fetch(`${BASE_URL}/logout`, { method: "POST", credentials: "include" }).catch(() => {});
+    await authFetch(`${BASE_URL}/logout`, { method: "POST" }).catch(() => {});
     ["isLoggedIn","role","email","name","phone","userId"].forEach(k => localStorage.removeItem(k));
     navigate("/login", { replace: true });
   };
@@ -433,7 +447,7 @@ export default function StaffDashboard() {
     if (!phone || phone.length < 5) { setPosMatchedUser(null); return; }
     setPosSearchingUser(true);
     try {
-      const res  = await fetch(`${BASE_URL}/users/search?phone=${phone}`, { credentials: "include" });
+      const res  = await authFetch(`${BASE_URL}/users/search?phone=${phone}`);
       const data = await res.json();
       if (Array.isArray(data) && data.length > 0) {
         setPosMatchedUser(data[0]);
@@ -541,7 +555,7 @@ export default function StaffDashboard() {
     if (!posCustomerName.trim()) { showToast("Enter customer name", false); return; }
     setPosPlacing(true);
     try {
-      const res = await fetch(`${BASE_URL}/orders/walk-in`, {
+      const res = await authFetch(`${BASE_URL}/orders/walk-in`, {
         method:  "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
