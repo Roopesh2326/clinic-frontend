@@ -50,9 +50,24 @@ const GLOBAL_CSS = `
   .treat-card:hover { transform:translateY(-6px) !important; box-shadow:0 24px 48px rgba(11,61,31,.12) !important; }
   .step-dot:hover   { transform:scale(1.08); background:${T.g2} !important; }
 
+  .home-cta:focus-visible,
+  .home-card:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(34,197,94,.35), 0 12px 32px rgba(11,61,31,.16);
+  }
+
+  .home-glass {
+    border: 1px solid rgba(255,255,255,.18);
+    box-shadow: 0 18px 50px rgba(0,0,0,.22);
+  }
+
   ::-webkit-scrollbar       { width:6px; }
   ::-webkit-scrollbar-track { background:${T.cr}; }
   ::-webkit-scrollbar-thumb { background:${T.g5}; border-radius:3px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .reveal, .reveal-l, .reveal-r { opacity: 1 !important; transform: none !important; }
+  }
 
   @media (max-width:900px) {
     .hero-grid  { flex-direction:column !important; }
@@ -87,7 +102,7 @@ function useScrollReveal() {
     }, { threshold: 0.12 });
     els.forEach(el => obs.observe(el));
     return () => obs.disconnect();
-  });
+  }, []);
 }
 
 // ─── ANIMATED COUNTER ─────────────────────────────────────────────────────────
@@ -131,7 +146,7 @@ function Hero() {
 
   return (
     <section style={{
-      minHeight: "100vh",
+      minHeight: "min(820px, 100vh)",
       position:  "relative",
       overflow:  "hidden",
       display:   "flex",
@@ -163,7 +178,7 @@ function Hero() {
       <div style={{
         position:  "relative", zIndex: 3,
         maxWidth:  "1200px", margin: "0 auto",
-        padding:   "120px 32px 80px",
+        padding:   "118px 32px 76px",
         display:   "flex", alignItems: "center", gap: "60px",
         width:     "100%",
       }} className="hero-grid">
@@ -229,7 +244,7 @@ function Hero() {
             opacity: loaded ? 1 : 0,
             animation: loaded ? "fadeUp .9s ease .5s both" : "none",
           }} className="hero-btns">
-            <a href="/appointment" style={{
+            <a href="/appointment" className="home-cta" style={{
               fontFamily:"'Plus Jakarta Sans', sans-serif",
               fontSize:"15px", fontWeight:"700",
               padding:"15px 36px", borderRadius:"50px",
@@ -242,7 +257,7 @@ function Hero() {
             onMouseLeave={e => { e.currentTarget.style.transform=""; e.currentTarget.style.boxShadow=`0 8px 28px ${T.g4}50`; }}>
               📅 Book Appointment
             </a>
-            <a href="/store" style={{
+            <a href="/store" className="home-cta" style={{
               fontFamily:"'Plus Jakarta Sans', sans-serif",
               fontSize:"15px", fontWeight:"600",
               padding:"15px 36px", borderRadius:"50px",
@@ -289,7 +304,7 @@ function Hero() {
           opacity: loaded ? 1 : 0,
           animation: loaded ? "fadeIn 1s ease .6s both" : "none",
         }} className="hero-img-wrap">
-          <div style={{
+          <div className="home-card" style={{
             background:"rgba(255,255,255,.1)", backdropFilter:"blur(16px)",
             border:"1px solid rgba(255,255,255,.18)",
             borderRadius:"24px", overflow:"hidden",
@@ -381,7 +396,7 @@ function Hero() {
 function TrustBar() {
   const stats = [
     { num:20,  suf:"+",   label:"Years of Practice" },
-    { num:500, suf:"+",   label:"Patients Healed"   },
+    { num:500, suf:"+",   label:"Patients Served"   },
     { num:100, suf:"%",   label:"Natural Medicine"  },
     { num:4,   suf:".9 ★",label:"Patient Rating"    },
   ];
