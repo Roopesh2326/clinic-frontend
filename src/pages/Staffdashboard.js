@@ -912,8 +912,7 @@ export default function StaffDashboard() {
                       {statusFilter !== "all" && <span>· {statusFilter}</span>}
                       {typeFilter !== "all" && <span>· {typeFilter === "walk-in" ? "Walk-in" : "Online"}</span>}
                     </div>
-                  </div>
-
+                  
                   {loading ? (
                     <div style={s.loading}>
                       <div style={s.spinner} />
